@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Today;
 use App\Http\Middleware\EnsureUserIsNotBlocked;
+use App\Support\InitialsAvatarProvider;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\FontProviders\LocalFontProvider;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -41,6 +42,8 @@ class AdminPanelProvider extends PanelProvider
             )
             // Keine Schriften von fremden Servern: Inter liegt lokal unter public/fonts.
             ->font('Inter', url: fn () => asset('fonts/filament/filament/inter/index.css'), provider: LocalFontProvider::class)
+            // Avatare lokal statt von ui-avatars.com.
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->colors([
                 'primary' => Color::Blue,
                 'danger' => Color::Red,

@@ -10,11 +10,13 @@ use App\Support\Adk;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
@@ -53,7 +55,7 @@ class LeadActions
             });
     }
 
-    /** @return list<\Filament\Schemas\Components\Component|\Filament\Forms\Components\Field> */
+    /** @return list<Component|Field> */
     public static function statusSchema(Lead $lead): array
     {
         $follow = fn (Get $get) => config('adk.statuses.'.$get('status').'.follow_up');

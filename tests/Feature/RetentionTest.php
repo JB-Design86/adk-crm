@@ -9,6 +9,7 @@ use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Services\RetentionService;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 
 beforeEach(function () {
@@ -162,7 +163,7 @@ it('protokolliert nur Anzahl und Zeitpunkt ohne Personendaten', function () {
 });
 
 it('ist als tägliche Aufgabe eingeplant', function () {
-    $events = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events());
+    $events = collect(app(Schedule::class)->events());
 
     expect($events->contains(fn ($event) => str_contains($event->command, 'adk:loeschlauf') && $event->expression === '30 2 * * *'))->toBeTrue();
 });

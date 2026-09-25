@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Leads\Tables;
 
+use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadExportService;
@@ -10,7 +11,6 @@ use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Toggle;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -20,6 +20,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 
 class LeadsTable
@@ -106,8 +107,8 @@ class LeadsTable
                         ->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('next_action_at', '>=', $date))
                         ->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('next_action_at', '<=', $date)))
                     ->indicateUsing(fn (array $data) => array_filter([
-                        ($data['from'] ?? null) ? 'Wiedervorlage ab '.\Illuminate\Support\Carbon::parse($data['from'])->format('d.m.Y') : null,
-                        ($data['until'] ?? null) ? 'Wiedervorlage bis '.\Illuminate\Support\Carbon::parse($data['until'])->format('d.m.Y') : null,
+                        ($data['from'] ?? null) ? 'Wiedervorlage ab '.Carbon::parse($data['from'])->format('d.m.Y') : null,
+                        ($data['until'] ?? null) ? 'Wiedervorlage bis '.Carbon::parse($data['until'])->format('d.m.Y') : null,
                     ])),
             ])
             ->filtersFormColumns(3)
@@ -142,7 +143,7 @@ class LeadsTable
             ->recordActions([
                 ViewAction::make()->label('Öffnen'),
             ])
-            ->recordUrl(fn (Lead $record) => \App\Filament\Resources\Leads\LeadResource::getUrl('view', ['record' => $record]))
+            ->recordUrl(fn (Lead $record) => LeadResource::getUrl('view', ['record' => $record]))
             ->paginated([25, 50, 100]);
     }
 }

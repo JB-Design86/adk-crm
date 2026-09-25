@@ -6,6 +6,7 @@ use App\Filament\Resources\Contacts\ContactResource;
 use App\Filament\Resources\Organizations\OrganizationResource;
 use App\Models\Lead;
 use App\Support\Adk;
+use Filament\Actions\Action;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
@@ -51,7 +52,7 @@ class LeadInfolist
                     ->columnSpan(1)
                     ->visible(fn (Lead $record) => $record->organization_id !== null)
                     ->headerActions([
-                        \Filament\Actions\Action::make('openOrganization')
+                        Action::make('openOrganization')
                             ->label('Öffnen')
                             ->link()
                             ->url(fn (Lead $record) => OrganizationResource::getUrl('edit', ['record' => $record->organization_id])),
@@ -80,7 +81,7 @@ class LeadInfolist
                     ->columnSpan(1)
                     ->visible(fn (Lead $record) => $record->contact_id !== null)
                     ->headerActions([
-                        \Filament\Actions\Action::make('openContact')
+                        Action::make('openContact')
                             ->label('Öffnen')
                             ->link()
                             ->url(fn (Lead $record) => ContactResource::getUrl('edit', ['record' => $record->contact_id])),
