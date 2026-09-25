@@ -2,3 +2,13 @@
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
+
+/* Neue eingehende Anfragen: rot und ganz oben */
+.adk-row-inbound {
+    background-color: var(--color-red-50);
+    box-shadow: inset 4px 0 0 var(--color-red-600);
+}
+
+.dark .adk-row-inbound {
+    background-color: color-mix(in oklab, var(--color-red-500) 12%, transparent);
+}
