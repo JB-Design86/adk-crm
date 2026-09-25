@@ -4,7 +4,9 @@ Stand 25.09.2026 · Stufe 1 · Server: IONOS VPS L+, Ubuntu 24.04 LTS, Plesk
 
 Diese Anleitung beschreibt die Einrichtung von `crm.adk-akademie.de` (Betrieb) und `crm-test.adk-akademie.de` (Test mit erfundenen Daten). Beide Umgebungen laufen aus demselben GitHub-Repository, jede mit eigener Datenbank und eigener `.env`.
 
-Pfade wie `/var/www/vhosts/adk-akademie.de/crm.adk-akademie.de` und `/opt/plesk/php/8.4/bin/php` sind die Plesk-Standards. Weichen sie auf dem Server ab, bitte anpassen.
+Pfade wie `/var/www/vhosts/crm.adk-akademie.de/httpdocs` und `/opt/plesk/php/8.4/bin/php` sind die Plesk-Standards. Weichen sie auf dem Server ab, bitte anpassen.
+
+Menünamen beziehen sich auf die deutsche Plesk-Oberfläche (Plesk Obsidian 18.0).
 
 ---
 
@@ -22,16 +24,19 @@ Pfade wie `/var/www/vhosts/adk-akademie.de/crm.adk-akademie.de` und `/opt/plesk/
 
 ---
 
-## 2 Plesk-Einstellungen je Subdomain
+## 2 Plesk-Einstellungen je Umgebung
 
 ### 2.1 Hosting
 
-1. **Websites & Domains → Subdomain hinzufügen:** `crm` bzw. `crm-test`.
-2. **Hosting-Einstellungen:**
+Betrieb und Test werden als **zwei eigene Domains** angelegt, nicht als Subdomains von `adk-akademie.de`. So bekommt jede Umgebung einen eigenen Systembenutzer und eigene Dateirechte, und Plesk hält sich nicht für die Hauptdomain zuständig. Sonst würde Plesk E-Mails an `@adk-akademie.de` (z. B. eigene Benachrichtigungen) lokal zustellen statt an Exchange Online.
+
+1. **Websites & Domains → Domain hinzufügen → Leere Website:** Domainname `crm.adk-akademie.de` bzw. `crm-test.adk-akademie.de`. Benutzername und Kennwort des Systembenutzers vergeben (Passwortmanager).
+2. **Mail-Einstellungen** der Domain: E-Mail-Dienst **deaktivieren**. Das CRM empfängt keine E-Mails.
+3. **Hosting & DNS → Hosting-Einstellungen:**
    - Dokumentenstamm: **`httpdocs/public`** (das Repository wird nach `httpdocs` ausgeliefert; nur `public/` ist vom Web aus erreichbar).
    - „Permanente SEO-sichere 301-Weiterleitung von HTTP zu HTTPS“: **an**. Die Anwendung leitet zusätzlich selbst um und setzt HSTS.
-3. **SSL/TLS-Zertifikate:** Let's Encrypt für die Subdomain ausstellen, automatische Verlängerung an.
-4. **PHP-Einstellungen:**
+4. **SSL/TLS-Zertifikate:** Let's Encrypt für die Domain ausstellen (erst wenn der DNS-Eintrag auf den Server zeigt), automatische Verlängerung an.
+5. **PHP-Einstellungen:**
    - PHP-Version: **8.4** (8.3 geht auch), Ausführung als **FPM-Anwendung von nginx bzw. Apache**.
    - `memory_limit = 256M`
    - `upload_max_filesize = 20M`, `post_max_size = 25M` (Import bis 20 MB)
@@ -103,7 +108,7 @@ Hinweise:
 - Aufgabentyp: Befehl ausführen
 - Befehl:
   ```bash
-  /opt/plesk/php/8.4/bin/php /var/www/vhosts/adk-akademie.de/crm.adk-akademie.de/httpdocs/artisan schedule:run
+  /opt/plesk/php/8.4/bin/php /var/www/vhosts/crm.adk-akademie.de/httpdocs/artisan schedule:run
   ```
 - Ausführen: **jede Minute** (`* * * * *`)
 - Benachrichtigung: bei Fehlern an die Verwaltung
