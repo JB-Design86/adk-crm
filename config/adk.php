@@ -224,6 +224,9 @@ return [
         'phone_consent_years' => 5,
         // Importprotokoll: Jahre ab Ende des Kalenderjahres
         'import_log_years' => 3,
+        // Organisationen und Kontakte ohne Vorgang: erst nach so vielen Tagen ohne Änderung
+        // löschen, damit gerade angelegte Stammdaten nicht über Nacht verschwinden.
+        'orphan_grace_days' => 7,
         // Uhrzeit des täglichen Löschlaufs
         'run_at' => '02:30',
     ],
