@@ -1,0 +1,180 @@
+<?php
+
+namespace App\Services;
+
+use App\Support\Adk;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonPeriod;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Kennzahlen der Akquise aus den Aktivitäten.
+ *
+ * Anruf = Aktivität vom Typ „call“ (Speichern in der Anrufliste).
+ * Erreicht = Anruf mit einem Ergebnis, das in config('adk.statuses') als reached markiert ist.
+ * Termin / Unterlagen versendet = Aktivität mit Ergebnis appointment bzw. documents_sent.
+ */
+class ReportService
+{
+    public function __construct(
+        private CarbonImmutable $from,
+        private CarbonImmutable $until,
+        private ?int $userId = null,
+    ) {}
+
+    public static function forPeriod(string $from, string $until, ?int $userId = null): self
+    {
+        return new self(CarbonImmutable::parse($from)->startOfDay(), CarbonImmutable::parse($until)->endOfDay(), $userId);
+    }
+
+    /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int}> je Tag */
+    public function perDay(): array
+    {
+        $rows = $this->base()
+            ->selectRaw('DATE(activities.occurred_at) as day')
+            ->selectRaw($this->metricsSql())
+            ->groupBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $result = [];
+
+        foreach (CarbonPeriod::create($this->from, $this->until->startOfDay()) as $day) {
+            $row = $rows->get($day->toDateString());
+            $result[$day->toDateString()] = $this->metrics($row);
+        }
+
+        return $result;
+    }
+
+    /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int}> je Kalenderwoche */
+    public function perWeek(): array
+    {
+        $weeks = [];
+
+        foreach ($this->perDay() as $day => $metrics) {
+            $date = CarbonImmutable::parse($day);
+            $key = 'KW '.$date->isoWeek().' / '.$date->isoWeekYear();
+            $weeks[$key] ??= ['calls' => 0, 'reached' => 0, 'appointments' => 0, 'documents' => 0];
+
+            foreach ($metrics as $name => $value) {
+                $weeks[$key][$name] += $value;
+            }
+        }
+
+        return $weeks;
+    }
+
+    /** @return array{calls: int, reached: int, appointments: int, documents: int} */
+    public function totals(): array
+    {
+        return $this->metrics($this->base()->selectRaw($this->metricsSql())->first());
+    }
+
+    /**
+     * Quoten nach Branche, Kanal oder Importquelle.
+     *
+     * @param  'industry'|'channel'|'source'  $dimension
+     * @return list<array{label: string, calls: int, reached: int, appointments: int, documents: int, reached_rate: ?float, appointment_rate: ?float}>
+     */
+    public function byDimension(string $dimension): array
+    {
+        $column = match ($dimension) {
+            'industry' => 'organizations.industry',
+            'channel' => 'leads.channel',
+            'source' => 'organizations.source',
+        };
+
+        return $this->base()
+            ->selectRaw("{$column} as label")
+            ->selectRaw($this->metricsSql())
+            ->groupBy($column)
+            ->get()
+            ->map(function ($row) use ($dimension) {
+                $metrics = $this->metrics($row);
+                $label = $row->label;
+
+                if ($dimension === 'channel') {
+                    $label = Adk::channelLabel($label);
+                }
+
+                return [
+                    'label' => $label ?? 'ohne Angabe',
+                    ...$metrics,
+                    'reached_rate' => $metrics['calls'] ? $metrics['reached'] / $metrics['calls'] : null,
+                    'appointment_rate' => $metrics['reached'] ? $metrics['appointments'] / $metrics['reached'] : null,
+                ];
+            })
+            ->sortByDesc('calls')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * „Datensatz falsch“ je Importquelle (Rückmeldung an die Prüfstufen der Leadliste).
+     *
+     * @return list<array{source: string, wrong: int, leads: int, rate: ?float}>
+     */
+    public function wrongDataBySource(): array
+    {
+        $wrong = DB::table('activities')
+            ->join('leads', 'leads.id', '=', 'activities.lead_id')
+            ->leftJoin('organizations', 'organizations.id', '=', 'leads.organization_id')
+            ->whereBetween('activities.occurred_at', [$this->from, $this->until])
+            ->where('activities.outcome', 'wrong_data')
+            ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId))
+            ->selectRaw('organizations.source as source, COUNT(DISTINCT leads.id) as wrong')
+            ->groupBy('organizations.source')
+            ->pluck('wrong', 'source');
+
+        $totals = DB::table('organizations')
+            ->selectRaw('source, COUNT(*) as total')
+            ->groupBy('source')
+            ->pluck('total', 'source');
+
+        return $wrong
+            ->map(fn ($count, $source) => [
+                'source' => $source ?: 'ohne Angabe',
+                'wrong' => (int) $count,
+                'leads' => (int) ($totals[$source] ?? 0),
+                'rate' => ($totals[$source] ?? 0) ? $count / $totals[$source] : null,
+            ])
+            ->sortByDesc('wrong')
+            ->values()
+            ->all();
+    }
+
+    private function base(): Builder
+    {
+        return DB::table('activities')
+            ->join('leads', 'leads.id', '=', 'activities.lead_id')
+            ->leftJoin('organizations', 'organizations.id', '=', 'leads.organization_id')
+            ->whereBetween('activities.occurred_at', [$this->from, $this->until])
+            ->whereIn('activities.type', ['call', 'status_change'])
+            ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId));
+    }
+
+    private function metricsSql(): string
+    {
+        $reached = "'".implode("','", Adk::reachedStatuses())."'";
+
+        return implode(', ', [
+            "SUM(CASE WHEN activities.type = 'call' THEN 1 ELSE 0 END) as calls",
+            "SUM(CASE WHEN activities.type = 'call' AND activities.outcome IN ({$reached}) THEN 1 ELSE 0 END) as reached",
+            "SUM(CASE WHEN activities.outcome = 'appointment' THEN 1 ELSE 0 END) as appointments",
+            "SUM(CASE WHEN activities.outcome = 'documents_sent' THEN 1 ELSE 0 END) as documents",
+        ]);
+    }
+
+    /** @return array{calls: int, reached: int, appointments: int, documents: int} */
+    private function metrics(?object $row): array
+    {
+        return [
+            'calls' => (int) ($row->calls ?? 0),
+            'reached' => (int) ($row->reached ?? 0),
+            'appointments' => (int) ($row->appointments ?? 0),
+            'documents' => (int) ($row->documents ?? 0),
+        ];
+    }
+}
