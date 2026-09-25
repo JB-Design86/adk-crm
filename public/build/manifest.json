@@ -1,0 +1,11 @@
+{
+  "resources/css/filament/crm/theme.css": {
+    "file": "assets/theme-D_XKDikH.css",
+    "name": "theme",
+    "names": [
+      "theme.css"
+    ],
+    "src": "resources/css/filament/crm/theme.css",
+    "isEntry": true
+  }
+}

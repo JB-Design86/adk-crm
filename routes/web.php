@@ -1,7 +1,4 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
-Route::get('/', function () {
-    return view('welcome');
-});
+// Alle Seiten liefert das Filament-Panel unter „/“ (App\Providers\Filament\AdminPanelProvider).
+// Es gibt keine öffentlichen Seiten und keine öffentliche Registrierung.
