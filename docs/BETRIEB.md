@@ -35,6 +35,7 @@ Betrieb und Test werden als **zwei eigene Domains** angelegt, nicht als Subdomai
 3. **Hosting & DNS → Hosting-Einstellungen:**
    - Dokumentenstamm: **`httpdocs/public`** (das Repository wird nach `httpdocs` ausgeliefert; nur `public/` ist vom Web aus erreichbar).
    - „Permanente SEO-sichere 301-Weiterleitung von HTTP zu HTTPS“: **an**. Die Anwendung leitet zusätzlich selbst um und setzt HSTS.
+   - Plesk legt beim Anlegen der Domain eine Standardseite `index.html` an, auch im neuen Dokumentenstamm `httpdocs/public`. Diese Datei nach der ersten Bereitstellung **löschen**, sonst zeigt die Startseite die Plesk-Seite statt des CRM.
 4. **SSL/TLS-Zertifikate:** Let's Encrypt für die Domain ausstellen (erst wenn der DNS-Eintrag auf den Server zeigt), automatische Verlängerung an.
 5. **PHP-Einstellungen:**
    - PHP-Version: **8.4** (8.3 geht auch), Ausführung als **FPM-Anwendung von nginx bzw. Apache**.
