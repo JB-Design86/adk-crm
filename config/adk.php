@@ -53,6 +53,7 @@ return [
         'export' => 'Exportieren',
         'users.manage' => 'Benutzer verwalten',
         'blocklist.manage' => 'Sperrliste bearbeiten',
+        'settings.manage' => 'Einstellungen bearbeiten (z. B. Prüfstufen)',
         'audit.view' => 'Protokoll einsehen',
         'health.view' => 'Gesundheitsangaben einsehen',
     ],
@@ -196,15 +197,10 @@ return [
     ],
 
     /*
-    | Prüfstufen der Leadliste (Branchenmatrix).
+    | Prüfstufen der Leadliste (Branchenmatrix) werden nicht hier, sondern von der
+    | Verwaltung in der Oberfläche gepflegt (Verwaltung → Prüfstufen, Tabelle
+    | check_levels). Jede Änderung steht im Protokoll.
     */
-    'check_levels' => [
-        1 => 'Prüfstufe 1',
-        2 => 'Prüfstufe 2',
-        3 => 'Prüfstufe 3',
-        4 => 'Prüfstufe 4',
-        5 => 'Prüfstufe 5',
-    ],
 
     /*
     | Arbeitstage: Montag bis Freitag, bundeseinheitliche Feiertage plus

@@ -12,7 +12,7 @@ use Filament\Actions\Testing\TestAction;
 use Illuminate\Auth\Access\AuthorizationException;
 use Livewire\Livewire;
 
-$adminOnly = ['/benutzer', '/benutzer/create', '/import', '/importe', '/sperrliste', '/sperrliste/create', '/protokoll'];
+$adminOnly = ['/benutzer', '/benutzer/create', '/import', '/importe', '/sperrliste', '/sperrliste/create', '/protokoll', '/pruefstufen', '/pruefstufen/create'];
 $everyone = ['/', '/vorgaenge', '/vorgaenge/create', '/organisationen', '/kontakte'];
 
 it('verwehrt Mitarbeitenden Benutzerverwaltung, Import, Sperrliste und Protokoll', function (string $url) {

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BlocklistEntry;
+use App\Models\CheckLevel;
 use App\Models\Contact;
 use App\Models\ImportLog;
 use App\Models\Lead;
@@ -27,10 +28,11 @@ use Illuminate\Validation\ValidationException;
 class ImportService
 {
     /**
-     * Zielfelder. Die Bezeichnung ist zugleich die Spaltenüberschrift der Mustervorlage.
+     * Feste Zielfelder. Die Bezeichnung ist zugleich die Spaltenüberschrift der Mustervorlage.
      * aliases: weitere Überschriften, die automatisch zugeordnet werden.
+     * Die Prüfstufen kommen dynamisch aus der Tabelle check_levels hinzu, siehe fields().
      */
-    public const FIELDS = [
+    public const BASE_FIELDS = [
         'name' => ['label' => 'Firmenname', 'aliases' => ['firma', 'unternehmen', 'name', 'firmenname']],
         'legal_form' => ['label' => 'Rechtsform', 'aliases' => []],
         'industry' => ['label' => 'Branche', 'aliases' => []],
@@ -44,11 +46,6 @@ class ImportService
         'website' => ['label' => 'Website', 'aliases' => ['webseite', 'internet', 'homepage', 'url']],
         'employee_count' => ['label' => 'Mitarbeitende', 'aliases' => ['mitarbeiter', 'größe', 'groesse', 'anzahl mitarbeitende']],
         'is_training_company' => ['label' => 'Ausbildungsbetrieb', 'aliases' => []],
-        'check_1_passed' => ['label' => 'Prüfstufe 1', 'aliases' => []],
-        'check_2_passed' => ['label' => 'Prüfstufe 2', 'aliases' => []],
-        'check_3_passed' => ['label' => 'Prüfstufe 3', 'aliases' => []],
-        'check_4_passed' => ['label' => 'Prüfstufe 4', 'aliases' => []],
-        'check_5_passed' => ['label' => 'Prüfstufe 5', 'aliases' => []],
         'check_notes' => ['label' => 'Bemerkung Prüfung', 'aliases' => ['bemerkung']],
         'contact_salutation' => ['label' => 'Anrede Ansprechpartner', 'aliases' => ['anrede']],
         'contact_first_name' => ['label' => 'Vorname Ansprechpartner', 'aliases' => ['vorname']],
@@ -57,6 +54,64 @@ class ImportService
         'contact_phone' => ['label' => 'Telefon Ansprechpartner', 'aliases' => ['durchwahl']],
         'contact_email' => ['label' => 'E-Mail Ansprechpartner', 'aliases' => []],
     ];
+
+    public const CHECK_PREFIX = 'check_level_';
+
+    /**
+     * Alle Zielfelder: feste Felder plus je aktiver Prüfstufe eine Spalte
+     * (Schlüssel check_level_{id}), eingefügt vor „Bemerkung Prüfung“.
+     *
+     * @return array<string, array{label: string, aliases: list<string>}>
+     */
+    public static function fields(): array
+    {
+        $fields = [];
+
+        foreach (self::BASE_FIELDS as $key => $definition) {
+            if ($key === 'check_notes') {
+                foreach (CheckLevel::activeOrdered() as $level) {
+                    $fields[self::CHECK_PREFIX.$level->id] = ['label' => $level->name, 'aliases' => []];
+                }
+            }
+
+            $fields[$key] = $definition;
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Mustervorlage (XLSX) mit den aktuellen Spalten, inklusive der aktiven Prüfstufen,
+     * und zwei erfundenen Beispielzeilen.
+     */
+    public static function writeTemplate(string $path): void
+    {
+        $examples = [
+            [
+                'name' => 'Beispiel Steuerberatung GmbH', 'legal_form' => 'GmbH', 'industry' => 'Steuerberatung', 'wz_code' => '69.20',
+                'priority' => 'A', 'street' => 'Musterstraße 1', 'postal_code' => '55116', 'city' => 'Mainz',
+                'phone' => '06131 000000', 'email' => 'info@beispiel-steuer.example', 'website' => 'https://www.beispiel-steuer.example',
+                'employee_count' => '12', 'is_training_company' => 'ja', 'check_notes' => 'erfundene Beispielzeile',
+                'contact_salutation' => 'Frau', 'contact_first_name' => 'Erika', 'contact_last_name' => 'Mustermann',
+                'contact_position' => 'Geschäftsführung', 'contact_phone' => '06131 000001', 'contact_email' => 'e.mustermann@beispiel-steuer.example',
+                'checks' => 'ja',
+            ],
+            [
+                'name' => 'Muster Logistik KG', 'legal_form' => 'KG', 'industry' => 'Spedition und Logistik', 'wz_code' => '52.29',
+                'priority' => 'B', 'street' => 'Beispielweg 5', 'postal_code' => '65428', 'city' => 'Rüsselsheim am Main',
+                'phone' => '06142 000000', 'website' => 'www.muster-logistik.example', 'employee_count' => '45', 'is_training_company' => 'nein',
+                'checks' => 'nein',
+            ],
+        ];
+
+        $fields = self::fields();
+        $rows = array_map(fn (array $example) => array_values(array_map(
+            fn (string $key) => str_starts_with($key, self::CHECK_PREFIX) ? $example['checks'] : ($example[$key] ?? ''),
+            array_keys($fields),
+        )), $examples);
+
+        Spreadsheet::write($path, 'xlsx', array_values(array_column($fields, 'label')), $rows);
+    }
 
     /**
      * Kopfzeile und die ersten Datenzeilen für die Vorschau.
@@ -105,7 +160,7 @@ class ImportService
         $normalized = array_map(fn ($title) => $this->normalizeHeader($title), $header);
         $mapping = [];
 
-        foreach (self::FIELDS as $field => $definition) {
+        foreach (self::fields() as $field => $definition) {
             $candidates = array_map(fn ($title) => $this->normalizeHeader($title), [$definition['label'], ...$definition['aliases']]);
             $index = null;
 
@@ -231,8 +286,14 @@ class ImportService
 
         $data = [];
 
-        foreach (array_keys(self::FIELDS) as $field) {
+        $data['checks'] = [];
+
+        foreach (array_keys(self::fields()) as $field) {
             $data[$field] = $value($field);
+
+            if (str_starts_with($field, self::CHECK_PREFIX)) {
+                $data['checks'][(int) substr($field, strlen(self::CHECK_PREFIX))] = $this->bool($data[$field]);
+            }
         }
 
         $data['phone_e164'] = Phone::normalize($data['phone']);
@@ -243,10 +304,6 @@ class ImportService
         $data['priority'] = in_array(strtoupper((string) $data['priority']), config('adk.priorities'), true) ? strtoupper($data['priority']) : null;
         $data['employee_count'] = is_numeric($data['employee_count']) ? (int) $data['employee_count'] : null;
         $data['is_training_company'] = $this->bool($data['is_training_company']);
-
-        foreach (range(1, 5) as $level) {
-            $data["check_{$level}_passed"] = $this->bool($data["check_{$level}_passed"]);
-        }
 
         if ($data['industry'] && ! $data['wz_code']) {
             $data['wz_code'] = config('adk.industries')[$data['industry']] ?? null;
@@ -345,16 +402,13 @@ class ImportService
             'website' => $data['website'],
             'employee_count' => $data['employee_count'],
             'is_training_company' => $data['is_training_company'],
-            'check_1_passed' => $data['check_1_passed'],
-            'check_2_passed' => $data['check_2_passed'],
-            'check_3_passed' => $data['check_3_passed'],
-            'check_4_passed' => $data['check_4_passed'],
-            'check_5_passed' => $data['check_5_passed'],
             'check_notes' => $data['check_notes'],
             'source' => $source,
             'retrieved_at' => $retrievedAt,
             'import_log_id' => $log->id,
         ]);
+
+        $organization->syncChecks($data['checks']);
 
         $contact = null;
 

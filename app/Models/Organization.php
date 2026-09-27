@@ -23,11 +23,6 @@ class Organization extends Model
             'retrieved_at' => 'date',
             'is_training_company' => 'boolean',
             'employee_count' => 'integer',
-            'check_1_passed' => 'boolean',
-            'check_2_passed' => 'boolean',
-            'check_3_passed' => 'boolean',
-            'check_4_passed' => 'boolean',
-            'check_5_passed' => 'boolean',
         ];
     }
 
@@ -69,6 +64,71 @@ class Organization extends Model
     public function importLog(): BelongsTo
     {
         return $this->belongsTo(ImportLog::class);
+    }
+
+    public function checks(): HasMany
+    {
+        return $this->hasMany(OrganizationCheck::class);
+    }
+
+    /**
+     * Ergebnisse je Prüfstufe für Formulare: [check_level_id => 'passed'|'failed'|'open'].
+     *
+     * @return array<int, string>
+     */
+    public function checkStates(): array
+    {
+        $results = $this->checks()->pluck('passed', 'check_level_id');
+        $states = [];
+
+        foreach (CheckLevel::query()->ordered()->pluck('id') as $levelId) {
+            $states[$levelId] = match ($results[$levelId] ?? null) {
+                true => 'passed',
+                false => 'failed',
+                default => 'open',
+            };
+        }
+
+        return $states;
+    }
+
+    /**
+     * Speichert Ergebnisse je Prüfstufe. Werte: true/'passed', false/'failed', null/'open'.
+     * Stufen, die nicht übergeben werden, bleiben unverändert.
+     *
+     * @param  array<int|string, bool|string|null>  $states
+     */
+    public function syncChecks(array $states): void
+    {
+        $known = CheckLevel::query()->pluck('id')->all();
+
+        foreach ($states as $levelId => $state) {
+            $levelId = (int) $levelId;
+
+            if (! in_array($levelId, $known, true)) {
+                continue;
+            }
+
+            $passed = match ($state) {
+                true, 'passed', '1', 1 => true,
+                false, 'failed', '0', 0 => false,
+                default => null,
+            };
+
+            $existing = $this->checks()->where('check_level_id', $levelId)->first();
+
+            if ($passed === null) {
+                $existing?->delete();
+
+                continue;
+            }
+
+            if ($existing) {
+                $existing->update(['passed' => $passed]);
+            } else {
+                $this->checks()->create(['check_level_id' => $levelId, 'passed' => $passed]);
+            }
+        }
     }
 
     public function isBlocked(): bool

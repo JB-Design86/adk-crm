@@ -9,6 +9,7 @@ use App\Models\Contact;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
+use App\Models\OrganizationCheck;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -193,6 +194,9 @@ class RetentionService
         $orphanContacts = Contact::whereIn('organization_id', $organizationIds)->whereDoesntHave('leads')->pluck('id');
         $this->purgeAuditLog(Contact::class, $orphanContacts);
         $this->counts['contacts'] += Contact::whereIn('id', $orphanContacts)->delete();
+        $checkIds = OrganizationCheck::whereIn('organization_id', $organizationIds)->pluck('id');
+        $this->purgeAuditLog(OrganizationCheck::class, $checkIds);
+        OrganizationCheck::whereIn('id', $checkIds)->delete();
         $this->purgeAuditLog(Organization::class, $organizationIds);
         $this->counts['organizations'] = Organization::whereIn('id', $organizationIds)->delete();
     }

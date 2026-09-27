@@ -112,7 +112,7 @@ class ImportLeads extends Page
                 Section::make('2. Spalten zuordnen')
                     ->description('Links das Feld im CRM, rechts die Spalte aus Ihrer Datei. Nicht zugeordnete Felder bleiben leer.')
                     ->columns(3)
-                    ->schema(collect(ImportService::FIELDS)
+                    ->schema(collect(ImportService::fields())
                         ->map(fn (array $field, string $key) => Select::make($key)
                             ->label($field['label'])
                             ->options($options)
@@ -190,7 +190,7 @@ class ImportLeads extends Page
         foreach ($this->preview['rows'] ?? [] as $row) {
             $mapped = [];
 
-            foreach (ImportService::FIELDS as $key => $field) {
+            foreach (ImportService::fields() as $key => $field) {
                 $index = $this->mapping[$key] ?? null;
 
                 if ($index !== null && $index !== '') {
@@ -211,7 +211,13 @@ class ImportLeads extends Page
                 ->label('Mustervorlage herunterladen')
                 ->icon(Heroicon::OutlinedDocumentArrowDown)
                 ->color('gray')
-                ->action(fn () => response()->download(base_path('docs/import_vorlage.xlsx'), 'import_vorlage.xlsx')),
+                ->action(function () {
+                    // Frisch erzeugt, damit die aktuellen Prüfstufen als Spalten enthalten sind.
+                    $path = tempnam(sys_get_temp_dir(), 'vorlage').'.xlsx';
+                    ImportService::writeTemplate($path);
+
+                    return response()->download($path, 'import_vorlage.xlsx')->deleteFileAfterSend();
+                }),
         ];
     }
 

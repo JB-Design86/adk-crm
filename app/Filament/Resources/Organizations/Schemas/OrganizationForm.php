@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Organizations\Schemas;
 
+use App\Models\CheckLevel;
 use App\Support\Adk;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -10,24 +11,49 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 
 class OrganizationForm
 {
+    public const CHECK_STATES = [
+        'passed' => 'bestanden',
+        'failed' => 'nicht bestanden',
+        'open' => 'offen',
+    ];
+
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Organisation')->columns(3)->schema(self::fields()),
+            Section::make('Organisation')->columns(3)->columnSpanFull()->schema(self::fields()),
             Section::make('Prüfstufen (Branchenmatrix)')
-                ->columns(5)
+                ->description('Die Prüfstufen pflegt die Verwaltung unter Verwaltung → Prüfstufen.')
+                ->columnSpanFull()
                 ->collapsible()
                 ->schema([
-                    ...collect(config('adk.check_levels'))->map(fn (string $label, int $level) => ToggleButtons::make("check_{$level}_passed")
-                        ->label($label)
-                        ->boolean('bestanden', 'nicht bestanden')
-                        ->grouped())->values()->all(),
-                    Textarea::make('check_notes')->label('Bemerkung')->rows(2)->columnSpanFull(),
+                    ...self::checkFields(),
+                    Textarea::make('check_notes')->label('Bemerkung')->rows(2),
                 ]),
         ]);
+    }
+
+    /**
+     * Eine Zeile je aktiver Prüfstufe. Der Zustand liegt unter checks.{id}
+     * und wird von den Seiten Create/EditOrganization gespeichert.
+     *
+     * @return list<ToggleButtons>
+     */
+    public static function checkFields(): array
+    {
+        return CheckLevel::activeOrdered()
+            ->map(fn (CheckLevel $level) => ToggleButtons::make("checks.{$level->id}")
+                ->label($level->name)
+                ->helperText($level->description)
+                ->options(self::CHECK_STATES)
+                ->colors(['passed' => 'success', 'failed' => 'danger', 'open' => 'gray'])
+                ->icons(['passed' => Heroicon::OutlinedCheck, 'failed' => Heroicon::OutlinedXMark, 'open' => Heroicon::OutlinedMinus])
+                ->default('open')
+                ->inline())
+            ->all();
     }
 
     /** Felder, auch für „neu anlegen“ direkt aus dem Vorgang. */
@@ -51,7 +77,7 @@ class OrganizationForm
             TextInput::make('email')->label('E-Mail')->email()->maxLength(255),
             TextInput::make('website')->label('Website')->maxLength(255),
             TextInput::make('employee_count')->label('Mitarbeitende')->numeric()->minValue(0),
-            ToggleButtons::make('is_training_company')->label('Ausbildungsbetrieb')->boolean()->grouped(),
+            ToggleButtons::make('is_training_company')->label('Ausbildungsbetrieb')->boolean()->inline(),
             TextInput::make('source')->label('Quelle')->required()->maxLength(255)->helperText('Pflicht: woher stammen die Daten?'),
             DatePicker::make('retrieved_at')->label('Abrufdatum')->required()->maxDate(today())->default(today()),
         ];

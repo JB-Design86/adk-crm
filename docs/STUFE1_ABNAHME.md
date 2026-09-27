@@ -58,7 +58,7 @@ Abnahme auf `crm-test.adk-akademie.de` mit den Testdaten (`php artisan migrate:f
 Tabellen wie vorgegeben, dazu `activity_log` (Protokoll). Telefonnummern als E.164 (`phone_e164`) und Anzeigeform (`phone_display`). Zusätzliche Spalten:
 
 - `organizations.name_normalized`, `website_domain`: Vergleichsformen für die Dublettenerkennung
-- `organizations.check_1_passed` … `check_5_passed`, `check_notes`: Prüfstufen (siehe offene Frage 5)
+- `check_levels` und `organization_checks`: frei verwaltbare Prüfstufen und ihre Ergebnisse je Organisation (bestanden, nicht bestanden, offen), dazu `organizations.check_notes`
 - `contacts.phone_consent_last_used_at`: für die Frist „5 Jahre ab letzter Verwendung“
 - `leads.close_reason` (Grund bei „Datensatz falsch“), `leads.contracted_at` (Vertragsschluss, für Stufe 3 und den Löschlauf), `leads.import_log_id`
 
@@ -124,6 +124,7 @@ Nicht gebaut, aber vorbereitet:
 | 9 | Privatperson | Vorgang ohne Organisation oder mit Kontakt „Privatperson“ | gilt für Anrufsperre und die 6-Monats-Frist |
 | 10 | Aufbewahrung Interessenten | Betriebe 24 Monate, Privatpersonen 6 Monate | Empfehlung aus Lastenheft Abschnitt 10 Nr. 1, im Auftrag so vorgegeben. Werte in `config/adk.php` |
 | 11 | Beschriftung „Passwort“ | Die Anmeldeseite von Filament schreibt „Passwort“ statt „Kennwort“ | Übersetzung des Pakets. Eigene Texte verwenden „Kennwort“. Siehe offene Frage 9 |
+| 12 | Prüfstufen | Nicht fest „Prüfstufe 1 bis 5“ und nicht in `config/adk.php`, sondern von der Verwaltung unter **Verwaltung → Prüfstufen** anlegbar, umbenennbar, sortierbar, abschaltbar und löschbar. Import-Spalten und Mustervorlage folgen den aktiven Prüfstufen | Wunsch aus der Durchsicht vom 27.09.2026. Nachvollziehbarkeit über das Protokoll statt über Git |
 
 ---
 
@@ -146,7 +147,7 @@ Nicht gebaut, aber vorbereitet:
 2. **„Vorgang ruhen lassen“:** Reichen 3 Monate Wiedervorlage? Oder soll der Vorgang als „Kein Interesse“ geschlossen werden (dann beginnt die Löschfrist)?
 3. **Gelöschte Sperrlisteneinträge:** Beim Löschen eines Sperrlisteneintrags stehen Telefon, E-Mail und Firma weiter im Protokoll (Nachweis). Soll das so bleiben?
 4. **Sichtbarkeit Einwilligung Gesundheitsangaben:** Datum und Nachweis sehen heute beide Rollen. Soll das schon in Stufe 1 nur für die Verwaltung sichtbar sein?
-5. **Branchenmatrix und Prüfstufen:** Die Branchenmatrix lag nicht vor. Die zehn Branchen in `config/adk.php` sind Platzhalter mit plausiblen WZ-Codes, die Prüfstufen 1–5 sind Ja/Nein-Felder mit Bemerkung. Bitte Matrix nachreichen, dann passe ich Liste und Felder an.
+5. **Branchenmatrix und Prüfstufen:** Die Branchenmatrix lag nicht vor. Die zehn Branchen in `config/adk.php` sind Platzhalter mit plausiblen WZ-Codes. Die fünf Prüfstufen heißen vorerst „Prüfstufe 1“ bis „Prüfstufe 5“ und lassen sich unter Verwaltung → Prüfstufen selbst benennen und beschreiben.
 6. **Löschen von Hand:** Soll die Verwaltung einzelne Vorgänge sofort löschen können (z. B. bei einem Löschersuchen nach Art. 17 DSGVO)? Derzeit geht das nur über den Löschlauf bzw. direkt in der Datenbank.
 7. **Zuständigkeit bei Import:** Importierte Vorgänge sind niemandem zugewiesen und erscheinen allen in der Anrufliste („nur meine und nicht zugewiesene“). Gewünscht?
 8. **Verbindliche Uhrzeit Löschlauf:** 02:30 Uhr. Passt das zur Sicherung bei IONOS?

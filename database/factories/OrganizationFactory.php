@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\CheckLevel;
 use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -59,11 +60,24 @@ class OrganizationFactory extends Factory
             'is_training_company' => fake()->boolean(40),
             'source' => fake()->randomElement(['Leadliste Rhein-Main 2026-09', 'IHK-Firmenverzeichnis (Test)', 'Branchenbuch (Test)']),
             'retrieved_at' => fake()->dateTimeBetween('-2 months', '-1 week'),
-            'check_1_passed' => true,
-            'check_2_passed' => true,
-            'check_3_passed' => fake()->boolean(90),
-            'check_4_passed' => fake()->boolean(80),
-            'check_5_passed' => fake()->optional(0.7)->boolean(80),
         ];
+    }
+
+    /** Zufällige Ergebnisse für alle aktiven Prüfstufen. */
+    public function withChecks(): static
+    {
+        return $this->afterCreating(function (Organization $organization) {
+            $states = [];
+
+            foreach (CheckLevel::activeOrdered() as $index => $level) {
+                $states[$level->id] = match (true) {
+                    $index < 2 => 'passed',
+                    fake()->boolean(15) => 'open',
+                    default => fake()->boolean(85) ? 'passed' : 'failed',
+                };
+            }
+
+            $organization->syncChecks($states);
+        });
     }
 }

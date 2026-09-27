@@ -151,7 +151,7 @@ it('liest Komma-getrennte CSV in Windows-1252 und XLSX', function () {
 });
 
 it('ordnet die Spalten der Mustervorlage automatisch zu', function () {
-    $header = array_map(fn ($field) => $field['label'], ImportService::FIELDS);
+    $header = array_map(fn ($field) => $field['label'], ImportService::fields());
     $mapping = $this->service->guessMapping(array_values($header));
 
     expect(array_filter($mapping, fn ($index) => $index === null))->toBeEmpty();

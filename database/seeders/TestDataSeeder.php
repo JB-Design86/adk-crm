@@ -65,6 +65,7 @@ class TestDataSeeder extends Seeder
         $this->simulateCalling($users, $start, $realNow);
 
         $this->at($realNow, function () use ($admin, $staff) {
+            $this->ensureAllStatuses($staff);
             $this->topUpBlocklist($admin);
             $this->seedTodaysAppointment($staff);
         });
@@ -103,6 +104,7 @@ class TestDataSeeder extends Seeder
             ]);
 
             Organization::factory()
+                ->withChecks()
                 ->count($count)
                 ->state(['source' => $source, 'retrieved_at' => today()->subDays(3), 'import_log_id' => $log->id])
                 ->create()
@@ -132,6 +134,37 @@ class TestDataSeeder extends Seeder
 
         foreach ($entries as $entry) {
             BlocklistEntry::create([...$entry, 'created_by' => $admin->id, 'blocked_on' => today()]);
+        }
+    }
+
+    /**
+     * Jeder Status kommt mindestens einmal vor, unabhängig vom Zufall der Simulation.
+     * Werbewiderspruch nur bei Betrieben ohne Kontakt (ein Sperrlisteneintrag).
+     */
+    private function ensureAllStatuses(User $user): void
+    {
+        foreach (array_keys(config('adk.statuses')) as $status) {
+            if ($status === 'new' || Lead::where('status', $status)->exists()) {
+                continue;
+            }
+
+            $lead = Lead::query()
+                ->whereNull('closed_at')
+                ->where('status', 'new')
+                ->whereNotNull('organization_id')
+                ->when($status === 'objection', fn ($q) => $q->whereNull('contact_id'))
+                ->whereDoesntHave('organization', fn ($q) => $q->whereIn('phone_e164', BlocklistEntry::whereNotNull('phone_e164')->pluck('phone_e164')))
+                ->first();
+
+            if (! $lead) {
+                continue;
+            }
+
+            $lead->forceFill(['assigned_to' => $user->id])->saveQuietly();
+            $this->service->apply($lead, $status, [
+                ...$this->dataFor($status),
+                'contact' => ['last_name' => fake()->lastName()],
+            ], $user, asCall: $status !== 'handed_over');
         }
     }
 

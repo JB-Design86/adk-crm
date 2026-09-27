@@ -51,6 +51,8 @@ class AuditLogResource extends Resource
         'import' => 'Import',
         'export' => 'Export',
         'users' => 'Benutzer',
+        'check_levels' => 'Prüfstufe',
+        'organization_checks' => 'Prüfergebnis',
         'retention' => 'Löschlauf',
     ];
 
