@@ -93,8 +93,18 @@ $PHP artisan filament:optimize
 [ -L public/storage ] || $PHP artisan storage:link
 ```
 
+Auf `crm-test` sind die Aktionen per Befehl gesetzt (eine Zeile, `&&`-verknüpft):
+
+```bash
+plesk ext git --update -domain crm-test.adk-akademie.de -name adk-crm -run-actions true \
+  -actions '/opt/plesk/php/8.4/bin/php /usr/lib/plesk-9.0/composer.phar install --no-dev --optimize-autoloader --no-interaction --no-progress && /opt/plesk/php/8.4/bin/php artisan migrate --force && /opt/plesk/php/8.4/bin/php artisan optimize && /opt/plesk/php/8.4/bin/php artisan filament:optimize'
+```
+
+Bereitstellen von Hand: `plesk ext git --fetch …` und danach `plesk ext git --deploy -domain crm-test.adk-akademie.de -name adk-crm`, oder in Plesk unter **Git → Jetzt bereitstellen**.
+
 Hinweise:
 
+- Faker ist ein reguläres Paket (nicht nur für Entwicklung), damit `db:seed` auf `crm-test` mit `--no-dev` funktioniert. In der Betriebsumgebung bricht der Seeder ab.
 - Liegt `composer.phar` woanders, zeigt `plesk bin extension --list` bzw. die Composer-Erweiterung in Plesk den Pfad. Alternativ `composer` über die Plesk-Composer-Erweiterung ausführen.
 - `php artisan optimize` legt Konfiguration, Routen und Views im Cache ab. **Nach jeder Änderung an der `.env`** den Befehl erneut ausführen (oder die Bereitstellung wiederholen).
 - `storage:link` verknüpft `public/storage` mit `storage/app/public`. Das CRM legt dort in Stufe 1 keine Dateien ab. Hochgeladene Importdateien liegen in `storage/app/private` außerhalb des Webverzeichnisses und werden nach dem Import gelöscht.
@@ -103,15 +113,16 @@ Hinweise:
 
 ## 5 Geplante Aufgabe
 
-**Websites & Domains → Geplante Aufgaben (Cron) → Aufgabe hinzufügen**
+Der Laravel-Scheduler muss jede Minute laufen, als Systembenutzer der Domain. Auf `crm-test` ist das als Datei `/etc/cron.d/adk-crm-test` eingerichtet (von Plesk unabhängig, wird bei Plesk-Updates nicht überschrieben):
 
-- Aufgabentyp: Befehl ausführen
-- Befehl:
-  ```bash
-  /opt/plesk/php/8.4/bin/php /var/www/vhosts/crm.adk-akademie.de/httpdocs/artisan schedule:run
-  ```
-- Ausführen: **jede Minute** (`* * * * *`)
-- Benachrichtigung: bei Fehlern an die Verwaltung
+```cron
+SHELL=/bin/sh
+* * * * * crmtest /opt/plesk/php/8.4/bin/php /var/www/vhosts/crm-test.adk-akademie.de/httpdocs/artisan schedule:run >/dev/null 2>&1
+```
+
+Für den Betrieb entsprechend `/etc/cron.d/adk-crm` mit dem Systembenutzer von `crm.adk-akademie.de`. Alternativ in Plesk unter **Websites & Domains → Geplante Aufgaben → Aufgabe hinzufügen** (Befehl wie oben ohne Benutzername, jede Minute).
+
+Prüfen: `sudo -u crmtest /opt/plesk/php/8.4/bin/php artisan schedule:list` im Anwendungsverzeichnis.
 
 Der Scheduler startet täglich um 02:30 Uhr den Löschlauf `adk:loeschlauf` (Uhrzeit in `config/adk.php`, `retention.run_at`). Die Ausgabe landet in `storage/logs/loeschlauf.log`, Anzahl und Zeitpunkt zusätzlich im Protokoll der Anwendung.
 
