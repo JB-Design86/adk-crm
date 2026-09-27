@@ -104,6 +104,7 @@ Bereitstellen von Hand: `plesk ext git --fetch …` und danach `plesk ext git --
 
 Hinweise:
 
+- **Wichtig:** Plesk führt die Bereitstellungsaktionen über die Shell des Systembenutzers aus. Steht dort `/bin/false` (Standard beim Anlegen), laufen die Aktionen stillschweigend **nicht**. Shell setzen mit `plesk bin subscription --update crm-test.adk-akademie.de -shell /bin/bash`.
 - Faker ist ein reguläres Paket (nicht nur für Entwicklung), damit `db:seed` auf `crm-test` mit `--no-dev` funktioniert. In der Betriebsumgebung bricht der Seeder ab.
 - Liegt `composer.phar` woanders, zeigt `plesk bin extension --list` bzw. die Composer-Erweiterung in Plesk den Pfad. Alternativ `composer` über die Plesk-Composer-Erweiterung ausführen.
 - `php artisan optimize` legt Konfiguration, Routen und Views im Cache ab. **Nach jeder Änderung an der `.env`** den Befehl erneut ausführen (oder die Bereitstellung wiederholen).
