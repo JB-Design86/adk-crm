@@ -23,7 +23,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Model::preventLazyLoading(! $this->app->isProduction());
+        // Nur lokal und in Tests: Auf crm-test soll ein übersehenes Nachladen nicht zur Fehlerseite führen.
+        Model::preventLazyLoading($this->app->environment('local', 'testing'));
 
         if ($this->app->isProduction() || config('app.force_https')) {
             URL::forceHttps();
