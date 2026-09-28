@@ -7,6 +7,7 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadStatusService;
 use App\Support\Adk;
+use App\Support\Hilfe;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
@@ -69,6 +70,7 @@ class LeadActions
                 ->label('Status')
                 ->options($statusOptions)
                 ->required()
+                ->helperText(fn (Get $get) => Hilfe::status($get('status')))
                 ->live(),
             DatePicker::make('next_action_at')
                 ->label('Wiedervorlage am')

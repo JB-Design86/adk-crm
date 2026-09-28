@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Appointment;
 use App\Models\Lead;
+use App\Support\Hilfe;
 use App\Support\WorkingDays;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -151,5 +152,10 @@ class Calendar extends Page
     public function holidayName(CarbonImmutable $day): ?string
     {
         return WorkingDays::holidays($day->year)[$day->toDateString()] ?? null;
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('kalender');
     }
 }

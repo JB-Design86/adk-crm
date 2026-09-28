@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ImportLogs\Pages;
 
 use App\Filament\Pages\ImportLeads;
 use App\Filament\Resources\ImportLogs\ImportLogResource;
+use App\Support\Hilfe;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 
@@ -18,5 +19,10 @@ class ListImportLogs extends ListRecords
                 ->label('Neuer Import')
                 ->url(ImportLeads::getUrl()),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('importe');
     }
 }

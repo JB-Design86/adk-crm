@@ -7,7 +7,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 ## Jetzt in Arbeit
 
 - [x] **Leadlisten-Vorlage für den Vertriebs-Chat:** Excel-Vorlage mit allen Spalten plus Blatt „Erklärung“ (Bedeutung, erlaubte Werte, Pflicht). Dazu eine Rechercheanleitung, nach der ein KI-Chat Betriebe im Internet sucht und die Vorlage befüllt, sodass sie ohne Umbau importierbar ist.
-- [ ] **Hilfe-Fragezeichen:** ein **?** mit kurzer Erklärung an Feldern, Spalten und Status, dazu ein Satz je Seite, wofür sie da ist. Texte an einer Stelle gesammelt, damit sie leicht anpassbar sind.
+- [x] **Hilfe-Fragezeichen:** ein **?** mit kurzer Erklärung an Feldern, Spalten und Status, dazu ein Satz je Seite, wofür sie da ist. Texte an einer Stelle gesammelt, damit sie leicht anpassbar sind.
 - [ ] **Stufe 3 vorziehen: Förderweg** (Details unten). Ziel: Vertrieb kann vom ersten Anruf bis zur Anmeldung in einem Zug arbeiten.
 - [x] **Automatisches Einspielen auf crm-test** bei jedem Push nach GitHub (Plesk-Webhook), damit dafür keine Plesk-Anmeldung mehr nötig ist. Betrieb bleibt manuell.
 

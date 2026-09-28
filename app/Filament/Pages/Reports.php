@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\User;
 use App\Services\ReportService;
+use App\Support\Hilfe;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
@@ -92,5 +93,10 @@ class Reports extends Page
     public static function percent(?float $value): string
     {
         return $value === null ? '–' : number_format($value * 100, 0, ',', '.').' %';
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('auswertung');
     }
 }

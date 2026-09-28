@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CheckLevels\Pages;
 
 use App\Filament\Resources\CheckLevels\CheckLevelResource;
+use App\Support\Hilfe;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -12,7 +13,7 @@ class ListCheckLevels extends ListRecords
 
     public function getSubheading(): string
     {
-        return 'Prüfstufen der Leadliste (Branchenmatrix). Reihenfolge per „Reihenfolge ändern“ und Ziehen anpassen.';
+        return Hilfe::seite('pruefstufen').' Reihenfolge per „Reihenfolge ändern“ und Ziehen anpassen.';
     }
 
     protected function getHeaderActions(): array

@@ -132,7 +132,7 @@
                     <ul class="space-y-1 text-sm">
                         @foreach ($this->keyLegend() as $key => $entry)
                             <li>
-                                <button type="button" wire:click="selectKey('{{ $entry['key'] }}')"
+                                <button type="button" wire:click="selectKey('{{ $entry['key'] }}')" title="{{ $entry['help'] }}"
                                     @class([
                                         'flex w-full items-center gap-3 rounded-md px-2 py-1 text-left hover:bg-gray-100 dark:hover:bg-white/5',
                                         'bg-primary-50 font-semibold ring-1 ring-primary-500 dark:bg-primary-500/10' => $status === $key || ($key === 'cross_selling' && $crossSellingOpen),

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\UserResource;
+use App\Support\Hilfe;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -15,5 +16,10 @@ class ListUsers extends ListRecords
         return [
             CreateAction::make()->label('Konto anlegen'),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('benutzer');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Resources\ImportLogs\ImportLogResource;
 use App\Services\ImportService;
+use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -236,5 +237,10 @@ class ImportLeads extends Page
         if ($this->storedPath) {
             Storage::disk('local')->delete($this->storedPath);
         }
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('import');
     }
 }

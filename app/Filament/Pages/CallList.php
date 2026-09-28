@@ -6,6 +6,7 @@ use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Lead;
 use App\Services\LeadStatusService;
 use App\Support\Adk;
+use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -306,13 +307,18 @@ class CallList extends Page
 
         foreach (Adk::statuses() as $status => $definition) {
             if ($definition['key'] !== null) {
-                $legend[$status] = ['key' => $definition['key'], 'label' => $definition['label']];
+                $legend[$status] = ['key' => $definition['key'], 'label' => $definition['label'], 'help' => Hilfe::status($status)];
             }
         }
 
         uasort($legend, fn ($a, $b) => $a['key'] <=> $b['key']);
-        $legend['cross_selling'] = ['key' => config('adk.cross_selling_key'), 'label' => 'Cross-Selling JB Design'];
+        $legend['cross_selling'] = ['key' => config('adk.cross_selling_key'), 'label' => 'Cross-Selling JB Design', 'help' => Hilfe::status('cross_selling')];
 
         return $legend;
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('anrufliste');
     }
 }

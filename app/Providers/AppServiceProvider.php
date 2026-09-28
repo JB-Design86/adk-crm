@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Support\Hilfe;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
@@ -38,6 +39,9 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->registerAuthLogging();
+
+        // Fragezeichen mit Erklärung an Feldern, Texte in lang/de/hilfe.php.
+        Hilfe::register();
     }
 
     /** An- und Abmeldungen sowie Fehlversuche ins Protokoll. */

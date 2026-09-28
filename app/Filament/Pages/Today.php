@@ -8,6 +8,7 @@ use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Appointment;
 use App\Models\Lead;
 use App\Support\Adk;
+use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
@@ -64,7 +65,7 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
 
     public function getSubheading(): string
     {
-        return now()->locale('de')->isoFormat('dddd, D. MMMM YYYY');
+        return now()->locale('de')->isoFormat('dddd, D. MMMM YYYY').' · '.Hilfe::seite('heute');
     }
 
     public function table(Table $table): Table

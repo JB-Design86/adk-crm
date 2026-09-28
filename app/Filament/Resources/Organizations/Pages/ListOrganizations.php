@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Organizations\Pages;
 
 use App\Filament\Resources\Organizations\OrganizationResource;
+use App\Support\Hilfe;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -15,5 +16,10 @@ class ListOrganizations extends ListRecords
         return [
             CreateAction::make(),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return Hilfe::seite('organisationen');
     }
 }
