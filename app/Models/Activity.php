@@ -21,6 +21,7 @@ class Activity extends Model
         'note' => 'Notiz',
         'status_change' => 'Statuswechsel',
         'appointment' => 'Termin',
+        'funding_step' => 'Förderweg',
     ];
 
     protected $guarded = ['id'];

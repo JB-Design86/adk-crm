@@ -5,10 +5,12 @@ namespace Database\Seeders;
 use App\Models\Activity;
 use App\Models\BlocklistEntry;
 use App\Models\Contact;
+use App\Models\FundingCase;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\FundingService;
 use App\Services\LeadStatusService;
 use App\Support\WorkingDays;
 use Carbon\Carbon;
@@ -66,6 +68,7 @@ class TestDataSeeder extends Seeder
 
         $this->at($realNow, function () use ($admin, $staff) {
             $this->ensureAllStatuses($staff);
+            $this->seedFundingProgress($staff);
             $this->topUpBlocklist($admin);
             $this->seedTodaysAppointment($staff);
         });
@@ -144,7 +147,7 @@ class TestDataSeeder extends Seeder
     private function ensureAllStatuses(User $user): void
     {
         foreach (array_keys(config('adk.statuses')) as $status) {
-            if ($status === 'new' || Lead::where('status', $status)->exists()) {
+            if ($status === 'new' || (config("adk.statuses.{$status}.manual") ?? true) === false || Lead::where('status', $status)->exists()) {
                 continue;
             }
 
@@ -165,6 +168,35 @@ class TestDataSeeder extends Seeder
                 ...$this->dataFor($status),
                 'contact' => ['last_name' => fake()->lastName()],
             ], $user, asCall: $status !== 'handed_over');
+        }
+    }
+
+    /**
+     * Förderfälle mit unterschiedlichem Fortschritt; einer ist bereits eingeschrieben.
+     */
+    private function seedFundingProgress(User $user): void
+    {
+        $funding = app(FundingService::class);
+        $cases = FundingCase::query()->open()->with('lead')->orderBy('id')->get();
+
+        foreach ($cases as $index => $case) {
+            $steps = $case->steps();
+            $target = $index === 0 ? $steps->count() : fake()->numberBetween(0, max(0, $steps->count() - 2));
+            $date = CarbonImmutable::parse($case->created_at)->startOfDay();
+
+            foreach ($steps->take($target) as $step) {
+                $date = min($date->addDays(fake()->numberBetween(1, 3)), CarbonImmutable::today());
+                $funding->completeStep($case, $step, [
+                    'completed_on' => $date->toDateString(),
+                    'party' => $step->default_party,
+                    'note' => fake()->randomElement([null, 'telefonisch abgestimmt', 'Unterlagen per E-Mail erhalten']),
+                ], $user);
+            }
+
+            if ($index === 0 && $case->fresh()->allStepsDone()) {
+                $case->update(['customer_number' => '123D456789', 'voucher_number' => 'BGS-TEST-0001', 'voucher_valid_until' => today()->addMonths(2)]);
+                $funding->enroll($case->fresh(), $user);
+            }
         }
     }
 
@@ -238,10 +270,17 @@ class TestDataSeeder extends Seeder
                 if ($i < 24) {
                     $this->at(CarbonImmutable::now()->addHour(), function () use ($lead, $user) {
                         $outcome = fake()->randomElement(['interested', 'documents_sent', 'appointment', 'later', 'not_reached', 'no_interest', 'handed_over']);
-                        $this->service->apply($lead, $outcome, [
-                            ...$this->dataFor($outcome),
-                            'contact' => null,
-                        ], $user, asCall: $outcome !== 'handed_over');
+
+                        try {
+                            $this->service->apply($lead, $outcome, [
+                                ...$this->dataFor($outcome),
+                                'target_group' => $outcome === 'handed_over' ? $lead->target_group : null,
+                                'contact' => null,
+                            ], $user, asCall: $outcome !== 'handed_over');
+                        } catch (ValidationException) {
+                            // z. B. Zielgruppe E ohne Einwilligung Gesundheitsangaben: kein Förderweg.
+                            $this->service->apply($lead, 'interested', $this->dataFor('interested'), $user, asCall: true);
+                        }
                     });
                 }
             });
@@ -346,6 +385,7 @@ class TestDataSeeder extends Seeder
             'close_reason' => $outcome === 'wrong_data' ? fake()->randomElement(array_keys(config('adk.wrong_data_reasons'))) : null,
             'confirmed' => $outcome === 'objection' ?: null,
             'contact' => $outcome === 'documents_sent' ? ['last_name' => fake()->lastName(), 'email' => fake()->unique()->userName().'@example.org'] : null,
+            'target_group' => $outcome === 'handed_over' ? 'C' : null,
         ]);
     }
 

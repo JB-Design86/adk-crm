@@ -8,4 +8,6 @@
 - Fachliche Konfiguration (Status, Zielgruppen, Kanäle, Fristen, Tasten, Rollen) steht in `config/adk.php`. Statusregeln nur über `App\Services\LeadStatusService`.
 - Frontend-Assets werden lokal gebaut (`npm run build`) und committet (`public/build`). Auf dem Server läuft kein Node.
 - Abweichungen vom Auftrag im Commit begründen und in `docs/STUFE1_ABNAHME.md` nachtragen.
+- Stufe 3 Förderweg: `docs/STUFE3_FOERDERWEG.md`, Logik in `App\Services\FundingService`. Merkliste: `docs/MERKLISTE.md`.
+- Hilfetexte (Fragezeichen): `lang/de/hilfe.php`.
 - Tests: `php vendor/bin/pest`. Testdaten lokal: `php artisan migrate:fresh --seed`.

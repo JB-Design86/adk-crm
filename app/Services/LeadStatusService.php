@@ -64,6 +64,11 @@ class LeadStatusService
             $this->validateRecipient($data['contact'] ?? []);
         }
 
+        // Übergeben an Förderweg: Zielgruppe muss einen Förderweg haben (Stufe 3).
+        if ($status === 'handed_over') {
+            app(FundingService::class)->assertCanStart($lead, $data['target_group'] ?? null);
+        }
+
         $from = $lead->status;
 
         DB::transaction(function () use ($lead, $status, $definition, $data, $user, $asCall, $today, $nextActionAt, $closeReason, $from, $result) {
@@ -108,6 +113,10 @@ class LeadStatusService
                 'status_to' => $status,
                 'body' => $this->activityBody($data, $closeReason),
             ]);
+
+            if ($status === 'handed_over') {
+                $result->fundingCase = app(FundingService::class)->start($lead, $user);
+            }
         });
 
         return $result;

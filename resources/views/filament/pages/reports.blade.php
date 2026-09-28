@@ -121,6 +121,35 @@
         </x-filament::section>
     @endforeach
 
+    <x-filament::section collapsible>
+        <x-slot name="heading">Förderweg</x-slot>
+        <x-slot name="description">Im Zeitraum gestartete Förderfälle, erledigte bzw. abgelehnte Schritte und bestätigte Einschreibungen.</x-slot>
+        <div class="grid gap-6 lg:grid-cols-2">
+            @foreach ($report->fundingFunnel() as $pathway)
+                <div>
+                    <p class="font-semibold">{{ $pathway['label'] }}</p>
+                    <p class="text-sm text-gray-500">gestartet: {{ $pathway['started'] }} · eingeschrieben: {{ $pathway['enrolled'] }}</p>
+                    <table class="mt-2 w-full text-sm">
+                        <thead><tr class="border-b border-gray-200 dark:border-white/10">
+                            <th class="{{ $th }}">Schritt</th>
+                            <th class="{{ $th }} text-right">erledigt</th>
+                            <th class="{{ $th }} text-right">abgelehnt</th>
+                        </tr></thead>
+                        <tbody>
+                            @foreach ($pathway['steps'] as $step)
+                                <tr class="border-b border-gray-100 dark:border-white/5">
+                                    <td class="px-3 py-1.5">{{ $step['name'] }}</td>
+                                    <td class="{{ $num }}">{{ $step['done'] }}</td>
+                                    <td class="{{ $num }}">{{ $step['rejected'] ?: '' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endforeach
+        </div>
+    </x-filament::section>
+
     @php($wrong = $report->wrongDataBySource())
     <x-filament::section collapsible>
         <x-slot name="heading">„Datensatz falsch“ je Importquelle</x-slot>

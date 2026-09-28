@@ -142,6 +142,10 @@ return [
             'label' => 'Übergeben an Förderweg', 'key' => null, 'color' => 'success',
             'follow_up' => null, 'closes' => false, 'reached' => true,
         ],
+        'enrolled' => [
+            'label' => 'Teilnehmer (eingeschrieben)', 'key' => null, 'color' => 'success',
+            'follow_up' => null, 'closes' => false, 'reached' => true, 'manual' => false,
+        ],
     ],
 
     /*
@@ -168,6 +172,28 @@ return [
     /*
     | Terminarten.
     */
+    /*
+    | Förderwege (Stufe 3). Die Schritte je Förderweg pflegt die Verwaltung in der
+    | Oberfläche (Verwaltung → Förderweg-Schritte). Hier nur, welche Zielgruppe
+    | welchen Förderweg nimmt.
+    */
+    'funding_pathways' => [
+        'voucher' => ['label' => 'Bildungsgutschein (A, B)', 'target_groups' => ['A', 'B']],
+        'employer' => ['label' => 'Betrieb, § 82 SGB III (C, D)', 'target_groups' => ['C', 'D']],
+        'accident' => ['label' => 'Arbeitsunfall (E)', 'target_groups' => ['E'], 'requires_health_consent' => true],
+        'self_payer' => ['label' => 'Selbstzahler', 'target_groups' => ['self_payer']],
+    ],
+
+    /*
+    | Wer bei einem Schritt des Förderwegs handelt.
+    */
+    'funding_parties' => [
+        'adk' => 'ADK',
+        'person' => 'Interessent/in',
+        'funder' => 'Kostenträger',
+        'company' => 'Betrieb',
+    ],
+
     'appointment_types' => [
         'phone' => 'Telefon',
         'teams' => 'Teams',

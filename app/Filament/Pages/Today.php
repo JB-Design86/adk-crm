@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Actions\LeadActions;
 use App\Filament\Concerns\ListensForLeadRest;
+use App\Filament\Resources\FundingCases\FundingCaseResource;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Appointment;
 use App\Models\Lead;
@@ -75,7 +76,7 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
 
         return $table
             ->query(fn () => Lead::query()
-                ->with(['organization', 'contact', 'assignee'])
+                ->with(['organization', 'contact', 'assignee', 'fundingCase'])
                 ->whereNull('closed_at')
                 ->where(fn (Builder $q) => $q
                     ->whereDate('next_action_at', '<=', today())
@@ -91,7 +92,11 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
                 TextColumn::make('name')
                     ->label('Vorgang')
                     ->state(fn (Lead $record) => $record->displayName())
-                    ->description(fn (Lead $record) => $record->isNewInbound() ? 'Neue Anfrage: '.Adk::channelLabel($record->channel) : ($record->organization && $record->contact ? $record->contact->fullName() : null))
+                    ->description(fn (Lead $record) => match (true) {
+                        $record->isNewInbound() => 'Neue Anfrage: '.Adk::channelLabel($record->channel),
+                        $record->fundingCase?->isOpen() => 'Förderweg: '.($record->fundingCase->currentStep()?->name ?? 'Einschreibung bestätigen'),
+                        default => $record->organization && $record->contact ? $record->contact->fullName() : null,
+                    })
                     ->weight('medium'),
                 TextColumn::make('status')
                     ->label('Status')
@@ -135,7 +140,9 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
                     ->visible(fn (Lead $record) => Gate::allows('call_list') && $record->isCallable())
                     ->url(fn (Lead $record) => CallList::getUrl(['vorgang' => $record->id])),
             ])
-            ->recordUrl(fn (Lead $record) => LeadResource::getUrl('view', ['record' => $record]))
+            ->recordUrl(fn (Lead $record) => $record->fundingCase?->isOpen()
+                ? FundingCaseResource::getUrl('view', ['record' => $record->fundingCase])
+                : LeadResource::getUrl('view', ['record' => $record]))
             ->emptyStateHeading('Heute ist nichts fällig.')
             ->paginated([25, 50, 100]);
     }

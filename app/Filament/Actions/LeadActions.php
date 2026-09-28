@@ -62,6 +62,7 @@ class LeadActions
         $follow = fn (Get $get) => config('adk.statuses.'.$get('status').'.follow_up');
         $statusOptions = collect(Adk::statuses())
             ->except('new')
+            ->reject(fn (array $status) => ($status['manual'] ?? true) === false)
             ->mapWithKeys(fn (array $status, string $key) => [$key => ($status['key'] !== null ? "{$status['key']} · " : '').$status['label']])
             ->all();
 
@@ -72,6 +73,12 @@ class LeadActions
                 ->required()
                 ->helperText(fn (Get $get) => Hilfe::status($get('status')))
                 ->live(),
+            Select::make('target_group')
+                ->label('Zielgruppe für den Förderweg')
+                ->options(collect(Adk::targetGroupOptions())->except('company_open')->all())
+                ->default($lead->fundingPathway() ? $lead->target_group : null)
+                ->visible(fn (Get $get) => $get('status') === 'handed_over')
+                ->required(fn (Get $get) => $get('status') === 'handed_over'),
             DatePicker::make('next_action_at')
                 ->label('Wiedervorlage am')
                 ->minDate(today())

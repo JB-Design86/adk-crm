@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FundingStep;
 use App\Support\Adk;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
@@ -143,6 +144,51 @@ class ReportService
             ->sortByDesc('wrong')
             ->values()
             ->all();
+    }
+
+    /**
+     * Förderweg im Zeitraum je Förderweg: gestartet, je Schritt erledigt/abgelehnt, eingeschrieben.
+     * Beantwortet z. B. „Anfrage → Gutschein beantragt → Gutschein bewilligt“.
+     *
+     * @return list<array{pathway: string, label: string, started: int, enrolled: int, steps: list<array{name: string, done: int, rejected: int}>}>
+     */
+    public function fundingFunnel(): array
+    {
+        $completions = DB::table('funding_case_steps')
+            ->join('funding_cases', 'funding_cases.id', '=', 'funding_case_steps.funding_case_id')
+            ->join('leads', 'leads.id', '=', 'funding_cases.lead_id')
+            ->whereBetween('funding_case_steps.completed_on', [$this->from->toDateString(), $this->until->toDateString()])
+            ->when($this->userId, fn (Builder $q) => $q->where('funding_case_steps.user_id', $this->userId))
+            ->selectRaw('funding_case_steps.funding_step_id as step_id, funding_case_steps.result as result, COUNT(*) as total')
+            ->groupBy('funding_case_steps.funding_step_id', 'funding_case_steps.result')
+            ->get()
+            ->groupBy('step_id');
+
+        $result = [];
+
+        foreach (config('adk.funding_pathways') as $pathway => $definition) {
+            $cases = DB::table('funding_cases')->where('pathway', $pathway);
+
+            $steps = FundingStep::query()->forPathway($pathway)->get()->map(function (FundingStep $step) use ($completions) {
+                $rows = $completions->get($step->id, collect());
+
+                return [
+                    'name' => $step->name,
+                    'done' => (int) $rows->where('result', 'done')->sum('total'),
+                    'rejected' => (int) $rows->where('result', 'rejected')->sum('total'),
+                ];
+            })->all();
+
+            $result[] = [
+                'pathway' => $pathway,
+                'label' => $definition['label'],
+                'started' => (clone $cases)->whereBetween('created_at', [$this->from, $this->until])->count(),
+                'enrolled' => (clone $cases)->whereBetween('enrolled_at', [$this->from, $this->until])->count(),
+                'steps' => $steps,
+            ];
+        }
+
+        return $result;
     }
 
     private function base(): Builder

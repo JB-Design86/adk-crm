@@ -53,6 +53,8 @@ class AuditLogResource extends Resource
         'users' => 'Benutzer',
         'check_levels' => 'Prüfstufe',
         'organization_checks' => 'Prüfergebnis',
+        'funding_cases' => 'Förderfall',
+        'funding_steps' => 'Förderweg-Schritt',
         'retention' => 'Löschlauf',
     ];
 

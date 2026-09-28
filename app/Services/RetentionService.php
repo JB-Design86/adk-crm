@@ -6,6 +6,8 @@ use App\Models\Activity;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Contact;
+use App\Models\FundingCase;
+use App\Models\FundingCaseStep;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
@@ -150,6 +152,12 @@ class RetentionService
 
             $this->purgeAuditLog(Activity::class, $activityIds);
             $this->purgeAuditLog(Appointment::class, $appointmentIds);
+            $caseIds = FundingCase::whereIn('lead_id', $chunk)->pluck('id');
+            $caseStepIds = FundingCaseStep::whereIn('funding_case_id', $caseIds)->pluck('id');
+            $this->purgeAuditLog(FundingCaseStep::class, $caseStepIds);
+            $this->purgeAuditLog(FundingCase::class, $caseIds);
+            FundingCaseStep::whereIn('id', $caseStepIds)->delete();
+            FundingCase::whereIn('id', $caseIds)->delete();
             $this->purgeAuditLog(Lead::class, $chunk);
 
             $this->counts['activities'] += Activity::whereIn('id', $activityIds)->delete();

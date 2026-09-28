@@ -74,6 +74,22 @@ return [
 
         // Prüfstufen
         'is_active' => 'Inaktive Einträge erscheinen nicht mehr in Formularen und im Import. Vorhandene Werte bleiben erhalten.',
+
+        // Förderweg (Stufe 3)
+        'pathway' => 'Förderweg nach Zielgruppe: A/B Bildungsgutschein, C/D Betrieb (§ 82 SGB III), E Arbeitsunfall, Selbstzahler. Jeder Förderweg hat eigene Schritte.',
+        'instructions' => 'Erklärtext für diesen Schritt: Was ist jetzt von unserer Seite zu tun? Erscheint groß beim Förderfall, solange der Schritt ansteht.',
+        'default_party' => 'Wer bei diesem Schritt üblicherweise handelt. Beim Erledigen änderbar.',
+        'follow_up_days' => 'Nach dem Erledigen dieses Schritts legt das CRM die nächste Wiedervorlage so viele Tage später.',
+        'calendar_days' => 'An: Kalendertage (z. B. gesetzliche Fristen nach § 14 SGB IX). Aus: Arbeitstage ohne Wochenende und Feiertage in RLP.',
+        'can_fail' => 'Bei Bewilligungen: Der Schritt kann auch als „abgelehnt“ eingetragen werden.',
+        'completed_on' => 'An welchem Tag der Schritt erledigt wurde. Ab hier zählt die nächste Wiedervorlage.',
+        'party' => 'Wer gehandelt hat: ADK, Interessent/in, Kostenträger oder Betrieb.',
+        'result' => 'Erledigt oder abgelehnt. Nach einer Ablehnung entscheiden Sie: neuer Antrag, Widerspruch oder Förderweg abbrechen.',
+        'customer_number' => 'Kundennummer der Person bei Jobcenter oder Agentur für Arbeit (steht auf deren Schreiben).',
+        'voucher_number' => 'Nummer des Bildungsgutscheins.',
+        'voucher_valid_until' => 'Bis wann der Bildungsgutschein eingelöst werden muss. Ab 14 Tagen vor Ablauf rot markiert.',
+        'funder_contact' => 'Zuständige Vermittlungsfachkraft bzw. Reha-Management beim Kostenträger.',
+        'step' => 'Welcher Schritt erledigt wurde. Vorausgewählt ist der nächste offene Schritt.',
     ],
 
     'seiten' => [
@@ -90,6 +106,8 @@ return [
         'benutzer' => 'Konten anlegen und sperren. Gesperrte Konten werden sofort abgemeldet, Daten bleiben erhalten.',
         'protokoll' => 'Wer hat wann was geändert. Nur lesbar, nicht änderbar.',
         'pruefstufen' => 'Prüfstufen der Leadliste (Branchenmatrix): Kriterien, ob ein Betrieb für die Ansprache in Frage kommt.',
+        'foerderfaelle' => 'Feste Interessenten auf dem Weg zur Einschreibung: wer bei welchem Schritt steht und wo nachgefasst werden muss. Überfälliges steht oben.',
+        'foerderweg_schritte' => 'Die Schritte je Förderweg mit Erklärtext „Was ist zu tun?“ und Wiedervorlage. Reihenfolge je Förderweg per „Reihenfolge ändern“ und Ziehen.',
     ],
 
     'status' => [
@@ -103,7 +121,8 @@ return [
         'no_need' => 'Kein Bedarf, falsche Zielgruppe (z. B. Ein-Personen-Betrieb). Vorgang wird geschlossen.',
         'objection' => 'Werbewiderspruch: Vorgang geschlossen, Telefon, E-Mail und Firma dauerhaft auf der Sperrliste. Mit Sicherheitsabfrage.',
         'wrong_data' => 'Datensatz falsch (Firma besteht nicht, Nummer falsch). Grund wählen. Zählt in der Auswertung je Importquelle.',
-        'handed_over' => 'Zusage erhalten, weiter im Förderweg.',
+        'handed_over' => 'Zusage erhalten: Es entsteht ein Förderfall mit den Schritten des passenden Förderwegs. Ist die Zielgruppe noch offen, bitte hier wählen.',
+        'enrolled' => 'Einschreibung vom Kostenträger bestätigt. Wird nur über den Förderfall gesetzt. Die Teilnehmerakte folgt in Stufe 4.',
         'cross_selling' => 'Merkmal Cross-Selling JB Design an oder aus, mit eigener Wiedervorlage. Ändert den Status nicht.',
     ],
 

@@ -8,7 +8,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 
 - [x] **Leadlisten-Vorlage für den Vertriebs-Chat:** Excel-Vorlage mit allen Spalten plus Blatt „Erklärung“ (Bedeutung, erlaubte Werte, Pflicht). Dazu eine Rechercheanleitung, nach der ein KI-Chat Betriebe im Internet sucht und die Vorlage befüllt, sodass sie ohne Umbau importierbar ist.
 - [x] **Hilfe-Fragezeichen:** ein **?** mit kurzer Erklärung an Feldern, Spalten und Status, dazu ein Satz je Seite, wofür sie da ist. Texte an einer Stelle gesammelt, damit sie leicht anpassbar sind.
-- [ ] **Stufe 3 vorziehen: Förderweg** (Details unten). Ziel: Vertrieb kann vom ersten Anruf bis zur Anmeldung in einem Zug arbeiten.
+- [x] **Stufe 3 vorziehen: Förderweg** (erste Fassung fertig, siehe `STUFE3_FOERDERWEG.md`; Details unten). Ziel: Vertrieb kann vom ersten Anruf bis zur Anmeldung in einem Zug arbeiten.
 - [x] **Automatisches Einspielen auf crm-test** bei jedem Push nach GitHub (Plesk-Webhook), damit dafür keine Plesk-Anmeldung mehr nötig ist. Betrieb bleibt manuell.
 
 ## Stufe 3 · Förderweg (vorgezogen)
@@ -23,7 +23,7 @@ Anforderungen:
 
 - Schrittfolge **je Zielgruppe** nach Lastenheft Abschnitt 6 (A/B, C/D, E, Selbstzahler). Jeder Schritt mit Datum, handelnder Stelle und automatischer Wiedervorlage.
 - Schritte in der Oberfläche pflegbar (anlegen, umbenennen, sortieren, abschalten), wie die Prüfstufen.
-- **Erklärpfade:** Jeder Schritt bekommt einen Text „Was ist jetzt von unserer Seite zu tun?“, der am Förderfall angezeigt wird. **Die Texte erarbeitet Janosch.**
+- **Erklärpfade:** Jeder Schritt bekommt einen Text „Was ist jetzt von unserer Seite zu tun?“, der am Förderfall angezeigt wird. Eingebaut, Texte pflegbar unter Verwaltung → Förderweg-Schritte. **Die Texte erarbeitet Janosch.**
 - Übersicht: welcher Förderfall steht bei welchem Schritt, was ist überfällig, wo muss nachgefasst werden.
 - Auswertung laut Lastenheft: Anfrage → Gutschein beantragt → Gutschein bewilligt, Kursstatistik Prüfpunkt 7.2.
 - Zielgruppe E (Arbeitsunfall): nur Daten und Fristen erfassen (§ 14 SGB IX: zwei Wochen Zuständigkeit, drei Wochen Entscheidung), **keine medizinischen Inhalte**. Einwilligung Gesundheitsangaben ist Voraussetzung. Offen: Lastenheft Abschnitt 10, Nr. 4.

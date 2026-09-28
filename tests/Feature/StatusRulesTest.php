@@ -176,12 +176,13 @@ it('Taste 0: schaltet Cross-Selling um, fragt nach Wiedervorlage und ändert den
     expect($lead->fresh())->cross_selling->toBeFalse()->cross_selling_follow_up_at->toBeNull();
 });
 
-it('Übergeben an Förderweg ist setzbar', function () {
+it('Übergeben an Förderweg ist setzbar und startet den Förderfall', function () {
     $lead = Lead::factory()->create();
 
-    $this->service->apply($lead, 'handed_over');
+    $this->service->apply($lead, 'handed_over', ['target_group' => 'C']);
 
-    expect($lead->fresh())->status->toBe('handed_over')->closed_at->toBeNull();
+    expect($lead->fresh())->status->toBe('handed_over')->closed_at->toBeNull()
+        ->and($lead->fresh()->fundingCase)->not->toBeNull();
 });
 
 it('erzeugt bei jedem Statuswechsel eine Aktivität mit Benutzer und Zeitpunkt', function () {
