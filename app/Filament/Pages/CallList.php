@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Lead;
 use App\Services\LeadStatusService;
+use App\Services\Sipgate\ClickToCall;
 use App\Support\Adk;
 use App\Support\Hilfe;
 use BackedEnum;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
+use RuntimeException;
 use UnitEnum;
 
 /**
@@ -224,6 +226,32 @@ class CallList extends Page
 
         $this->restPromptLeadId = null;
         $this->next();
+    }
+
+    #[Computed]
+    public function sipgateAvailable(): bool
+    {
+        return ClickToCall::availableFor(auth()->user());
+    }
+
+    /** Anruf per Klick über sipgate: erst klingelt das eigene Gerät, dann wird gewählt. */
+    public function callViaSipgate(): void
+    {
+        $lead = $this->lead();
+
+        if (! $lead) {
+            return;
+        }
+
+        try {
+            app(ClickToCall::class)->start(auth()->user(), $lead);
+        } catch (RuntimeException $exception) {
+            Notification::make()->title('Anruf nicht gestartet')->body($exception->getMessage())->danger()->send();
+
+            return;
+        }
+
+        Notification::make()->title('Ihr Telefon klingelt gleich')->body('Nach dem Abheben wählt sipgate '.$lead->phoneDisplay().'.')->success()->send();
     }
 
     public function skip(): void

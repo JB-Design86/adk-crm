@@ -47,6 +47,20 @@
         @endforeach
     </div>
 
+    @php($phoneLog = $report->phoneLog())
+    @if ($phoneLog['total'] > 0 || \App\Services\Sipgate\SipgateClient::isConfigured())
+        <x-filament::section>
+            <x-slot name="heading">Telefonate laut sipgate</x-slot>
+            <x-slot name="description">Aus der sipgate-Anrufliste übernommen, nur Nummern mit Vorgang im CRM. Gegenprobe zu den gespeicherten Anrufen oben.</x-slot>
+            <dl class="grid gap-4 text-sm sm:grid-cols-4">
+                <div><dt class="text-gray-500">Telefonate</dt><dd class="text-2xl font-semibold tabular-nums">{{ number_format($phoneLog['total'], 0, ',', '.') }}</dd></div>
+                <div><dt class="text-gray-500">angenommen</dt><dd class="text-2xl font-semibold tabular-nums">{{ number_format($phoneLog['picked_up'], 0, ',', '.') }}</dd></div>
+                <div><dt class="text-gray-500">Gesprächszeit</dt><dd class="text-2xl font-semibold tabular-nums">{{ sprintf('%d:%02d Std.', intdiv($phoneLog['talk_seconds'], 3600), intdiv($phoneLog['talk_seconds'] % 3600, 60)) }}</dd></div>
+                <div><dt class="text-gray-500">Ø je Gespräch</dt><dd class="text-2xl font-semibold tabular-nums">{{ $phoneLog['average_seconds'] === null ? '–' : \App\Services\Sipgate\SipgateSync::formatDuration($phoneLog['average_seconds']) }}</dd></div>
+            </dl>
+        </x-filament::section>
+    @endif
+
     <div class="grid gap-6 lg:grid-cols-2">
         <x-filament::section>
             <x-slot name="heading">Je Tag</x-slot>

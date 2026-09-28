@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    /*
+    | sipgate (Telefonie): Anruf per Klick und Abgleich der Anrufliste.
+    | OAuth2-Client aus der sipgate-Konsole. Ohne client_id ist die Funktion aus.
+    */
+    'sipgate' => [
+        'client_id' => env('SIPGATE_CLIENT_ID'),
+        'client_secret' => env('SIPGATE_CLIENT_SECRET'),
+        'redirect' => env('SIPGATE_REDIRECT_URI', rtrim((string) env('APP_URL'), '/').'/sipgate/callback'),
+        'realm' => env('SIPGATE_REALM', 'third-party'),
+        'scopes' => 'sessions:calls:write history:read devices:read',
+        'login_url' => 'https://login.sipgate.com/auth/realms/',
+        'api_url' => 'https://api.sipgate.com/v2',
+    ],
+
 ];

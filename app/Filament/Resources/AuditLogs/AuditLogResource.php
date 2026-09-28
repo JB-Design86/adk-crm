@@ -56,6 +56,7 @@ class AuditLogResource extends Resource
         'funding_cases' => 'Förderfall',
         'funding_steps' => 'Förderweg-Schritt',
         'retention' => 'Löschlauf',
+        'sipgate' => 'sipgate',
     ];
 
     public const EVENTS = [
@@ -70,6 +71,10 @@ class AuditLogResource extends Resource
         'export' => 'Export',
         'retention' => 'Löschlauf',
         '2fa_reset' => '2FA zurückgesetzt',
+        'connected' => 'verbunden',
+        'disconnected' => 'getrennt',
+        'call_started' => 'Anruf gestartet',
+        'sync' => 'Abgleich',
     ];
 
     public static function canViewAny(): bool

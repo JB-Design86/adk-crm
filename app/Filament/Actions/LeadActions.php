@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadStatusService;
+use App\Services\Sipgate\ClickToCall;
 use App\Support\Adk;
 use App\Support\Hilfe;
 use Filament\Actions\Action;
@@ -23,6 +24,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 /**
  * Aktionen an einem Vorgang, gemeinsam genutzt von Vorgangsseite und Heute-Ansicht.
@@ -117,6 +119,29 @@ class LeadActions
                 ->rows(3)
                 ->helperText('Keine medizinischen Angaben in Notizen.'),
         ];
+    }
+
+    /** Anruf per Klick: Zuerst klingelt das eigene Gerät, dann wählt sipgate die Nummer. */
+    public static function sipgateCall(): Action
+    {
+        return Action::make('sipgateCall')
+            ->label('Über sipgate anrufen')
+            ->icon(Heroicon::OutlinedPhoneArrowUpRight)
+            ->color('primary')
+            ->visible(fn (Lead $record) => Gate::allows('call_list') && ClickToCall::availableFor(auth()->user()) && $record->phoneE164() !== null)
+            ->disabled(fn (Lead $record) => ! $record->isCallable())
+            ->tooltip(fn (Lead $record) => $record->callBlockReason() ?? Hilfe::feld('sipgate_call'))
+            ->action(function (Lead $record) {
+                try {
+                    app(ClickToCall::class)->start(auth()->user(), $record);
+                } catch (RuntimeException $exception) {
+                    Notification::make()->title('Anruf nicht gestartet')->body($exception->getMessage())->danger()->send();
+
+                    return;
+                }
+
+                Notification::make()->title('Ihr Telefon klingelt gleich')->body('Nach dem Abheben wählt sipgate '.$record->phoneDisplay().'.')->success()->send();
+            });
     }
 
     public static function crossSelling(): Action

@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Sipgate\SipgateClient;
 use Illuminate\Support\Facades\Schedule;
 
 // Täglicher Löschlauf nach den Fristen in config/adk.php, Ausgabe in storage/logs/loeschlauf.log.
@@ -9,3 +10,10 @@ Schedule::command('adk:loeschlauf')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/loeschlauf.log'));
+
+// sipgate: neue Anrufe alle 5 Minuten als Aktivität übernehmen (nur wenn eingerichtet).
+Schedule::command('adk:sipgate-abgleich')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->when(fn () => SipgateClient::isConfigured());

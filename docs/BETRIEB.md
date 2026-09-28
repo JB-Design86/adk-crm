@@ -128,7 +128,7 @@ Für den Betrieb entsprechend `/etc/cron.d/adk-crm` mit dem Systembenutzer von `
 
 Prüfen: `sudo -u crmtest /opt/plesk/php/8.4/bin/php artisan schedule:list` im Anwendungsverzeichnis.
 
-Der Scheduler startet täglich um 02:30 Uhr den Löschlauf `adk:loeschlauf` (Uhrzeit in `config/adk.php`, `retention.run_at`). Die Ausgabe landet in `storage/logs/loeschlauf.log`, Anzahl und Zeitpunkt zusätzlich im Protokoll der Anwendung.
+Der Scheduler startet alle 5 Minuten den sipgate-Abgleich `adk:sipgate-abgleich` (nur wenn sipgate eingerichtet ist, siehe Abschnitt 10) und täglich um 02:30 Uhr den Löschlauf `adk:loeschlauf` (Uhrzeit in `config/adk.php`, `retention.run_at`). Die Ausgabe landet in `storage/logs/loeschlauf.log`, Anzahl und Zeitpunkt zusätzlich im Protokoll der Anwendung.
 
 Probelauf von Hand:
 
@@ -217,3 +217,58 @@ Paketaktualisierungen (`composer update`, `npm update`) nur lokal, testen, dann 
 - Anmeldeversuche: höchstens 5 je Minute (Filament), Fehlversuche stehen im Protokoll.
 - `robots.txt` sperrt alle Suchmaschinen.
 - Hinter nginx vertraut die Anwendung nur `127.0.0.1` als Proxy.
+
+---
+
+## 10 sipgate (Anruf per Klick und automatische Protokollierung)
+
+Das CRM spricht die sipgate-REST-API an (OAuth2, Rechte `sessions:calls:write`, `history:read`, `devices:read`). Jede Person verbindet ihr **eigenes** sipgate-Konto unter **Akquise → Telefonie**. Ohne Einträge in der `.env` bleibt die Funktion aus, der Rest des CRM läuft unverändert.
+
+### 10.1 Einmalig in sipgate
+
+1. In der sipgate-Konsole unter den API-Clients den Client für das CRM öffnen (je Umgebung am besten ein eigener Client).
+2. **Weiterleitungs-URI** (Redirect URI) eintragen:
+   - Test: `https://crm-test.adk-akademie.de/sipgate/callback`
+   - Betrieb: `https://crm.adk-akademie.de/sipgate/callback`
+3. **Secret neu erzeugen**, wenn es jemals außerhalb von sipgate und der `.env` stand (z. B. in einem Chat oder auf einem Screenshot).
+
+### 10.2 Einmalig auf dem Server (nur Verwaltung)
+
+In der `.env` der Umgebung eintragen (Plesk → Dateien → `httpdocs/.env`, oder per SSH):
+
+```dotenv
+SIPGATE_CLIENT_ID=...
+SIPGATE_CLIENT_SECRET=...
+```
+
+Danach im Anwendungsverzeichnis:
+
+```bash
+/opt/plesk/php/8.4/bin/php artisan optimize
+```
+
+Client-ID und Secret stehen nur in der `.env`, nie im Repository, nie im Chat.
+
+### 10.3 Je Person
+
+1. **Telefonie → Mit sipgate verbinden**, bei sipgate anmelden und die Freigabe bestätigen. Das CRM sieht das sipgate-Kennwort nicht.
+2. Das Gerät wählen, das bei „Anrufen“ zuerst klingeln soll (Tischtelefon, Softphone oder Handy).
+
+### 10.4 Was passiert
+
+- **Über sipgate anrufen** (Anrufliste und Vorgangsseite): Erst klingelt das gewählte Gerät, nach dem Abheben wählt sipgate die Nummer. Sperrliste und Einwilligung prüft das CRM vorher, genau wie beim normalen Anruf.
+- **Abgleich alle 5 Minuten** (`adk:sipgate-abgleich`, läuft über den Scheduler aus Abschnitt 5): Neue Anrufe aus der sipgate-Anrufliste werden als Aktivität „Telefonat (sipgate)“ mit Richtung, Ergebnis und Dauer am Vorgang mit derselben Nummer gespeichert, jeder Anruf nur einmal. Anrufe mit unbekannten Nummern werden nicht übernommen und nicht gespeichert.
+- Tokens liegen verschlüsselt in der Datenbank (Schlüssel `APP_KEY`). Verbinden, Trennen und jeder gestartete Anruf stehen im Protokoll, ohne Tokens. Wird ein Konto gesperrt, löscht das CRM die sipgate-Verbindung sofort.
+- Die Auswertung zeigt zusätzlich „Telefonate laut sipgate“ mit Gesprächszeit als Gegenprobe.
+
+Von Hand abgleichen: Knopf **Jetzt abgleichen** auf der Seite Telefonie, oder
+
+```bash
+/opt/plesk/php/8.4/bin/php artisan adk:sipgate-abgleich
+```
+
+### 10.5 Datenschutz
+
+- Auftragsverarbeitungsvertrag mit sipgate prüfen bzw. abschließen (sipgate ist ohnehin Telefonanbieter, neu ist der Abruf der Anrufliste durch das CRM).
+- Verzeichnis der Verarbeitungstätigkeiten (A-11) und Löschkonzept (A-21) ergänzen: Rufnummernabgleich, Richtung, Ergebnis und Dauer als Aktivität am Vorgang; gelöscht mit dem Vorgang nach den Fristen in `config/adk.php`.
+- Testen auf `crm-test` nur mit eigenen Nummern, weil dort echte Anrufe ausgelöst werden.

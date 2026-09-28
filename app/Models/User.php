@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use SensitiveParameter;
@@ -76,11 +77,19 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function block(): void
     {
         $this->forceFill(['is_blocked' => true, 'blocked_at' => now()])->save();
+
+        // Gesperrte Konten dürfen nicht weiter über sipgate telefonieren.
+        $this->sipgateConnection()->delete();
     }
 
     public function unblock(): void
     {
         $this->forceFill(['is_blocked' => false, 'blocked_at' => null])->save();
+    }
+
+    public function sipgateConnection(): HasOne
+    {
+        return $this->hasOne(SipgateConnection::class);
     }
 
     public function assignedLeads(): HasMany

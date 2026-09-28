@@ -113,6 +113,32 @@ class ReportService
     }
 
     /**
+     * Telefonate laut sipgate-Anrufliste (Aktivitäten „Telefonat (sipgate)“): Gegenprobe zu den
+     * in der Anrufliste gespeicherten Anrufen, dazu die Gesprächszeit.
+     *
+     * @return array{total: int, picked_up: int, talk_seconds: int, average_seconds: ?int}
+     */
+    public function phoneLog(): array
+    {
+        $row = DB::table('activities')
+            ->whereBetween('occurred_at', [$this->from, $this->until])
+            ->where('type', 'phone_log')
+            ->when($this->userId, fn (Builder $q) => $q->where('user_id', $this->userId))
+            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN outcome = 'PICKUP' THEN 1 ELSE 0 END) as picked_up, SUM(CASE WHEN outcome = 'PICKUP' THEN COALESCE(duration_seconds, 0) ELSE 0 END) as talk_seconds")
+            ->first();
+
+        $pickedUp = (int) ($row->picked_up ?? 0);
+        $talk = (int) ($row->talk_seconds ?? 0);
+
+        return [
+            'total' => (int) ($row->total ?? 0),
+            'picked_up' => $pickedUp,
+            'talk_seconds' => $talk,
+            'average_seconds' => $pickedUp ? intdiv($talk, $pickedUp) : null,
+        ];
+    }
+
+    /**
      * „Datensatz falsch“ je Importquelle (Rückmeldung an die Prüfstufen der Leadliste).
      *
      * @return list<array{source: string, wrong: int, leads: int, rate: ?float}>

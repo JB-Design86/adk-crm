@@ -35,4 +35,3 @@ it('zeigt oben auf jeder Seite, wofür sie da ist', function (string $url, strin
     ['/import', 'import'],
     ['/pruefstufen', 'pruefstufen'],
 ]);
-

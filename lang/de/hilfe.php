@@ -90,6 +90,7 @@ return [
         'voucher_valid_until' => 'Bis wann der Bildungsgutschein eingelöst werden muss. Ab 14 Tagen vor Ablauf rot markiert.',
         'funder_contact' => 'Zuständige Vermittlungsfachkraft bzw. Reha-Management beim Kostenträger.',
         'step' => 'Welcher Schritt erledigt wurde. Vorausgewählt ist der nächste offene Schritt.',
+        'sipgate_call' => 'Zuerst klingelt Ihr unter „Telefonie“ gewähltes Gerät. Nach dem Abheben wählt sipgate die Nummer des Vorgangs.',
     ],
 
     'seiten' => [
@@ -98,6 +99,7 @@ return [
         'vorgaenge' => 'Alle Vorgänge mit Filtern und Suche. Ein Klick öffnet den Vorgang mit allen Daten, Aktivitäten und Terminen.',
         'kalender' => 'Termine und Wiedervorlagen nach Tag oder Woche. Ein Klick auf einen Tag zeigt alle Einträge.',
         'auswertung' => 'Anrufe, Erreichte, Termine und Unterlagen je Tag und Woche, Quoten je Branche, Kanal und Importquelle.',
+        'telefonie' => 'Eigenes sipgate-Konto verbinden: Dann starten Sie Anrufe per Klick, und das CRM übernimmt Ihre Telefonate automatisch als Aktivität.',
         'organisationen' => 'Betriebe und Einrichtungen. Quelle und Abrufdatum sind Pflicht.',
         'kontakte' => 'Personen mit Datenschutzhinweis und Einwilligungen.',
         'import' => 'Leadliste als Excel oder CSV einspielen. Quelle und Abrufdatum sind Pflicht, Dubletten und Sperrliste werden automatisch übersprungen.',

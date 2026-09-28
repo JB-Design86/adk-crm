@@ -22,6 +22,7 @@ class Activity extends Model
         'status_change' => 'Statuswechsel',
         'appointment' => 'Termin',
         'funding_step' => 'Förderweg',
+        'phone_log' => 'Telefonat (sipgate)',
     ];
 
     protected $guarded = ['id'];
@@ -41,7 +42,12 @@ class Activity extends Model
         });
 
         static::created(function (Activity $activity) {
-            $activity->lead?->forceFill(['last_contact_at' => $activity->occurred_at])->saveQuietly();
+            $lead = $activity->lead;
+
+            // Nachträglich übernommene Anrufe (sipgate) dürfen den letzten Kontakt nicht zurückdatieren.
+            if ($lead && ($lead->last_contact_at === null || $activity->occurred_at->gt($lead->last_contact_at))) {
+                $lead->forceFill(['last_contact_at' => $activity->occurred_at])->saveQuietly();
+            }
         });
     }
 

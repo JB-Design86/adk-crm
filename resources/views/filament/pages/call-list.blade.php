@@ -98,6 +98,11 @@
                                 <x-filament::icon icon="heroicon-o-phone" class="h-5 w-5" />
                                 {{ $lead->phoneDisplay() }}
                             </a>
+                            @if ($this->sipgateAvailable())
+                                <x-filament::button wire:click="callViaSipgate" color="gray" icon="heroicon-o-phone-arrow-up-right" class="ml-2 align-middle" title="Zuerst klingelt Ihr unter „Telefonie“ gewähltes Gerät, danach wählt sipgate die Nummer.">
+                                    Über sipgate anrufen
+                                </x-filament::button>
+                            @endif
                         @elseif ($lead->phoneDisplay())
                             <span class="text-lg text-gray-500 line-through">{{ $lead->phoneDisplay() }}</span>
                         @endif

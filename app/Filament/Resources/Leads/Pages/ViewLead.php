@@ -34,6 +34,7 @@ class ViewLead extends ViewRecord
                 ->color('success')
                 ->visible(fn () => $this->getRecord()->fundingCase()->exists())
                 ->url(fn () => FundingCaseResource::getUrl('view', ['record' => $this->getRecord()->fundingCase()->value('id')])),
+            LeadActions::sipgateCall(),
             LeadActions::setStatus(),
             LeadActions::crossSelling(),
             LeadActions::addActivity(),

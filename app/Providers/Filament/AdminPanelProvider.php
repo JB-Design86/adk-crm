@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Today;
+use App\Http\Controllers\SipgateController;
 use App\Http\Middleware\EnsureUserIsNotBlocked;
 use App\Support\InitialsAvatarProvider;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
@@ -19,6 +20,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -73,6 +75,11 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            // sipgate-Verbindung (OAuth2): Weiterleitung zu sipgate und Rückruf, nur angemeldet.
+            ->authenticatedRoutes(function (): void {
+                Route::get('sipgate/connect', [SipgateController::class, 'connect'])->name('sipgate.connect');
+                Route::get('sipgate/callback', [SipgateController::class, 'callback'])->name('sipgate.callback');
+            })
             ->authMiddleware([
                 // Filament-Anmeldeprüfung plus sofortige Abmeldung gesperrter Konten.
                 EnsureUserIsNotBlocked::class,
