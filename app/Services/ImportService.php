@@ -30,29 +30,52 @@ class ImportService
     /**
      * Feste Zielfelder. Die Bezeichnung ist zugleich die Spaltenüberschrift der Mustervorlage.
      * aliases: weitere Überschriften, die automatisch zugeordnet werden.
+     * help: [Pflicht, Bedeutung, erlaubte Werte/Format, Beispiel] für das Blatt „Erklärung“.
      * Die Prüfstufen kommen dynamisch aus der Tabelle check_levels hinzu, siehe fields().
      */
     public const BASE_FIELDS = [
-        'name' => ['label' => 'Firmenname', 'aliases' => ['firma', 'unternehmen', 'name', 'firmenname']],
-        'legal_form' => ['label' => 'Rechtsform', 'aliases' => []],
-        'industry' => ['label' => 'Branche', 'aliases' => []],
-        'wz_code' => ['label' => 'WZ-2008-Code', 'aliases' => ['wz', 'wz code', 'wz-code', 'wz 2008']],
-        'priority' => ['label' => 'Priorität', 'aliases' => ['prioritaet', 'prio']],
-        'street' => ['label' => 'Straße', 'aliases' => ['strasse', 'anschrift', 'adresse']],
-        'postal_code' => ['label' => 'PLZ', 'aliases' => ['postleitzahl']],
-        'city' => ['label' => 'Ort', 'aliases' => ['stadt']],
-        'phone' => ['label' => 'Telefon', 'aliases' => ['telefonnummer', 'tel', 'tel.']],
-        'email' => ['label' => 'E-Mail', 'aliases' => ['email', 'mail']],
-        'website' => ['label' => 'Website', 'aliases' => ['webseite', 'internet', 'homepage', 'url']],
-        'employee_count' => ['label' => 'Mitarbeitende', 'aliases' => ['mitarbeiter', 'größe', 'groesse', 'anzahl mitarbeitende']],
-        'is_training_company' => ['label' => 'Ausbildungsbetrieb', 'aliases' => []],
-        'check_notes' => ['label' => 'Bemerkung Prüfung', 'aliases' => ['bemerkung']],
-        'contact_salutation' => ['label' => 'Anrede Ansprechpartner', 'aliases' => ['anrede']],
-        'contact_first_name' => ['label' => 'Vorname Ansprechpartner', 'aliases' => ['vorname']],
-        'contact_last_name' => ['label' => 'Nachname Ansprechpartner', 'aliases' => ['nachname', 'ansprechpartner']],
-        'contact_position' => ['label' => 'Funktion Ansprechpartner', 'aliases' => ['funktion', 'position']],
-        'contact_phone' => ['label' => 'Telefon Ansprechpartner', 'aliases' => ['durchwahl']],
-        'contact_email' => ['label' => 'E-Mail Ansprechpartner', 'aliases' => []],
+        'name' => ['label' => 'Firmenname', 'aliases' => ['firma', 'unternehmen', 'name', 'firmenname'],
+            'help' => ['Pflicht', 'Name des Betriebs wie im Impressum', 'Text', 'Muster Steuerberatung GmbH']],
+        'legal_form' => ['label' => 'Rechtsform', 'aliases' => [],
+            'help' => ['nein', 'Rechtsform des Betriebs', 'z. B. GmbH, UG (haftungsbeschränkt), e.K., GbR, KG, AG, PartG mbB', 'GmbH']],
+        'industry' => ['label' => 'Branche', 'aliases' => [],
+            'help' => ['empfohlen', 'Branche genau wie im Blatt „Branchen“ geschrieben', 'Wert aus Blatt „Branchen“', 'Steuerberatung']],
+        'wz_code' => ['label' => 'WZ-2008-Code', 'aliases' => ['wz', 'wz code', 'wz-code', 'wz 2008'],
+            'help' => ['nein', 'Branchenschlüssel des Statistischen Bundesamts. Leer lassen, wenn die Branche aus der Liste stammt, dann ergänzt das CRM den Code', 'z. B. 69.20', '69.20']],
+        'priority' => ['label' => 'Priorität', 'aliases' => ['prioritaet', 'prio'],
+            'help' => ['empfohlen', 'Wie gut passt der Betrieb? A = sehr gut, B = gut, C = möglich. Regeln siehe Rechercheanleitung', 'A, B oder C', 'A']],
+        'street' => ['label' => 'Straße', 'aliases' => ['strasse', 'anschrift', 'adresse'],
+            'help' => ['empfohlen', 'Straße und Hausnummer des Betriebs', 'Text', 'Musterstraße 1']],
+        'postal_code' => ['label' => 'PLZ', 'aliases' => ['postleitzahl'],
+            'help' => ['empfohlen', 'Postleitzahl. Wichtig für die Dublettenprüfung (Firmenname + PLZ)', 'fünf Ziffern', '55116']],
+        'city' => ['label' => 'Ort', 'aliases' => ['stadt'],
+            'help' => ['empfohlen', 'Ort des Betriebs', 'Text', 'Mainz']],
+        'phone' => ['label' => 'Telefon', 'aliases' => ['telefonnummer', 'tel', 'tel.'],
+            'help' => ['empfohlen', 'Zentrale Telefonnummer des Betriebs. Keine privaten Handynummern', 'wie auf der Website angegeben', '06131 123456']],
+        'email' => ['label' => 'E-Mail', 'aliases' => ['email', 'mail'],
+            'help' => ['nein', 'Allgemeine E-Mail-Adresse des Betriebs', 'z. B. info@…', 'info@beispiel.de']],
+        'website' => ['label' => 'Website', 'aliases' => ['webseite', 'internet', 'homepage', 'url'],
+            'help' => ['empfohlen', 'Startseite des Betriebs', 'Adresse mit https://', 'https://www.beispiel.de']],
+        'source_url' => ['label' => 'Fundstelle (URL)', 'aliases' => ['fundstelle', 'quelle url', 'url quelle', 'impressum'],
+            'help' => ['empfohlen', 'Genaue Seite, auf der die Angaben stehen, meist das Impressum. Nachweis, woher die Daten stammen', 'Adresse mit https://', 'https://www.beispiel.de/impressum']],
+        'employee_count' => ['label' => 'Mitarbeitende', 'aliases' => ['mitarbeiter', 'größe', 'groesse', 'anzahl mitarbeitende'],
+            'help' => ['nein', 'Anzahl Mitarbeitende. Bei einer Spanne den unteren Wert. Leer lassen, wenn unbekannt', 'ganze Zahl', '12']],
+        'is_training_company' => ['label' => 'Ausbildungsbetrieb', 'aliases' => [],
+            'help' => ['nein', 'Bildet der Betrieb aus (z. B. Ausbildungsplätze auf der Website oder bei der IHK)?', 'ja, nein oder leer', 'ja']],
+        'check_notes' => ['label' => 'Bemerkung Prüfung', 'aliases' => ['bemerkung'],
+            'help' => ['empfohlen', 'Kurz: Warum könnte der Betrieb Bedarf an Weiterbildung haben? Auffälligkeiten', 'Text, ein bis zwei Sätze', 'sucht laut Stellenanzeige Bürokraft, stellt Verwaltung auf digital um']],
+        'contact_salutation' => ['label' => 'Anrede Ansprechpartner', 'aliases' => ['anrede'],
+            'help' => ['nein', 'Anrede der Ansprechperson', 'Frau, Herr oder leer', 'Frau']],
+        'contact_first_name' => ['label' => 'Vorname Ansprechpartner', 'aliases' => ['vorname'],
+            'help' => ['nein', 'Nur wenn öffentlich als geschäftliche Ansprechperson genannt, z. B. Geschäftsführung im Impressum', 'Text', 'Erika']],
+        'contact_last_name' => ['label' => 'Nachname Ansprechpartner', 'aliases' => ['nachname', 'ansprechpartner'],
+            'help' => ['nein', 'Wie Vorname: nur öffentlich genannte geschäftliche Ansprechperson', 'Text', 'Mustermann']],
+        'contact_position' => ['label' => 'Funktion Ansprechpartner', 'aliases' => ['funktion', 'position'],
+            'help' => ['nein', 'Funktion der Ansprechperson', 'z. B. Geschäftsführung, Personalleitung, Inhaber/in', 'Geschäftsführung']],
+        'contact_phone' => ['label' => 'Telefon Ansprechpartner', 'aliases' => ['durchwahl'],
+            'help' => ['nein', 'Nur eine öffentlich genannte geschäftliche Durchwahl. Keine privaten Nummern', 'wie angegeben', '06131 123457']],
+        'contact_email' => ['label' => 'E-Mail Ansprechpartner', 'aliases' => [],
+            'help' => ['nein', 'Nur eine öffentlich genannte geschäftliche E-Mail-Adresse', 'E-Mail-Adresse', 'e.mustermann@beispiel.de']],
     ];
 
     public const CHECK_PREFIX = 'check_level_';
@@ -61,7 +84,7 @@ class ImportService
      * Alle Zielfelder: feste Felder plus je aktiver Prüfstufe eine Spalte
      * (Schlüssel check_level_{id}), eingefügt vor „Bemerkung Prüfung“.
      *
-     * @return array<string, array{label: string, aliases: list<string>}>
+     * @return array<string, array{label: string, aliases: list<string>, help: list<string>}>
      */
     public static function fields(): array
     {
@@ -70,7 +93,11 @@ class ImportService
         foreach (self::BASE_FIELDS as $key => $definition) {
             if ($key === 'check_notes') {
                 foreach (CheckLevel::activeOrdered() as $level) {
-                    $fields[self::CHECK_PREFIX.$level->id] = ['label' => $level->name, 'aliases' => []];
+                    $fields[self::CHECK_PREFIX.$level->id] = [
+                        'label' => $level->name,
+                        'aliases' => [],
+                        'help' => ['nein', 'Prüfstufe: '.($level->description ?: $level->name), 'ja, nein oder leer (nicht geprüft)', 'ja'],
+                    ];
                 }
             }
 
@@ -81,8 +108,9 @@ class ImportService
     }
 
     /**
-     * Mustervorlage (XLSX) mit den aktuellen Spalten, inklusive der aktiven Prüfstufen,
-     * und zwei erfundenen Beispielzeilen.
+     * Mustervorlage (XLSX) mit drei Blättern: „Leadliste“ (Spalten wie beim Import, inklusive
+     * der aktiven Prüfstufen, mit zwei erfundenen Beispielzeilen), „Erklärung“ (je Spalte
+     * Pflicht, Bedeutung, Format, Beispiel) und „Branchen“ (erlaubte Branchen mit WZ-Code).
      */
     public static function writeTemplate(string $path): void
     {
@@ -91,6 +119,7 @@ class ImportService
                 'name' => 'Beispiel Steuerberatung GmbH', 'legal_form' => 'GmbH', 'industry' => 'Steuerberatung', 'wz_code' => '69.20',
                 'priority' => 'A', 'street' => 'Musterstraße 1', 'postal_code' => '55116', 'city' => 'Mainz',
                 'phone' => '06131 000000', 'email' => 'info@beispiel-steuer.example', 'website' => 'https://www.beispiel-steuer.example',
+                'source_url' => 'https://www.beispiel-steuer.example/impressum',
                 'employee_count' => '12', 'is_training_company' => 'ja', 'check_notes' => 'erfundene Beispielzeile',
                 'contact_salutation' => 'Frau', 'contact_first_name' => 'Erika', 'contact_last_name' => 'Mustermann',
                 'contact_position' => 'Geschäftsführung', 'contact_phone' => '06131 000001', 'contact_email' => 'e.mustermann@beispiel-steuer.example',
@@ -99,7 +128,8 @@ class ImportService
             [
                 'name' => 'Muster Logistik KG', 'legal_form' => 'KG', 'industry' => 'Spedition und Logistik', 'wz_code' => '52.29',
                 'priority' => 'B', 'street' => 'Beispielweg 5', 'postal_code' => '65428', 'city' => 'Rüsselsheim am Main',
-                'phone' => '06142 000000', 'website' => 'www.muster-logistik.example', 'employee_count' => '45', 'is_training_company' => 'nein',
+                'phone' => '06142 000000', 'website' => 'www.muster-logistik.example', 'source_url' => 'https://www.muster-logistik.example/impressum',
+                'employee_count' => '45', 'is_training_company' => 'nein',
                 'checks' => 'nein',
             ],
         ];
@@ -110,7 +140,32 @@ class ImportService
             array_keys($fields),
         )), $examples);
 
-        Spreadsheet::write($path, 'xlsx', array_values(array_column($fields, 'label')), $rows);
+        $explanations = array_values(array_map(
+            fn (array $field) => [$field['label'], ...$field['help']],
+            $fields,
+        ));
+        $explanations[] = ['', '', '', '', ''];
+        $explanations[] = ['Hinweis', '', 'Quelle und Abrufdatum der ganzen Datei werden beim Import im CRM angegeben (Pflicht). Dubletten und Einträge der Sperrliste überspringt das CRM beim Import selbst.', '', ''];
+
+        $industries = array_map(
+            fn (string $industry, string $code) => [$industry, $code],
+            array_keys(config('adk.industries')),
+            array_values(config('adk.industries')),
+        );
+
+        Spreadsheet::writeWorkbook($path, [
+            'Leadliste' => ['header' => array_values(array_column($fields, 'label')), 'rows' => $rows],
+            'Erklärung' => [
+                'header' => ['Spalte', 'Pflicht', 'Bedeutung', 'Erlaubte Werte / Format', 'Beispiel'],
+                'rows' => $explanations,
+                'widths' => [1 => 28, 2 => 12, 3 => 60, 4 => 36, 5 => 36],
+            ],
+            'Branchen' => [
+                'header' => ['Branche', 'WZ-2008-Code'],
+                'rows' => $industries,
+                'widths' => [1 => 40, 2 => 16],
+            ],
+        ]);
     }
 
     /**
@@ -400,6 +455,7 @@ class ImportService
             'phone_display' => $data['phone'],
             'email' => $data['email'],
             'website' => $data['website'],
+            'source_url' => $data['source_url'] ? mb_substr($data['source_url'], 0, 500) : null,
             'employee_count' => $data['employee_count'],
             'is_training_company' => $data['is_training_company'],
             'check_notes' => $data['check_notes'],

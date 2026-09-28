@@ -75,6 +75,12 @@ class LeadInfolist
                         TextEntry::make('organization.employee_count')->label('Mitarbeitende')->placeholder('–'),
                         TextEntry::make('organization.source')->label('Quelle'),
                         TextEntry::make('organization.retrieved_at')->label('Abrufdatum')->date('d.m.Y'),
+                        TextEntry::make('organization.source_url')
+                            ->label('Fundstelle')
+                            ->url(fn (Lead $record) => $record->organization?->source_url, shouldOpenInNewTab: true)
+                            ->limit(40)
+                            ->placeholder('–')
+                            ->columnSpanFull(),
                     ]),
                 Section::make('Kontakt')
                     ->columns(2)

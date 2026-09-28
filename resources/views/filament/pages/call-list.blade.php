@@ -110,7 +110,7 @@
                             <div><dt class="text-gray-500">Mitarbeitende</dt><dd>{{ $organization->employee_count ?? '–' }} @if ($organization->is_training_company) · Ausbildungsbetrieb @endif</dd></div>
                             <div><dt class="text-gray-500">Website</dt><dd>{{ $organization->website ?? '–' }}</dd></div>
                             <div><dt class="text-gray-500">E-Mail</dt><dd>{{ $organization->email ?? '–' }}</dd></div>
-                            <div><dt class="text-gray-500">Quelle</dt><dd>{{ $organization->source }} ({{ $organization->retrieved_at?->format('d.m.Y') }})</dd></div>
+                            <div><dt class="text-gray-500">Quelle</dt><dd>{{ $organization->source }} ({{ $organization->retrieved_at?->format('d.m.Y') }})@if ($organization->source_url) · <a href="{{ $organization->source_url }}" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:underline dark:text-primary-400">Fundstelle</a>@endif</dd></div>
                         @endif
                         @if ($contact)
                             <div><dt class="text-gray-500">Ansprechpartner</dt><dd>{{ $contact->fullName() }} @if ($contact->position)<span class="text-gray-500">· {{ $contact->position }}</span>@endif</dd></div>

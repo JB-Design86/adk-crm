@@ -79,6 +79,7 @@ class OrganizationForm
             TextInput::make('employee_count')->label('Mitarbeitende')->numeric()->minValue(0),
             ToggleButtons::make('is_training_company')->label('Ausbildungsbetrieb')->boolean()->inline(),
             TextInput::make('source')->label('Quelle')->required()->maxLength(255)->helperText('Pflicht: woher stammen die Daten?'),
+            TextInput::make('source_url')->label('Fundstelle (URL)')->url()->maxLength(500)->helperText('Seite, auf der die Daten stehen, z. B. das Impressum.'),
             DatePicker::make('retrieved_at')->label('Abrufdatum')->required()->maxDate(today())->default(today()),
         ];
     }

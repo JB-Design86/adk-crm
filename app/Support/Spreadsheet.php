@@ -6,11 +6,14 @@ use DateTimeInterface;
 use Generator;
 use InvalidArgumentException;
 use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\CellVerticalAlignment;
+use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Reader\CSV\Options as CsvReaderOptions;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use OpenSpout\Writer\CSV\Options as CsvWriterOptions;
 use OpenSpout\Writer\CSV\Writer as CsvWriter;
+use OpenSpout\Writer\XLSX\Entity\SheetView;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 
 /**
@@ -68,6 +71,39 @@ class Spreadsheet
 
         foreach ($rows as $row) {
             $writer->addRow(Row::fromValues($row));
+        }
+
+        $writer->close();
+    }
+
+    /**
+     * XLSX-Arbeitsmappe mit mehreren Blättern. Kopfzeile fett und fixiert.
+     *
+     * @param  array<string, array{header: list<string>, rows: iterable<list<mixed>>, widths?: array<int, float>}>  $sheets  Blattname => Inhalt
+     */
+    public static function writeWorkbook(string $path, array $sheets): void
+    {
+        $writer = new XlsxWriter;
+        $writer->openToFile($path);
+        $bold = (new Style)->setFontBold()->setBackgroundColor('E8EEF7');
+        $wrap = (new Style)->setShouldWrapText()->setCellVerticalAlignment(CellVerticalAlignment::TOP);
+        $first = true;
+
+        foreach ($sheets as $name => $sheet) {
+            $current = $first ? $writer->getCurrentSheet() : $writer->addNewSheetAndMakeItCurrent();
+            $first = false;
+            $current->setName($name);
+            $current->setSheetView((new SheetView)->setFreezeRow(2));
+
+            foreach ($sheet['widths'] ?? [] as $column => $width) {
+                $current->setColumnWidth($width, $column);
+            }
+
+            $writer->addRow(Row::fromValues($sheet['header'], $bold));
+
+            foreach ($sheet['rows'] as $row) {
+                $writer->addRow(Row::fromValues($row, isset($sheet['widths']) ? $wrap : null));
+            }
         }
 
         $writer->close();
