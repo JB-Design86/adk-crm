@@ -76,6 +76,8 @@ Das Repository `JB-Design86/adk-crm` ist privat. Plesk ruft es per SSH mit einem
    - Zielverzeichnis: `/httpdocs`
 2. **Zusätzliche Bereitstellungsaktionen aktivieren** und das Deploy-Skript aus Abschnitt 4 eintragen.
 
+**crm-test aktualisiert sich automatisch:** Bereitstellungsmodus „auto“, und in GitHub unter **Settings → Webhooks** ruft ein Webhook bei jedem Push die Plesk-Adresse `https://vigorous-bhabha.217-160-106-171.plesk.page:8443/modules/git/public/web-hook.php?uuid=…` auf (nur Push-Ereignis, JSON, SSL-Prüfung an). Jeder Push nach `main` landet damit wenige Sekunden später auf crm-test, inklusive Migrationen. Der Betrieb `crm` bleibt bei **manuell**: Dort wird erst nach Prüfung auf crm-test bereitgestellt.
+
 ---
 
 ## 4 Deploy-Skript
