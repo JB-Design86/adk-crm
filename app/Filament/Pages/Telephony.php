@@ -43,6 +43,12 @@ class Telephony extends Page
         return Gate::allows('call_list');
     }
 
+    /** Im Menü erst, wenn sipgate in der .env eingerichtet ist. */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return SipgateClient::isConfigured();
+    }
+
     public function mount(): void
     {
         $this->deviceId = $this->connection()?->device_id;

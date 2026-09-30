@@ -59,6 +59,10 @@ it('erklärt auf der Seite Telefonie, dass sipgate noch nicht eingerichtet ist',
         ->assertDontSee('sipgate/connect');
 
     $this->get(route('filament.crm.sipgate.connect'))->assertNotFound();
+
+    expect(Telephony::shouldRegisterNavigation())->toBeFalse();
+    config(['services.sipgate.client_id' => 'test-client']);
+    expect(Telephony::shouldRegisterNavigation())->toBeTrue();
 });
 
 it('leitet zur Anmeldung bei sipgate weiter und merkt sich den Prüfwert', function () {
