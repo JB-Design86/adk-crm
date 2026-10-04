@@ -5,8 +5,13 @@ use App\Filament\Resources\CheckLevels\Pages\EditCheckLevel;
 use App\Filament\Resources\Organizations\Pages\EditOrganization;
 use App\Models\AuditLog;
 use App\Models\CheckLevel;
+use App\Models\Contact;
+use App\Models\FundingStep;
+use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\OrganizationCheck;
+use App\Models\ParticipantChecklistItem;
+use App\Services\FundingService;
 use App\Services\ImportService;
 use App\Support\Spreadsheet;
 use Livewire\Livewire;
@@ -126,4 +131,35 @@ it('erzeugt die Mustervorlage mit den aktuellen Prüfstufen', function () {
         ->not->toContain('Prüfstufe 1')
         ->and(count($rows))->toBe(3)
         ->and(count($rows[1]))->toBe(count($rows[0]));
+});
+
+it('überträgt Prüfstufen, Förderweg-Schritte und Checkliste in ein neues System', function () {
+    CheckLevel::query()->first()->update(['name' => 'Ausbildungsbetrieb geprüft']);
+    FundingStep::query()->first()->update(['instructions' => 'Beratungstermin per Teams anbieten.']);
+    $file = tempnam(sys_get_temp_dir(), 'einstellungen').'.json';
+
+    $this->artisan('adk:einstellungen', ['aktion' => 'export', 'datei' => $file])->assertSuccessful();
+    $export = json_decode(file_get_contents($file), true);
+    expect($export['check_levels'][0]['name'])->toBe('Ausbildungsbetrieb geprüft')
+        ->and(json_encode($export))->not->toContain('@');
+
+    // Neues System: Standardwerte
+    CheckLevel::query()->first()->update(['name' => 'Prüfstufe 1']);
+    FundingStep::query()->first()->update(['instructions' => null]);
+
+    $this->artisan('adk:einstellungen', ['aktion' => 'import', 'datei' => $file])->assertSuccessful();
+
+    expect(CheckLevel::orderBy('sort_order')->first()->name)->toBe('Ausbildungsbetrieb geprüft')
+        ->and(FundingStep::where('instructions', 'Beratungstermin per Teams anbieten.')->exists())->toBeTrue()
+        ->and(ParticipantChecklistItem::where('key', 'funder_confirmed')->exists())->toBeTrue();
+});
+
+it('spielt Einstellungen nicht in ein System mit Förderfällen ein', function () {
+    $file = tempnam(sys_get_temp_dir(), 'einstellungen').'.json';
+    $this->artisan('adk:einstellungen', ['aktion' => 'export', 'datei' => $file])->assertSuccessful();
+
+    $lead = Lead::factory()->inboundPrivate()->create(['target_group' => 'self_payer', 'contact_id' => Contact::factory()->private()]);
+    app(FundingService::class)->start($lead);
+
+    $this->artisan('adk:einstellungen', ['aktion' => 'import', 'datei' => $file])->assertFailed();
 });

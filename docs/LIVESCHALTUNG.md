@@ -36,7 +36,7 @@ Janosch meldet sich in Plesk an, Claude arbeitet im Browser. Dauer etwa eine Stu
 | 2.9 | Hochladen bis 20 MB prüfen (PHP-Grenzen, `BETRIEB.md` Abschnitt 11) | Claude |
 | 2.10 | **Sicherung**: gebuchte Datensicherung aktiv, täglich mit Datenbank, `.env` und `storage/app/documents`, Aufbewahrung 30 Tage. **APP_KEY im Passwortmanager ablegen**: Ohne ihn sind Dokumente und Zwei-Faktor-Geheimnisse nicht mehr lesbar | Claude richtet ein, Janosch legt den Schlüssel ab |
 | 2.11 | Prüfung: HTTPS mit gültigem Zertifikat, Sicherheits-Header, Anmeldeseite, `robots.txt`, Löschlauf als Probelauf (`adk:loeschlauf --dry-run`) | Claude |
-| 2.12 | Einstellungen, die auf crm-test angepasst wurden (Prüfstufen, Förderweg-Schritte mit Erklärtexten, Checkliste), in den Betrieb übertragen. Die Daten auf crm-test sind nur Testdaten, übertragen werden nur die Einstellungen | Claude |
+| 2.12 | Einstellungen, die auf crm-test angepasst wurden (Prüfstufen, Förderweg-Schritte mit Erklärtexten, Checkliste), in den Betrieb übertragen: auf crm-test `php artisan adk:einstellungen export /tmp/adk-einstellungen.json`, im Betrieb `php artisan adk:einstellungen import /tmp/adk-einstellungen.json`, danach die Datei löschen. Übertragen werden nur Einstellungen, keine Testdaten; der Import geht nur in ein System ohne Förderfälle | Claude |
 
 ## Schritt 3 · Konten anlegen
 
