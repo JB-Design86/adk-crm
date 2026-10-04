@@ -10,12 +10,12 @@ Stand 04.10.2026 · Ablauf vom Testbetrieb (`crm-test`) zum echten Betrieb (`crm
 
 | Nr. | Punkt | Wer | Stand |
 |---|---|---|---|
-| 1.1 | **Aufbewahrungsfristen** bestätigen: Betriebe 24 Monate, Privatpersonen 6 Monate nach letztem Kontakt, Teilnehmerakte 10 Jahre nach Ende der Maßnahme | Janosch | offen |
+| 1.1 | **Aufbewahrungsfristen**: Betriebe 24 Monate, Privatpersonen 6 Monate nach letztem Kontakt, Teilnehmerakte 10 Jahre nach Ende der Maßnahme | Janosch | bestätigt 04.10.2026 |
 | 1.2 | **Datenschutzunterlagen** ergänzen: A-11 (CRM als eigene Verarbeitungstätigkeit, IONOS als Auftragsverarbeiter „Hosting CRM“), A-21 (Server, Zwei-Faktor, Verschlüsselung der Dokumente, Schnittstellen), A-22 (CRM-Zeile mit den Fristen aus 1.1) | Claude formuliert, Janosch prüft | offen |
 | 1.3 | **Auftragsverarbeitungsvertrag mit IONOS** im IONOS-Konto abgeschlossen und abgelegt | Janosch | prüfen |
 | 1.4 | **Standort Deutschland** des Servers von IONOS bestätigt und abgelegt | Janosch | prüfen |
 | 1.5 | **Zielgruppe E (Arbeitsunfall)**: Gesundheitsdaten nach Art. 9 DSGVO. Entweder entscheiden und VVT ergänzen, oder E vorerst nicht nutzen | Janosch | offen |
-| 1.6 | **Löschen auf Anfrage (Art. 17 DSGVO)**: Heute löscht nur der Löschlauf. Empfehlung: vor dem Start eine Funktion „Person bzw. Betrieb löschen“ für die Verwaltung (mit Protokoll, Sperrliste bleibt) | Claude baut auf Zuruf | empfohlen |
+| 1.6 | **Löschen auf Anfrage (Art. 17 DSGVO)**: Knopf „Löschersuchen (Art. 17)“ an Organisation, Kontakt und Vorgang, nur Verwaltung. Löscht sofort samt Dokumenten und Protokolleinträgen, auf Wunsch Sperrliste; Teilnehmerakten in der Aufbewahrungsfrist werden nicht gelöscht | Claude | erledigt 04.10.2026 |
 | 1.7 | Offene Fragen aus `STUFE1_ABNAHME.md` Abschnitt 6 (Löschfrist Protokoll, „ruhen lassen“, Kennwort/Passwort …) | Janosch | offen |
 | 1.8 | **Vor der ersten echten Teilnehmerakte** (kann nach dem Start kommen): A-11 (V02, V03, V05, V09), A-21, A-22, A-23, Blatt „Aufbau der Teilnehmerakte“, Handbuch Kapitel 9, Änderungsprotokoll, KVP-Liste A-15, Mitteilung an GüteZert | Claude formuliert, Janosch prüft | offen |
 

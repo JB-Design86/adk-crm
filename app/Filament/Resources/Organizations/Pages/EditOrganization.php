@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Organizations\Pages;
 
+use App\Filament\Actions\ErasureAction;
 use App\Filament\Resources\Organizations\OrganizationResource;
 use App\Models\Organization;
 use Filament\Resources\Pages\EditRecord;
@@ -12,6 +13,13 @@ class EditOrganization extends EditRecord
 
     /** @var array<int|string, string> Prüfergebnisse aus dem Formular */
     protected array $checkStates = [];
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            ErasureAction::make(fn () => $this->getRecord(), fn () => OrganizationResource::getUrl('index')),
+        ];
+    }
 
     protected function mutateFormDataBeforeFill(array $data): array
     {

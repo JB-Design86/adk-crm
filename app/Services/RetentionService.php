@@ -7,15 +7,11 @@ use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Contact;
 use App\Models\Document;
-use App\Models\FundingCase;
-use App\Models\FundingCaseStep;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\OrganizationCheck;
 use App\Models\Participant;
-use App\Models\ParticipantCheck;
-use App\Services\Documents\DocumentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -175,38 +171,10 @@ class RetentionService
     /** @param Collection<int, int> $leadIds */
     private function deleteLeads(Collection $leadIds): void
     {
-        $this->counts['activities'] = 0;
-        $this->counts['appointments'] = 0;
-        $this->counts['documents'] = 0;
-
-        foreach ($leadIds->chunk(500) as $chunk) {
-            $documents = Document::whereIn('lead_id', $chunk)->get();
-            $this->purgeAuditLog(Document::class, $documents->pluck('id'));
-            $this->counts['documents'] += app(DocumentService::class)->purge($documents);
-            $participantIds = Participant::whereIn('lead_id', $chunk)->pluck('id');
-            $checkIds = ParticipantCheck::whereIn('participant_id', $participantIds)->pluck('id');
-            $this->purgeAuditLog(ParticipantCheck::class, $checkIds);
-            ParticipantCheck::whereIn('id', $checkIds)->delete();
-            $this->purgeAuditLog(Participant::class, $participantIds);
-            Participant::whereIn('id', $participantIds)->delete();
-
-            $activityIds = Activity::whereIn('lead_id', $chunk)->pluck('id');
-            $appointmentIds = Appointment::whereIn('lead_id', $chunk)->pluck('id');
-
-            $this->purgeAuditLog(Activity::class, $activityIds);
-            $this->purgeAuditLog(Appointment::class, $appointmentIds);
-            $caseIds = FundingCase::whereIn('lead_id', $chunk)->pluck('id');
-            $caseStepIds = FundingCaseStep::whereIn('funding_case_id', $caseIds)->pluck('id');
-            $this->purgeAuditLog(FundingCaseStep::class, $caseStepIds);
-            $this->purgeAuditLog(FundingCase::class, $caseIds);
-            FundingCaseStep::whereIn('id', $caseStepIds)->delete();
-            FundingCase::whereIn('id', $caseIds)->delete();
-            $this->purgeAuditLog(Lead::class, $chunk);
-
-            $this->counts['activities'] += Activity::whereIn('id', $activityIds)->delete();
-            $this->counts['appointments'] += Appointment::whereIn('id', $appointmentIds)->delete();
-            Lead::whereIn('id', $chunk)->delete();
-        }
+        $counts = app(RecordPurger::class)->leads($leadIds);
+        $this->counts['activities'] = $counts['activities'];
+        $this->counts['appointments'] = $counts['appointments'];
+        $this->counts['documents'] = $counts['documents'];
     }
 
     /** @param Collection<int, Contact> $contacts */

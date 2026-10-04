@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Leads\Pages;
 
+use App\Filament\Actions\ErasureAction;
 use App\Filament\Actions\LeadActions;
 use App\Filament\Concerns\ListensForLeadRest;
 use App\Filament\Resources\DuplicateCandidates\DuplicateCandidateResource;
@@ -48,6 +49,10 @@ class ViewLead extends ViewRecord
             LeadActions::crossSelling(),
             LeadActions::addActivity(),
             EditAction::make()->label('Bearbeiten')->color('gray'),
+            ErasureAction::make(
+                fn () => $this->getRecord()->organization ?? $this->getRecord()->contact,
+                fn () => LeadResource::getUrl('index'),
+            ),
         ];
     }
 

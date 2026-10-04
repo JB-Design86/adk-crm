@@ -20,7 +20,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
   - Dublettenprüfung gegen den ganzen Bestand (Import, Anlegen von Hand, Bestandsprüfung).
 
 - [ ] **Live-Schaltung** `crm.adk-akademie.de`: Ablauf in `LIVESCHALTUNG.md` (erst klären, dann einrichten ohne echte Daten, dann Konten, dann echte Daten).
-- [ ] Empfohlen vor dem Start: „Person bzw. Betrieb löschen“ für Löschersuchen nach Art. 17 DSGVO.
+- [x] Löschersuchen nach Art. 17 DSGVO: Knopf an Organisation, Kontakt und Vorgang (nur Verwaltung), siehe `GESAMTKONZEPT.md` Abschnitt 6.
 
 ## Stufe 3 · Förderweg (vorgezogen)
 

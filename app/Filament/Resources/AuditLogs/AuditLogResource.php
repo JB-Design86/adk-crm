@@ -62,6 +62,7 @@ class AuditLogResource extends Resource
         'participant_checks' => 'Checkliste',
         'checklist_items' => 'Checklisten-Punkt',
         'duplicates' => 'Dublettenprüfung',
+        'erasure' => 'Löschersuchen',
     ];
 
     public const EVENTS = [
@@ -84,6 +85,7 @@ class AuditLogResource extends Resource
         'downloaded' => 'abgerufen',
         'zip_export' => 'Aktenausgabe (ZIP)',
         'resolved' => 'aufgelöst',
+        'erased' => 'gelöscht (Art. 17)',
     ];
 
     public static function canViewAny(): bool

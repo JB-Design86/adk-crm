@@ -64,6 +64,7 @@ return [
         'documents.delete' => 'Dokumente löschen',
         'participants' => 'Teilnehmerakten führen',
         'duplicates' => 'Dubletten prüfen und auflösen',
+        'erasure' => 'Löschersuchen ausführen (Art. 17 DSGVO)',
     ],
 
     /*

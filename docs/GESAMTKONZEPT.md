@@ -79,7 +79,15 @@ Ziel: Niemand wird versehentlich zweimal angerufen, egal ob der Datensatz in der
 | Interessent ohne Vertrag, Privatperson | 6 Monate nach letztem Kontakt, samt Dokumenten |
 | Teilnehmerakte samt Vorgang, Förderfall und Dokumenten | 10 Jahre nach Ende der Maßnahme (A-22) |
 
-Der tägliche Löschlauf löscht die Dateien mit. Akten ohne Kursende-Datum bleiben, bis das Datum eingetragen ist.
+Der tägliche Löschlauf löscht die Dateien mit. Akten ohne Kursende-Datum bleiben, bis das Datum eingetragen ist. Die Fristen hat Janosch am 04.10.2026 bestätigt.
+
+**Löschersuchen (Art. 17 DSGVO):** Knopf „Löschersuchen (Art. 17)“ an Organisation, Kontakt und Vorgang, nur für die Verwaltung.
+
+- Löscht sofort und endgültig: Vorgänge mit Aktivitäten, Terminen, Förderfällen und Dokumenten (auch die Dateien), Kontakte, Organisation, Prüfergebnisse, Dublettenverdacht, dazu die Protokolleinträge zu diesen Datensätzen. Im Importprotokoll wird der Firmenname unkenntlich gemacht.
+- Ansprechperson eines Betriebs: Nur die Person wird gelöscht, die Vorgänge des Betriebs bleiben.
+- Sperrliste (empfohlen, voreingestellt): Telefon, E-Mail bzw. Firmenname mit PLZ bleiben gesperrt, damit ein späterer Import niemanden erneut anlegt.
+- Nicht möglich, solange eine Teilnehmerakte der Aufbewahrungspflicht unterliegt (Art. 17 Abs. 3 lit. b). Dann sperren statt löschen und begründet antworten (A-22, Abschnitt 3).
+- Im Protokoll bleiben nur Zeitpunkt, wer, Anlass und Anzahl, ohne Namen.
 
 ## 7 Wer darf was
 
