@@ -109,7 +109,8 @@ return new class extends Migration
             $table->foreignId('document_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
-            $table->index(['participant_id', 'participant_checklist_item_id']);
+            // Eigener Name: der automatische hätte 69 Zeichen, MariaDB erlaubt höchstens 64.
+            $table->index(['participant_id', 'participant_checklist_item_id'], 'participant_checks_lookup');
         });
 
         // Checkliste laut Lastenheft 7.1, Phasen 5 bis 9 des Teilnehmerwegs.
