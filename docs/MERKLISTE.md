@@ -55,7 +55,8 @@ Anforderungen:
 - [ ] Vom System erzeugte Dokumente (A-16, A-26, A-09, Übergabeprotokoll): Vorlagen als Datei nötig.
 - [ ] Kennzahlen K1, K2, K7, K8, K10 aus A-04: Definitionen nötig.
 - [ ] Erklärtexte je Checklisten-Punkt (Janosch).
-- [ ] Zugriff Mitarbeitende auf Teilnehmerakten: derzeit aus, bestätigen.
+- [x] Zugriff Mitarbeitende auf Teilnehmerakten: ja, ohne Gesundheitsangaben (Entscheidung 04.10.2026).
+- [x] Pflichtunterlagen vor der Einschreibung: Gutschein, Bewilligung bzw. Kostenzusage, Vertrag (bestätigt 04.10.2026).
 
 - Anlegen erst nach offizieller Einschreibung und Bestätigung durch den Kostenträger (siehe oben).
 - Inhalt laut Lastenheft 7: Checkliste Vertrag bis Verbleib, Dokumente verschlüsselt, Gesundheitsangaben nur für die Verwaltung, 10 Jahre Aufbewahrung, ZIP-Ausgabe.

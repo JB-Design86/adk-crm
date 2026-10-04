@@ -183,11 +183,22 @@ it('zeigt die Akte mit Checkliste, Dokumenten und Hinweis auf fehlende Vertragsd
     Livewire::test(ListParticipants::class)->assertCanSeeTableRecords([$participant]);
 });
 
-it('zeigt Teilnehmerakten nur mit dem Recht dazu', function () {
+it('lässt den Vertrieb die Teilnehmerakte führen, Gesundheitsangaben aber nicht sehen', function () {
     $participant = enrolledParticipant();
-    loginAs('staff');
+    $participant->contact->update(['health_consent_at' => today(), 'health_consent_proof' => 'Erstgespräch (Test)']);
+    $participant->update(['accommodation_notes' => 'Verlängerte Prüfungszeit (Test)']);
+    $health = $this->documents->store($participant->lead, fakePdf(), ['category' => 'health'], $participant);
 
-    $this->get(ParticipantResource::getUrl('view', ['record' => $participant]))->assertForbidden();
+    $staff = loginAs('staff');
+
+    $this->get(ParticipantResource::getUrl('view', ['record' => $participant]))
+        ->assertOk()
+        ->assertSee('Checkliste')
+        ->assertDontSee('Gesundheitsangaben')
+        ->assertDontSee('Verlängerte Prüfungszeit');
+
+    expect($health->isVisibleTo($staff))->toBeFalse();
+    $this->get(route('filament.crm.documents.show', $health))->assertForbidden();
 });
 
 // --- Dokumente ---

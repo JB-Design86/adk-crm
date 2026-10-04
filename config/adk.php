@@ -35,6 +35,8 @@ return [
                 'reports.view',
                 'documents',
                 'duplicates',
+                // Entscheidung 04.10.2026: Vertrieb führt die Teilnehmerakten mit. Gesundheitsangaben bleiben bei der Verwaltung.
+                'participants',
             ],
         ],
     ],

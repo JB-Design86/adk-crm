@@ -22,7 +22,7 @@ Es gibt **eine** Akte je Person bzw. Betrieb und keine zweite Datenquelle. Der V
 „Einschreibung bestätigt“ im Förderfall geht erst, wenn
 
 1. alle Schritte des Förderwegs erledigt sind und
-2. alle **Pflichtunterlagen** im Vorgang liegen: Bildungsgutschein bzw. Bewilligung oder Kostenzusage und der unterschriebene Schulungsvertrag. Welche Unterlage Pflicht ist, stellt die Verwaltung je Schritt ein (Verwaltung → Förderweg-Schritte, „Pflicht vor der Einschreibung“).
+2. alle **Pflichtunterlagen** im Vorgang liegen: Bildungsgutschein bzw. Bewilligung oder Kostenzusage und der unterschriebene Schulungsvertrag (bestätigt 04.10.2026). Welche Unterlage Pflicht ist, stellt die Verwaltung je Schritt ein (Verwaltung → Förderweg-Schritte, „Pflicht vor der Einschreibung“).
 
 Dann legt das CRM die **Teilnehmerakte** an (Nummer TN-Jahr-laufend):
 
@@ -87,8 +87,8 @@ Der tägliche Löschlauf löscht die Dateien mit. Akten ohne Kursende-Datum blei
 |---|---|---|
 | Vorgänge, Förderfälle, Dokumente am Vorgang und im Förderfall | ja | ja |
 | Dublettenprüfung | ja | ja |
-| Teilnehmerakten | ja | **nein** (Datensparsamkeit, in `config/adk.php` änderbar) |
-| Gesundheitsangaben | ja | nein |
+| Teilnehmerakten führen (Checkliste, Dokumente, Abschluss, Verbleib, ZIP) | ja | ja (Entscheidung 04.10.2026) |
+| Gesundheitsangaben (Dokumente der Art „Gesundheit“, Nachteilsausgleich, Bereich in der Akte) | ja | nein |
 | Dokumente löschen | ja | nur eigene, am selben Tag |
 
 ## 8 Offen
@@ -98,4 +98,3 @@ Der tägliche Löschlauf löscht die Dateien mit. Akten ohne Kursende-Datum blei
 - **Kennzahlen K1, K2, K7, K8, K10** aus A-04: brauchen die Definitionen aus A-04.
 - Kursstatistik nach Prüfpunkt 7.2 in genau dem geforderten Format.
 - Erklärtexte je Förderweg-Schritt und je Checklisten-Punkt (Janosch).
-- Zugriff der Mitarbeitenden auf Teilnehmerakten: bewusst aus, bitte bestätigen.
