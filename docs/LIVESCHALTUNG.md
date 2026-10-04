@@ -11,8 +11,8 @@ Stand 04.10.2026 · Ablauf vom Testbetrieb (`crm-test`) zum echten Betrieb (`crm
 | Nr. | Punkt | Wer | Stand |
 |---|---|---|---|
 | 1.1 | **Aufbewahrungsfristen**: Betriebe 24 Monate, Privatpersonen 6 Monate nach letztem Kontakt, Teilnehmerakte 10 Jahre nach Ende der Maßnahme | Janosch | bestätigt 04.10.2026 |
-| 1.2 | **Datenschutzunterlagen** ergänzen: A-11 (CRM als eigene Verarbeitungstätigkeit, IONOS als Auftragsverarbeiter „Hosting CRM“), A-21 (Server, Zwei-Faktor, Verschlüsselung der Dokumente, Schnittstellen), A-22 (CRM-Zeile mit den Fristen aus 1.1) | Claude formuliert, Janosch prüft | offen |
-| 1.3 | **Auftragsverarbeitungsvertrag mit IONOS** im IONOS-Konto abgeschlossen und abgelegt | Janosch | prüfen |
+| 1.2 | **Datenschutzunterlagen** ergänzen: A-11 (CRM als eigene Verarbeitungstätigkeit, IONOS als Auftragsverarbeiter „Hosting CRM“), A-21 (Server, Zwei-Faktor, Verschlüsselung der Dokumente, Schnittstellen), A-22 (CRM-Zeile mit den Fristen aus 1.1) | Claude formuliert, Janosch prüft | Entwurf liegt vor: `DATENSCHUTZ_CRM_ENTWURF.md` |
+| 1.3 | **Auftragsverarbeitungsvertrag mit IONOS**: liegt in der AVV-Ablage (Qualitätsmanagement/Datenschutz/AVV); prüfen, ob er den Server umfasst | Janosch | prüfen |
 | 1.4 | **Standort Deutschland** des Servers von IONOS bestätigt und abgelegt | Janosch | prüfen |
 | 1.5 | **Zielgruppe E (Arbeitsunfall)**: Gesundheitsdaten nach Art. 9 DSGVO. Entweder entscheiden und VVT ergänzen, oder E vorerst nicht nutzen | Janosch | offen |
 | 1.6 | **Löschen auf Anfrage (Art. 17 DSGVO)**: Knopf „Löschersuchen (Art. 17)“ an Organisation, Kontakt und Vorgang, nur Verwaltung. Löscht sofort samt Dokumenten und Protokolleinträgen, auf Wunsch Sperrliste; Teilnehmerakten in der Aufbewahrungsfrist werden nicht gelöscht | Claude | erledigt 04.10.2026 |
