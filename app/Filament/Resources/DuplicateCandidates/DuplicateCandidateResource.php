@@ -10,8 +10,11 @@ use App\Services\Duplicates\DuplicateFinder;
 use App\Services\Duplicates\DuplicateResolver;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Radio;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -96,6 +99,48 @@ class DuplicateCandidateResource extends Resource
         };
     }
 
+    /** Dialog beim Zusammenführen: je abweichendem Feld behalten oder übernehmen. */
+    public static function mergeSchema(DuplicateCandidate $record): array
+    {
+        $match = self::match($record);
+        $subject = self::subject($record);
+
+        if (! $match || ! $subject) {
+            return [];
+        }
+
+        $diff = DuplicateResolver::differences($match, $subject, auth()->user());
+
+        $choices = collect($diff['conflicts'])
+            ->map(fn (array $conflict, string $field) => Radio::make("choices.{$field}")
+                ->label($conflict['label'])
+                ->options([
+                    'match' => 'behalten: '.$conflict['match'],
+                    'subject' => 'übernehmen: '.$conflict['subject'],
+                ])
+                ->default('match')
+                ->required())
+            ->values()
+            ->all();
+
+        $subjectName = $subject instanceof Organization ? $subject->name : $subject->fullName();
+
+        return [
+            Section::make('Unterschiedliche Angaben')
+                ->description($choices ? 'Links der vorhandene Eintrag, rechts der neuere.' : null)
+                ->schema($choices ?: [Text::make('Keine abweichenden Angaben.')]),
+            Section::make('Wird automatisch ergänzt')
+                ->description('Beim vorhandenen Eintrag leer, beim neueren gefüllt.')
+                ->visible($diff['fills'] !== [])
+                ->schema([Text::make(implode(' · ', $diff['fills']))]),
+            Section::make('Wird gelöscht')
+                ->schema([Text::make("Der neuere Eintrag „{$subjectName}“ samt den nicht gewählten Werten. "
+                    .($subject instanceof Organization
+                        ? 'Seine Kontakte ziehen zum vorhandenen Eintrag um (gleiche Personen werden zusammengelegt). Vorgänge mit Verlauf ziehen um, ein frisch importierter Vorgang ohne Verlauf entfällt.'
+                        : 'Seine Vorgänge und Teilnehmerakten ziehen zum vorhandenen Kontakt um.'))]),
+        ];
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -147,14 +192,14 @@ class DuplicateCandidateResource extends Resource
                     ->icon(Heroicon::OutlinedArrowsPointingIn)
                     ->color('success')
                     ->visible(fn (DuplicateCandidate $record) => $record->state === 'open' && self::subject($record) && self::match($record))
-                    ->requiresConfirmation()
-                    ->modalHeading('Zusammenführen?')
-                    ->modalDescription(fn (DuplicateCandidate $record) => 'Bestehen bleibt: '.DuplicateFinder::describe(self::match($record)).'. '
-                        .'Leere Felder werden aus dem neueren Eintrag ergänzt, Kontakte und Vorgänge mit Verlauf ziehen um. '
-                        .'Ein frisch importierter Vorgang ohne Verlauf entfällt. Der neuere Eintrag wird gelöscht.')
+                    ->modalHeading('Zusammenführen: was bleibt?')
+                    ->modalDescription(fn (DuplicateCandidate $record) => 'Bestehen bleibt der vorhandene Eintrag „'.DuplicateFinder::describe(self::match($record)).'“ mit seinem Verlauf. '
+                        .'Wählen Sie bei unterschiedlichen Angaben, welcher Wert bleibt. Nicht gewählte Werte werden gelöscht.')
+                    ->modalWidth('2xl')
+                    ->schema(fn (DuplicateCandidate $record) => self::mergeSchema($record))
                     ->modalSubmitActionLabel('Zusammenführen')
-                    ->action(function (DuplicateCandidate $record) {
-                        app(DuplicateResolver::class)->merge($record);
+                    ->action(function (DuplicateCandidate $record, array $data) {
+                        app(DuplicateResolver::class)->merge($record, choices: $data['choices'] ?? []);
                         Notification::make()->title('Zusammengeführt')->success()->send();
                     }),
                 Action::make('reject')

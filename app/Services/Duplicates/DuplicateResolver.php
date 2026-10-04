@@ -17,23 +17,44 @@ use Illuminate\Validation\ValidationException;
 /**
  * Entscheidung über einen Dublettenverdacht.
  *
- * Zusammenführen: Der vorhandene Datensatz bleibt. Leere Felder werden aus dem neuen ergänzt,
+ * Zusammenführen: Der vorhandene Datensatz bleibt (mit Verlauf und Nummer). Wo beide Einträge
+ * verschiedene Werte haben, entscheidet die Auswahl im Dialog (Feld => 'match' oder 'subject');
+ * ohne Auswahl bleibt der vorhandene Wert. Leere Felder werden aus dem neuen ergänzt,
  * Kontakte und Vorgänge mit Verlauf ziehen um, ein frisch importierter Vorgang ohne Verlauf
  * entfällt, der neue Datensatz wird gelöscht. Freigeben: Es sind verschiedene Datensätze;
  * dieses Paar wird nicht wieder gemeldet.
  */
 class DuplicateResolver
 {
-    private const ORGANIZATION_FIELDS = ['legal_form', 'industry', 'wz_code', 'priority', 'street', 'postal_code', 'city', 'phone_display', 'email', 'website', 'source_url', 'employee_count', 'is_training_company'];
+    /** Felder mit Beschriftung für die Auswahl beim Zusammenführen. */
+    public const LABELS = [
+        'name' => 'Name', 'legal_form' => 'Rechtsform', 'industry' => 'Branche', 'wz_code' => 'WZ-Code', 'priority' => 'Priorität',
+        'street' => 'Straße', 'postal_code' => 'PLZ', 'city' => 'Ort', 'phone_display' => 'Telefon', 'email' => 'E-Mail',
+        'website' => 'Website', 'source_url' => 'Fundstelle', 'employee_count' => 'Mitarbeitende', 'is_training_company' => 'Ausbildungsbetrieb',
+        'salutation' => 'Anrede', 'first_name' => 'Vorname', 'last_name' => 'Nachname', 'position' => 'Funktion',
+        'privacy_notice_sent_at' => 'Datenschutzhinweis übermittelt am', 'phone_consent_at' => 'Einwilligung Telefon am',
+        'phone_consent_proof' => 'Nachweis Einwilligung Telefon', 'health_consent_at' => 'Einwilligung Gesundheitsangaben am',
+        'health_consent_proof' => 'Nachweis Einwilligung Gesundheitsangaben',
+    ];
 
-    private const CONTACT_FIELDS = ['salutation', 'first_name', 'position', 'phone_display', 'email', 'privacy_notice_sent_at', 'phone_consent_at', 'phone_consent_proof', 'health_consent_at', 'health_consent_proof'];
+    private const HEALTH_FIELDS = ['health_consent_at', 'health_consent_proof'];
 
-    public function merge(DuplicateCandidate $candidate, ?User $user = null): void
+    public const ORGANIZATION_FIELDS = ['name', 'legal_form', 'industry', 'wz_code', 'priority', 'street', 'postal_code', 'city', 'phone_display', 'email', 'website', 'source_url', 'employee_count', 'is_training_company'];
+
+    public const CONTACT_FIELDS = ['salutation', 'first_name', 'last_name', 'position', 'phone_display', 'email', 'privacy_notice_sent_at', 'phone_consent_at', 'phone_consent_proof', 'health_consent_at', 'health_consent_proof'];
+
+    /** @param array<string, string> $choices Feld => 'match' (vorhandenen Wert behalten) oder 'subject' (neuen Wert übernehmen) */
+    public function merge(DuplicateCandidate $candidate, ?User $user = null, array $choices = []): void
     {
         $this->assertOpen($candidate);
         $user ??= auth()->user();
 
-        DB::transaction(function () use ($candidate, $user) {
+        // Gesundheitsangaben nur entscheiden, wer sie sehen darf.
+        if (! $user?->hasPermission('health.view')) {
+            $choices = array_diff_key($choices, array_flip(self::HEALTH_FIELDS));
+        }
+
+        DB::transaction(function () use ($candidate, $user, $choices) {
             $subject = $candidate->subjectRecord();
             $match = $candidate->matchRecord();
 
@@ -44,8 +65,8 @@ class DuplicateResolver
             }
 
             $summary = $candidate->type === 'organization'
-                ? $this->mergeOrganization($subject, $match)
-                : $this->mergeContact($subject, $match);
+                ? $this->mergeOrganization($subject, $match, $choices)
+                : $this->mergeContact($subject, $match, $choices);
 
             activity('duplicates')
                 ->causedBy($user)
@@ -79,9 +100,9 @@ class DuplicateResolver
     }
 
     /** @return array<string, mixed> */
-    private function mergeOrganization(Organization $subject, Organization $match): array
+    private function mergeOrganization(Organization $subject, Organization $match, array $choices = []): array
     {
-        $filled = $this->fillEmpty($match, $subject, self::ORGANIZATION_FIELDS);
+        $filled = $this->apply($match, $subject, self::ORGANIZATION_FIELDS, $choices);
         $movedContacts = 0;
         $removedLeads = 0;
         $movedLeads = 0;
@@ -116,9 +137,9 @@ class DuplicateResolver
     }
 
     /** @return array<string, mixed> */
-    private function mergeContact(Contact $subject, Contact $match): array
+    private function mergeContact(Contact $subject, Contact $match, array $choices = []): array
     {
-        $filled = $this->fillEmpty($match, $subject, self::CONTACT_FIELDS);
+        $filled = $this->apply($match, $subject, self::CONTACT_FIELDS, $choices);
 
         $leads = Lead::where('contact_id', $subject->id)->get();
 
@@ -136,21 +157,70 @@ class DuplicateResolver
         return ['filled' => $filled, 'leads' => $leads->count()];
     }
 
-    /** @return list<string> ergänzte Felder */
-    private function fillEmpty(Organization|Contact $target, Organization|Contact $source, array $fields): array
+    /**
+     * Werte übernehmen: gewählte Felder aus dem neuen Eintrag, sonst leere Felder ergänzen.
+     *
+     * @return list<string> geänderte Felder
+     */
+    private function apply(Organization|Contact $target, Organization|Contact $source, array $fields, array $choices = []): array
     {
-        $filled = [];
+        $changed = [];
 
         foreach ($fields as $field) {
-            if (blank($target->{$field}) && filled($source->{$field})) {
+            $takeNew = ($choices[$field] ?? null) === 'subject';
+
+            if (filled($source->{$field}) && ($takeNew || blank($target->{$field}))) {
                 $target->{$field} = $source->{$field};
-                $filled[] = $field;
+                $changed[] = $field;
             }
         }
 
         $target->save();
 
-        return $filled;
+        return $changed;
+    }
+
+    /**
+     * Unterschiede für den Dialog: Konflikte (beide gefüllt, verschieden) zum Auswählen,
+     * Ergänzungen (nur der neue gefüllt) werden automatisch übernommen.
+     *
+     * @return array{conflicts: array<string, array{label: string, match: string, subject: string}>, fills: array<string, string>}
+     */
+    public static function differences(Organization|Contact $match, Organization|Contact $subject, ?User $user = null): array
+    {
+        $fields = $match instanceof Organization ? self::ORGANIZATION_FIELDS : self::CONTACT_FIELDS;
+        $result = ['conflicts' => [], 'fills' => []];
+
+        foreach ($fields as $field) {
+            if (in_array($field, self::HEALTH_FIELDS, true) && ! $user?->hasPermission('health.view')) {
+                continue;
+            }
+
+            $old = self::display($match->{$field});
+            $new = self::display($subject->{$field});
+
+            if ($new === null || $old === $new) {
+                continue;
+            }
+
+            if ($old === null) {
+                $result['fills'][$field] = self::LABELS[$field].': '.$new;
+            } else {
+                $result['conflicts'][$field] = ['label' => self::LABELS[$field], 'match' => $old, 'subject' => $new];
+            }
+        }
+
+        return $result;
+    }
+
+    private static function display(mixed $value): ?string
+    {
+        return match (true) {
+            $value === null, $value === '' => null,
+            is_bool($value) => $value ? 'ja' : 'nein',
+            $value instanceof \DateTimeInterface => $value->format('d.m.Y'),
+            default => trim((string) $value) === '' ? null : trim((string) $value),
+        };
     }
 
     /** Frisch angelegter Vorgang ohne Verlauf (z. B. aus dem Import): kann entfallen. */

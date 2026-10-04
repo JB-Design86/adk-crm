@@ -203,3 +203,29 @@ it('erkennt Personen über E-Mail und Telefon, aber nicht die gemeinsame Zentral
         ->and($this->finder->contactMatches(['last_name' => 'Lang', 'phone' => '06131 100', 'organization_id' => $company->id]))->toBeEmpty()
         ->and($this->finder->contactMatches(['first_name' => 'Anna', 'last_name' => 'Kurz', 'organization_id' => $company->id])->first()->reasons)->toContain('gleicher Name im selben Betrieb');
 });
+
+it('lässt beim Zusammenführen je abweichendem Feld wählen, was bleibt', function () {
+    $company = existingCompany(['employee_count' => null]);
+    $suspect = Organization::factory()->create([
+        'name' => 'Mueller Bau', 'postal_code' => '55116', 'city' => 'Mainz', 'street' => 'Rheinstraße 12',
+        'phone_display' => '06131 999000', 'email' => 'neu@mueller-bau.example', 'employee_count' => 40,
+    ]);
+    $this->finder->record($suspect);
+    $candidate = DuplicateCandidate::sole();
+
+    $diff = DuplicateResolver::differences($company, $suspect);
+    expect(array_keys($diff['conflicts']))->toContain('phone_display', 'email')
+        ->and($diff['fills'])->toHaveKey('employee_count');
+
+    Livewire::test(ListDuplicateCandidates::class)
+        ->callTableAction('merge', $candidate, data: ['choices' => ['phone_display' => 'subject', 'email' => 'match']])
+        ->assertHasNoTableActionErrors();
+
+    $company->refresh();
+    expect($company->phone_display)->toBe('06131 999000')
+        ->and($company->phone_e164)->toBe('+496131999000')
+        ->and($company->email)->toBe('info@mueller-bau.example')
+        ->and($company->employee_count)->toBe(40)
+        ->and($company->name)->toBe('Müller Bau GmbH')
+        ->and(Organization::find($suspect->id))->toBeNull();
+});
