@@ -22,7 +22,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 - [ ] **Live-Schaltung** `crm.adk-akademie.de`: Ablauf in `LIVESCHALTUNG.md` (erst klären, dann einrichten ohne echte Daten, dann Konten, dann echte Daten).
 - [x] Zielgruppe E (Arbeitsunfall) wird nicht angeboten, im CRM abgeschaltet (Entscheidung 04.10.2026, Lastenheft 10 Nr. 4).
 - [x] Protokoll 3 Jahre ab Jahresende, Sicherungen 30 Tage (Entscheidung 04.10.2026).
-- [ ] Genauen Serverstandort beim IONOS-Support erfragen und ablegen. Kundenbereich: „Europa“, AVV: EU bzw. EWR, RIPE: vermutlich Frankreich. Unterlagen sagen „EU“, siehe `LIVESCHALTUNG.md` 1.4.
+- [ ] Genauen Serverstandort beim IONOS-Support erfragen und ablegen. Anfrage am 04.10.2026: Standardantwort ohne Standort, Verweis auf die Hotline 0721 170 555; dort telefonisch nachfragen und um Bestätigung per E-Mail bitten. Kundenbereich: „Europa“, AVV: EU bzw. EWR, RIPE: vermutlich Frankreich. Unterlagen sagen „EU“, siehe `LIVESCHALTUNG.md` 1.4.
 - [x] Löschersuchen nach Art. 17 DSGVO: Knopf an Organisation, Kontakt und Vorgang (nur Verwaltung), siehe `GESAMTKONZEPT.md` Abschnitt 6.
 
 ## Stufe 3 · Förderweg (vorgezogen)
