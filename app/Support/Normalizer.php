@@ -62,4 +62,43 @@ class Normalizer
 
         return preg_replace('/\s+/', '', trim($postalCode));
     }
+
+    /** Rechtsformen, Füllwörter und allgemeine Zusätze („& Partner“, „Gruppe“) zählen beim Namensvergleich nicht. */
+    private const STOP_WORDS = ['und', 'der', 'die', 'das', 'fuer', 'von', 'zu', 'am', 'im', 'in', 'co', 'gmbh', 'ug', 'ag', 'kg', 'ohg', 'gbr', 'ek', 'ev', 'mbh', 'haftungsbeschraenkt', 'inh', 'inhaber', 'partner', 'partners', 'partnerschaft', 'soehne', 'sohn', 'gruppe', 'group', 'holding', 'deutschland', 'germany', 'international'];
+
+    /** @return list<string> Wörter des Firmennamens, klein, ohne Umlaute und Füllwörter */
+    public static function companyTokens(?string $name): array
+    {
+        if ($name === null || trim($name) === '') {
+            return [];
+        }
+
+        $words = preg_split('/[^a-z0-9]+/', Str::lower(Str::ascii($name, 'de')), -1, PREG_SPLIT_NO_EMPTY);
+
+        return array_values(array_filter($words, fn (string $word) => strlen($word) > 1 && ! in_array($word, self::STOP_WORDS, true)));
+    }
+
+    /** Straße als Vergleichsform: „Rheinstraße 12a“ = „Rheinstr. 12 a“ → „rheinstr12a“. */
+    public static function street(?string $street): ?string
+    {
+        if ($street === null || trim($street) === '') {
+            return null;
+        }
+
+        $street = Str::lower(Str::ascii(trim($street), 'de'));
+        $street = preg_replace('/(strasse|str\.?)(?=\s|\d|$)/', 'str', $street);
+        $street = preg_replace('/[^a-z0-9]+/', '', $street);
+
+        return $street === '' ? null : $street;
+    }
+
+    /** Personenname als Vergleichsform, ohne Titel: „Dr. Jörg Müller“ → „joergmueller“. */
+    public static function personName(?string $firstName, ?string $lastName): ?string
+    {
+        $name = Str::lower(Str::ascii(trim(($firstName ?? '').' '.($lastName ?? '')), 'de'));
+        $name = preg_replace('/\b(dr|prof|dipl|ing|med)\b\.?/', ' ', $name);
+        $name = preg_replace('/[^a-z]+/', '', $name);
+
+        return $name === '' ? null : $name;
+    }
 }

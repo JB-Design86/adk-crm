@@ -9,6 +9,8 @@ use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\Duplicates\DuplicateFinder;
+use App\Services\Duplicates\DuplicateMatch;
 use App\Support\Normalizer;
 use App\Support\Phone;
 use App\Support\Spreadsheet;
@@ -21,7 +23,10 @@ use Illuminate\Validation\ValidationException;
  * Import der Leadliste (CSV oder XLSX).
  *
  * - Quelle und Abrufdatum sind Pflicht, ohne sie wird nichts eingespielt.
- * - Dubletten (Telefon, Website-Domain, Firmenname + PLZ) werden übersprungen.
+ * - Sichere Dubletten werden übersprungen: gleiche Telefonnummer, E-Mail, Website oder gleicher
+ *   Firmenname mit PLZ, geprüft gegen den ganzen Bestand (jede Phase) und innerhalb der Datei.
+ * - Verdachtsfälle (ähnlicher Name am selben Ort, gleiche Anschrift …) werden angelegt, kommen aber
+ *   in die Dublettenprüfung und erscheinen bis zur Entscheidung nicht in der Anrufliste.
  * - Treffer auf der Sperrliste werden übersprungen.
  * - Jeder Import schreibt ein Importprotokoll.
  */
@@ -268,7 +273,7 @@ class ImportService
 
             $seen = ['phone' => [], 'domain' => [], 'name_plz' => []];
             $skipped = [];
-            $counts = ['total' => 0, 'imported' => 0, 'skipped' => 0, 'duplicates' => 0];
+            $counts = ['total' => 0, 'imported' => 0, 'skipped' => 0, 'duplicates' => 0, 'suspected' => 0];
             $line = 1;
 
             foreach (Spreadsheet::rows($path, $extension) as $row) {
@@ -299,8 +304,11 @@ class ImportService
                 }
 
                 $this->remember($data, $seen, $line - 1);
-                $this->createRecords($data, $log, $source, $retrievedAt);
+                [$organization, $contact] = $this->createRecords($data, $log, $source, $retrievedAt);
                 $counts['imported']++;
+
+                $suspected = $this->finder()->record($organization, $log) + ($contact ? $this->finder()->record($contact, $log) : 0);
+                $counts['suspected'] += $suspected > 0 ? 1 : 0;
             }
 
             $log->update([
@@ -308,6 +316,7 @@ class ImportService
                 'rows_imported' => $counts['imported'],
                 'rows_skipped' => $counts['skipped'],
                 'duplicates' => $counts['duplicates'],
+                'suspected_duplicates' => $counts['suspected'],
                 'skipped_rows' => $skipped,
             ]);
 
@@ -323,6 +332,7 @@ class ImportService
                     'rows_imported' => $counts['imported'],
                     'rows_skipped' => $counts['skipped'],
                     'duplicates' => $counts['duplicates'],
+                    'suspected_duplicates' => $counts['suspected'],
                 ])
                 ->log('Import');
 
@@ -403,17 +413,22 @@ class ImportService
             return 'Dublette in der Datei: gleicher Firmenname und gleiche PLZ wie Zeile '.$seen['name_plz'][$namePlz];
         }
 
-        // Dubletten im Bestand
-        if ($data['phone_e164'] && ($existing = Organization::where('phone_e164', $data['phone_e164'])->first())) {
-            return "Dublette: gleiche Telefonnummer wie Organisation {$existing->id} ({$existing->name})";
+        // Dubletten im Bestand: alle Organisationen und Kontakte, auch Förderfälle, Teilnehmer und geschlossene Vorgänge.
+        if ($match = $this->finder()->organizationMatches($data)->first(fn (DuplicateMatch $m) => $m->certain)) {
+            return "Dublette: {$match->reasonText()} wie Organisation {$match->record->id} (".DuplicateFinder::describe($match->record).')';
         }
 
-        if ($data['domain'] && ($existing = Organization::where('website_domain', $data['domain'])->first())) {
-            return "Dublette: gleiche Website wie Organisation {$existing->id} ({$existing->name})";
-        }
+        if ($data['contact_email'] || $data['contact_phone_e164']) {
+            $contactMatch = $this->finder()->contactMatches([
+                'first_name' => $data['contact_first_name'],
+                'last_name' => $data['contact_last_name'],
+                'email' => $data['contact_email'],
+                'phone_e164' => $data['contact_phone_e164'],
+            ])->first(fn (DuplicateMatch $m) => $m->certain);
 
-        if ($data['postal_code'] && ($existing = Organization::where('name_normalized', $data['name_normalized'])->where('postal_code', $data['postal_code'])->first())) {
-            return "Dublette: gleicher Firmenname und gleiche PLZ wie Organisation {$existing->id} ({$existing->name})";
+            if ($contactMatch) {
+                return "Dublette: {$contactMatch->reasonText()} wie Kontakt {$contactMatch->record->id} (".DuplicateFinder::describe($contactMatch->record).')';
+            }
         }
 
         return null;
@@ -441,7 +456,8 @@ class ImportService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function createRecords(array $data, ImportLog $log, string $source, CarbonImmutable $retrievedAt): void
+    /** @return array{0: Organization, 1: ?Contact} */
+    private function createRecords(array $data, ImportLog $log, string $source, CarbonImmutable $retrievedAt): array
     {
         $organization = Organization::create([
             'name' => $data['name'],
@@ -489,6 +505,13 @@ class ImportService
             'status' => 'new',
             'import_log_id' => $log->id,
         ]);
+
+        return [$organization, $contact];
+    }
+
+    private function finder(): DuplicateFinder
+    {
+        return app(DuplicateFinder::class);
     }
 
     /** @param list<string> $row */

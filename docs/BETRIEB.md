@@ -187,8 +187,8 @@ Laut Lastenheft über das IONOS-Backup, getrennt vom Server, täglich. Wiederher
 | Was | Pfad | Warum |
 |---|---|---|
 | **Datenbank** | MariaDB `adk_crm` | alle Daten. Zusätzlich nächtlicher Dump über **Plesk → Sicherungsverwaltung** (Datenbanken einschließen) |
-| **`.env`** | `httpdocs/.env` | `APP_KEY` wird zum Entschlüsseln gebraucht (Sitzungen, Zwei-Faktor-Geheimnisse). **Ohne den alten `APP_KEY` müssen alle Konten die Zwei-Faktor-Anmeldung neu einrichten.** Zusätzlich im Passwortmanager ablegen |
-| `storage/app` | `httpdocs/storage/app` | in Stufe 1 praktisch leer; ab Stufe 4 Dokumente der Teilnehmerakte |
+| **`.env`** | `httpdocs/.env` | `APP_KEY` wird zum Entschlüsseln gebraucht (Sitzungen, Zwei-Faktor-Geheimnisse). **Ohne den alten `APP_KEY` müssen alle Konten die Zwei-Faktor-Anmeldung neu einrichten, und die Dokumente sind nicht mehr lesbar.** Zusätzlich im Passwortmanager ablegen |
+| **`storage/app/documents`** | `httpdocs/storage/app/documents` | **alle Dokumente** (Vorgang, Förderfall, Teilnehmerakte), verschlüsselt. Nur mit dem passenden `APP_KEY` lesbar |
 | `storage/logs` | `httpdocs/storage/logs` | Fehler- und Löschlaufprotokolle (optional) |
 
 Nicht gesichert werden müssen `vendor/` und der Code: Beides stellt die Bereitstellung aus GitHub wieder her.
@@ -272,3 +272,25 @@ Von Hand abgleichen: Knopf **Jetzt abgleichen** auf der Seite Telefonie, oder
 - Auftragsverarbeitungsvertrag mit sipgate prüfen bzw. abschließen (sipgate ist ohnehin Telefonanbieter, neu ist der Abruf der Anrufliste durch das CRM).
 - Verzeichnis der Verarbeitungstätigkeiten (A-11) und Löschkonzept (A-21) ergänzen: Rufnummernabgleich, Richtung, Ergebnis und Dauer als Aktivität am Vorgang; gelöscht mit dem Vorgang nach den Fristen in `config/adk.php`.
 - Testen auf `crm-test` nur mit eigenen Nummern, weil dort echte Anrufe ausgelöst werden.
+
+---
+
+## 11 Dokumente und Dubletten (ab 04.10.2026)
+
+### 11.1 Hochladen bis 20 MB
+
+Die Grenze steht in `config/adk.php` (`documents.max_kb`). PHP muss mitspielen: `public/.user.ini` setzt `upload_max_filesize = 20M` und `post_max_size = 25M`. Falls Plesk das überschreibt, in **Websites & Domains → PHP-Einstellungen** dieselben Werte eintragen.
+
+Prüfen: eine PDF mit etwa 15 MB im Förderfall hochladen. Erscheint „Datei zu groß“ schon beim Auswählen, greift die PHP-Grenze noch nicht.
+
+### 11.2 Ablage
+
+Dokumente liegen verschlüsselt unter `storage/app/documents/<Jahr>/<zufällige Kennung>.enc`, nie öffentlich erreichbar. Abruf nur über das CRM mit Rechteprüfung, jeder Abruf im Protokoll. Sicherung siehe Abschnitt 7.
+
+### 11.3 Dublettenprüfung einmalig für den Bestand
+
+Nach dem ersten Einspielen der Dublettenprüfung einmal den ganzen Bestand prüfen, entweder in der Oberfläche (**Stammdaten → Dublettenprüfung → Bestand prüfen**) oder per Konsole:
+
+```bash
+/opt/plesk/php/8.4/bin/php artisan adk:dubletten-pruefen
+```

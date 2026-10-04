@@ -330,6 +330,27 @@ return [
     ],
 
     /*
+    | Dublettenprüfung. Sicher (gleiche Telefonnummer, E-Mail, Website oder gleicher Name mit PLZ):
+    | Import überspringt die Zeile. Verdacht ab suspect_score: Datensatz wird angelegt, kommt aber in
+    | die Dublettenprüfung und erscheint bis zur Entscheidung nicht in der Anrufliste.
+    */
+    'duplicates' => [
+        'suspect_score' => 75,
+        // Freemail-Anbieter: gleiche Domain heißt hier nicht gleiche Firma.
+        'generic_email_domains' => [
+            'gmail.com', 'googlemail.com', 'gmx.de', 'gmx.net', 'gmx.at', 'web.de', 't-online.de', 'freenet.de',
+            'yahoo.com', 'yahoo.de', 'outlook.com', 'outlook.de', 'hotmail.com', 'hotmail.de', 'live.de', 'live.com',
+            'icloud.com', 'me.com', 'aol.com', 'aol.de', 'posteo.de', 'mailbox.org', 'mail.de', 'arcor.de',
+            'online.de', 'email.de', 'kabelmail.de', 'vodafone.de', '1und1.de', 'ionos.de',
+        ],
+        // Plattformen statt eigener Website: gleiche Domain heißt nicht gleiche Firma.
+        'generic_website_domains' => [
+            'facebook.com', 'instagram.com', 'linkedin.com', 'xing.com', 'google.com', 'goo.gl', 'business.site',
+            'jimdosite.com', 'wixsite.com', 'gelbeseiten.de', 'dasoertliche.de', 'branchenbuch.de', 'meinestadt.de',
+        ],
+    ],
+
+    /*
     | Standardland für die Normalisierung von Telefonnummern.
     */
     'phone_default_country_code' => '49',

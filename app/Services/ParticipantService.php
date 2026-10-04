@@ -84,6 +84,21 @@ class ParticipantService
                 ]);
             }
 
+            // Vertrag aus dem Förderweg („Vertrag geschlossen“ mit Unterlage): gleich abhaken und verknüpfen.
+            $contract = ParticipantChecklistItem::where('key', 'contract')->where('is_active', true)->first();
+            $contractDocument = $case->lead->documents()->where('category', 'contract')->whereNull('participant_id')->latest()->first();
+
+            if ($contract && $contractDocument) {
+                ParticipantCheck::create([
+                    'participant_id' => $participant->id,
+                    'participant_checklist_item_id' => $contract->id,
+                    'done_on' => ($contractDocument->document_date ?? $contractDocument->created_at)->toDateString(),
+                    'note' => 'Aus dem Förderfall übernommen.',
+                    'document_id' => $contractDocument->id,
+                    'user_id' => $user?->id,
+                ]);
+            }
+
             Activity::create([
                 'lead_id' => $case->lead_id,
                 'user_id' => $user?->id,
@@ -129,7 +144,13 @@ class ParticipantService
                 'participant_checklist_item_id' => $item->id,
                 'done_on' => $doneOn->toDateString(),
                 'note' => $data['note'] ?? null,
-                'document_id' => $document?->id,
+                // Ohne neue Datei: passende Unterlage, die schon in der Akte liegt.
+                'document_id' => $document?->id ?? ($item->document_category ? $participant->lead->documents()
+                    ->where('category', $item->document_category)
+                    ->where(fn ($q) => $q->whereNull('participant_id')->orWhere('participant_id', $participant->id))
+                    ->whereNotIn('id', ParticipantCheck::whereNotNull('document_id')->select('document_id'))
+                    ->latest()
+                    ->value('id') : null),
                 'user_id' => $user?->id,
             ]);
 

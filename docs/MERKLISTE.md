@@ -13,6 +13,12 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 
 - [x] **sipgate, erste Fassung:** Anruf per Klick (Anrufliste, Vorgangsseite) und automatische Protokollierung der Telefonate alle 5 Minuten. Einrichtung siehe `BETRIEB.md` Abschnitt 10. Offen: Einträge in der `.env` von crm-test (Janosch), Test mit eigener Nummer.
 
+- [x] **Gesamtkonzept Interessent → Förderfall → Teilnehmer** (Durchsicht 04.10.2026), siehe `GESAMTKONZEPT.md`:
+  - Vorgänge nach Phase (Akquise, Förderfall, Teilnehmer, geschlossen); übergebene Vorgänge nicht mehr in der Akquise.
+  - Dokumente am Vorgang, im Förderfall und in der Akte, verschlüsselt; Pflichtunterlagen vor der Einschreibung.
+  - Teilnehmerakte entsteht mit „Einschreibung bestätigt“; Checkliste nach Lastenheft 7.1, Abschluss, Verbleib, ZIP-Ausgabe.
+  - Dublettenprüfung gegen den ganzen Bestand (Import, Anlegen von Hand, Bestandsprüfung).
+
 ## Stufe 3 · Förderweg (vorgezogen)
 
 Ablauf aus Sicht des Vertriebs:
@@ -43,7 +49,13 @@ Anforderungen:
 - Postfach info@ über Microsoft Graph, E-Mail-Versand aus dem Vorgang, Calendly (Lastenheft 5).
 - **sipgate, eingehende Anrufe:** Bei einem Anruf sofort den passenden Vorgang anzeigen (sipgate-Webhook). Unbekannte Nummer: Vorgang „Neu“ mit Kanal Anruf vorschlagen. Verpasste Anrufe als Wiedervorlage für heute.
 
-## Stufe 4 · Teilnehmerakte
+## Stufe 4 · Teilnehmerakte (erste Fassung steht, siehe `GESAMTKONZEPT.md`)
+
+- [ ] Vor dem ersten echten Teilnehmer: A-11, A-21, A-22, A-23, Blatt „Aufbau der Teilnehmerakte“, Handbuch Kapitel 9 anpassen (Lastenheft 10, Nr. 3).
+- [ ] Vom System erzeugte Dokumente (A-16, A-26, A-09, Übergabeprotokoll): Vorlagen als Datei nötig.
+- [ ] Kennzahlen K1, K2, K7, K8, K10 aus A-04: Definitionen nötig.
+- [ ] Erklärtexte je Checklisten-Punkt (Janosch).
+- [ ] Zugriff Mitarbeitende auf Teilnehmerakten: derzeit aus, bestätigen.
 
 - Anlegen erst nach offizieller Einschreibung und Bestätigung durch den Kostenträger (siehe oben).
 - Inhalt laut Lastenheft 7: Checkliste Vertrag bis Verbleib, Dokumente verschlüsselt, Gesundheitsangaben nur für die Verwaltung, 10 Jahre Aufbewahrung, ZIP-Ausgabe.

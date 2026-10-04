@@ -98,6 +98,11 @@ class CallList extends Page
             ->leftJoin('contacts', 'contacts.id', '=', 'leads.contact_id')
             ->whereNull('leads.closed_at')
             ->whereNotIn('leads.status', Lead::AFTER_ACQUISITION)
+            // Dublettenverdacht: erst prüfen, dann anrufen (sonst ruft man womöglich zweimal an).
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('duplicate_candidates')->where('duplicate_candidates.state', 'open')
+                ->where(fn ($d) => $d
+                    ->where(fn ($o) => $o->where('duplicate_candidates.type', 'organization')->whereColumn('duplicate_candidates.subject_id', 'leads.organization_id'))
+                    ->orWhere(fn ($c) => $c->where('duplicate_candidates.type', 'contact')->whereColumn('duplicate_candidates.subject_id', 'leads.contact_id'))))
             ->where(fn (Builder $q) => $q->whereNull('leads.next_action_at')->orWhereDate('leads.next_action_at', '<=', today()))
             ->where(fn (Builder $q) => $q->whereNotNull('organizations.phone_e164')->orWhereNotNull('contacts.phone_e164'))
             // Privatpersonen: nur mit Einwilligung (Datum und Nachweis) oder bei eingehender Anfrage

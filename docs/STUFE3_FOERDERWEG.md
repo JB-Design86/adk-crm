@@ -8,7 +8,7 @@ Stand 28.09.2026 · vorgezogen auf Wunsch von Janosch (Durchsicht vom 28.09.2026
 |---|---|---|
 | **Interessent** | Vorgang mit Status (Neu, Nicht erreicht, Interesse, Unterlagen, Termin …) | Akquise, Anrufliste |
 | **Förderfall** („fester Interessent“) | Förderfall mit Schrittfolge je Förderweg | ab Status **„Übergeben an Förderweg“** |
-| **Teilnehmer** | Status „Teilnehmer (eingeschrieben)“, Teilnehmerakte folgt in Stufe 4 | erst nach **„Einschreibung bestätigt“**: offiziell eingeschrieben und vom Kostenträger bestätigt |
+| **Teilnehmer** | Status „Teilnehmer (eingeschrieben)“ mit **Teilnehmerakte** (siehe `GESAMTKONZEPT.md`) | erst nach **„Einschreibung bestätigt“**: offiziell eingeschrieben, vom Kostenträger bestätigt, Pflichtunterlagen hochgeladen |
 
 ## Förderwege und Standard-Schritte
 
@@ -29,7 +29,7 @@ AT = Arbeitstage (ohne Wochenende und Feiertage in Rheinland-Pfalz).
 - **Zielgruppe E** startet nur, wenn am Kontakt die Einwilligung zu Gesundheitsangaben eingetragen ist. Gespeichert werden nur Daten und Fristen, keine medizinischen Inhalte.
 - Jeder erledigte Schritt: Datum (nicht in der Zukunft), wer gehandelt hat, Notiz, bei Bewilligungen auch „abgelehnt“. Er steht als Aktivität am Vorgang und im Protokoll. Versehentliche Einträge lassen sich zurücknehmen.
 - Die **Wiedervorlage** setzt das CRM nach der Frist des erledigten Schritts. Förderfälle erscheinen damit in „Heute“ (mit dem nächsten Schritt) und im Kalender, nicht aber in der Anrufliste.
-- **Einschreibung bestätigt** ist erst möglich, wenn alle Schritte erledigt sind. Danach gilt der Vorgang als Vertrag und fällt nicht mehr unter die Löschfrist für Interessenten.
+- **Einschreibung bestätigt** ist erst möglich, wenn alle Schritte erledigt und die Pflichtunterlagen (Gutschein bzw. Bewilligung, Vertrag) hochgeladen sind. Dann legt das CRM die Teilnehmerakte an; der Vorgang fällt nicht mehr unter die Löschfrist für Interessenten, sondern unter die zehn Jahre der Akte.
 - **Abbrechen** mit Grund: Der Vorgang geht entweder auf „Später Interesse“ mit Wiedervorlage oder wird geschlossen („Kein Interesse“).
 - **Daten am Förderfall:** Kundennummer beim Kostenträger, Ansprechperson dort, Gutscheinnummer und Gültigkeit. Der Gutschein wird ab 14 Tagen vor Ablauf rot markiert.
 - **Auswertung:** Unter „Förderweg“ je Förderweg: gestartet, je Schritt erledigt/abgelehnt, eingeschrieben. Das ergibt zum Beispiel die Kette Anfrage → Gutschein beantragt → bewilligt.

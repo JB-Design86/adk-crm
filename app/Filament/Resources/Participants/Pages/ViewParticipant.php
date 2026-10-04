@@ -39,6 +39,11 @@ class ViewParticipant extends ViewRecord
 
     protected string $view = 'filament.resources.participants.view';
 
+    protected function getListeners(): array
+    {
+        return [...parent::getListeners(), 'documents-changed' => '$refresh'];
+    }
+
     public function getTitle(): string
     {
         return $this->record->displayName();

@@ -5,7 +5,9 @@ namespace App\Filament\Resources\Leads\Schemas;
 use App\Filament\Resources\Contacts\Schemas\ContactForm;
 use App\Filament\Resources\Organizations\Schemas\OrganizationForm;
 use App\Models\Contact;
+use App\Models\Organization;
 use App\Models\User;
+use App\Services\Duplicates\DuplicateFinder;
 use App\Support\Adk;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -30,6 +32,12 @@ class LeadForm
                         ->preload(false)
                         ->live()
                         ->createOptionForm(OrganizationForm::fields())
+                        ->createOptionUsing(function (array $data) {
+                            $organization = Organization::create($data);
+                            app(DuplicateFinder::class)->record($organization);
+
+                            return $organization->getKey();
+                        })
                         ->requiredWithout('contact_id'),
                     Select::make('contact_id')
                         ->label('Kontakt')
@@ -41,6 +49,12 @@ class LeadForm
                         ->getOptionLabelFromRecordUsing(fn (Contact $record) => $record->fullName())
                         ->searchable(['first_name', 'last_name', 'email'])
                         ->createOptionForm(ContactForm::fields())
+                        ->createOptionUsing(function (array $data, Get $get) {
+                            $contact = Contact::create([...$data, 'organization_id' => $get('organization_id')]);
+                            app(DuplicateFinder::class)->record($contact);
+
+                            return $contact->getKey();
+                        })
                         ->requiredWithout('organization_id'),
                     Select::make('target_group')
                         ->label('Zielgruppe')

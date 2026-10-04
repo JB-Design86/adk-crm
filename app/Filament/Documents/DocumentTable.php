@@ -86,8 +86,9 @@ class DocumentTable
                     ->requiresConfirmation()
                     ->modalHeading(fn (Document $record) => "Dokument „{$record->title}“ löschen?")
                     ->modalDescription('Die Datei wird endgültig gelöscht. Im Protokoll bleibt vermerkt, wer sie wann gelöscht hat.')
-                    ->action(function (Document $record) {
+                    ->action(function (Document $record, $livewire) {
                         app(DocumentService::class)->delete($record);
+                        $livewire->dispatch('documents-changed');
                         Notification::make()->title('Dokument gelöscht')->success()->send();
                     }),
             ])
@@ -118,7 +119,7 @@ class DocumentTable
             ->modalDescription('Die Datei wird verschlüsselt gespeichert. Jeder Abruf steht im Protokoll.')
             ->modalSubmitActionLabel('Hochladen')
             ->schema(static::uploadSchema($category))
-            ->action(function (array $data, Action $action) use ($lead, $participant) {
+            ->action(function (array $data, Action $action, $livewire) use ($lead, $participant) {
                 try {
                     app(DocumentService::class)->store($lead(), $data['file'], $data, $participant());
                 } catch (ValidationException $exception) {
@@ -128,6 +129,8 @@ class DocumentTable
                     return;
                 }
 
+                // Seite drumherum (Schrittfolge, Pflichtunterlagen, Checkliste) neu zeichnen.
+                $livewire->dispatch('documents-changed');
                 Notification::make()->title('Dokument hochgeladen')->success()->send();
             });
     }

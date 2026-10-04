@@ -71,6 +71,7 @@ class ImportLogResource extends Resource
                 TextColumn::make('rows_imported')->label('importiert')->numeric(),
                 TextColumn::make('rows_skipped')->label('übersprungen')->numeric(),
                 TextColumn::make('duplicates')->label('Dubletten')->numeric(),
+                TextColumn::make('suspected_duplicates')->label('Verdacht')->numeric()->tooltip('angelegt, aber in der Dublettenprüfung'),
                 TextColumn::make('user.name')->label('ausgeführt von'),
             ])
             ->recordActions([
@@ -93,6 +94,7 @@ class ImportLogResource extends Resource
                     TextEntry::make('rows_imported')->label('importiert'),
                     TextEntry::make('rows_skipped')->label('übersprungen'),
                     TextEntry::make('duplicates')->label('davon Dubletten'),
+                    TextEntry::make('suspected_duplicates')->label('angelegt mit Dublettenverdacht (zur Prüfung)'),
                 ]),
             Section::make('Übersprungene Zeilen')
                 ->schema([

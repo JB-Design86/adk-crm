@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Organizations\Pages;
 
 use App\Filament\Resources\Organizations\OrganizationResource;
+use App\Services\Duplicates\DuplicateFinder;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateOrganization extends CreateRecord
@@ -23,5 +24,8 @@ class CreateOrganization extends CreateRecord
     protected function afterCreate(): void
     {
         $this->getRecord()->syncChecks($this->checkStates);
+
+        // Ähnliche Einträge: in die Dublettenprüfung.
+        app(DuplicateFinder::class)->record($this->getRecord());
     }
 }

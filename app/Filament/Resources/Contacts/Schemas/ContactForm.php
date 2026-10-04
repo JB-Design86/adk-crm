@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Contacts\Schemas;
 
+use App\Filament\Duplicates\DuplicateHint;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -32,12 +33,13 @@ class ContactForm
     public static function fields(): array
     {
         return [
+            DuplicateHint::contact(),
             Select::make('salutation')->label('Anrede')->options(['Frau' => 'Frau', 'Herr' => 'Herr', 'divers' => 'divers']),
-            TextInput::make('first_name')->label('Vorname')->maxLength(255),
-            TextInput::make('last_name')->label('Nachname')->required()->maxLength(255),
+            TextInput::make('first_name')->label('Vorname')->maxLength(255)->live(onBlur: true),
+            TextInput::make('last_name')->label('Nachname')->required()->maxLength(255)->live(onBlur: true),
             TextInput::make('position')->label('Funktion')->maxLength(255),
-            TextInput::make('phone_display')->label('Telefon')->tel()->maxLength(40),
-            TextInput::make('email')->label('E-Mail')->email()->maxLength(255),
+            TextInput::make('phone_display')->label('Telefon')->tel()->maxLength(40)->live(onBlur: true),
+            TextInput::make('email')->label('E-Mail')->email()->maxLength(255)->live(onBlur: true),
             Toggle::make('is_private')->label('Privatperson')->live()->inline(false),
         ];
     }

@@ -223,7 +223,7 @@ class TestDataSeeder extends Seeder
                 ]);
 
                 // Erste Punkte der Checkliste, damit die Akte nicht leer ist.
-                foreach (['contract', 'privacy'] as $key) {
+                foreach (['privacy', 'placement_consent'] as $key) {
                     if ($participant && ($item = ParticipantChecklistItem::where('key', $key)->first())) {
                         app(ParticipantService::class)->completeCheck($participant, $item, ['done_on' => today()->toDateString(), 'note' => 'Testdaten'], $user);
                     }
