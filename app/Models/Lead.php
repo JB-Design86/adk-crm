@@ -16,6 +16,9 @@ class Lead extends Model
 {
     use HasFactory, LogsActivity;
 
+    /** Status nach der Akquise: Der Vorgang lebt als Förderfall bzw. Teilnehmerakte weiter. */
+    public const AFTER_ACQUISITION = ['handed_over', 'enrolled'];
+
     protected $guarded = ['id'];
 
     protected $attributes = [
@@ -89,6 +92,16 @@ class Lead extends Model
         return $this->hasMany(Appointment::class)->orderBy('starts_at');
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(Participant::class);
+    }
+
     public function fundingCase(): HasOne
     {
         return $this->hasOne(FundingCase::class);
@@ -109,6 +122,17 @@ class Lead extends Model
     public function scopeOpen(Builder $query): Builder
     {
         return $query->whereNull('closed_at');
+    }
+
+    /** Offen und noch in der Akquise, also weder Förderfall noch Teilnehmer. */
+    public function scopeInAcquisition(Builder $query): Builder
+    {
+        return $query->open()->whereNotIn('status', self::AFTER_ACQUISITION);
+    }
+
+    public function isInAcquisition(): bool
+    {
+        return $this->isOpen() && ! in_array($this->status, self::AFTER_ACQUISITION, true);
     }
 
     public function scopeInbound(Builder $query): Builder

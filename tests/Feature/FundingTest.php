@@ -119,6 +119,7 @@ it('bestätigt die Einschreibung erst, wenn alle Schritte erledigt sind', functi
     foreach ($case->steps() as $step) {
         $this->funding->completeStep($case, $step, []);
     }
+    uploadRequiredDocuments($case);
 
     $this->funding->enroll($case->fresh());
 
@@ -131,6 +132,7 @@ it('nimmt eingeschriebene Teilnehmer aus der Löschfrist für Interessenten hera
     foreach ($case->steps() as $step) {
         $this->funding->completeStep($case, $step, []);
     }
+    uploadRequiredDocuments($case);
     $this->funding->enroll($case->fresh());
     $case->lead->forceFill(['last_contact_at' => '2025-01-01'])->saveQuietly();
 

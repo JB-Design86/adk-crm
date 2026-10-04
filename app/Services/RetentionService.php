@@ -6,12 +6,16 @@ use App\Models\Activity;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Contact;
+use App\Models\Document;
 use App\Models\FundingCase;
 use App\Models\FundingCaseStep;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\OrganizationCheck;
+use App\Models\Participant;
+use App\Models\ParticipantCheck;
+use App\Services\Documents\DocumentService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -22,7 +26,8 @@ use Illuminate\Support\Facades\DB;
  *
  * - Vorgang ohne Vertragsschluss, Betrieb: 24 Monate ab letztem Kontakt
  * - Vorgang ohne Vertragsschluss, Privatperson: 6 Monate ab letztem Kontakt
- * - Aktivitäten und Termine: mit dem Vorgang
+ * - Teilnehmerakte samt Vorgang, Förderfall und Dokumenten: 10 Jahre nach Ende der Maßnahme (A-22)
+ * - Aktivitäten, Termine und Dokumente: mit dem Vorgang
  * - Organisationen und Kontakte: wenn kein Vorgang mehr darauf verweist
  * - Nachweis Einwilligung Telefonansprache: 5 Jahre ab Erteilung bzw. letzter Verwendung
  * - Importprotokoll: 3 Jahre ab Ende des Kalenderjahres
@@ -51,19 +56,22 @@ class RetentionService
         $this->details = [];
 
         $leads = $this->expiredLeads();
+        $files = $this->expiredParticipantLeads();
         $consents = $this->expiredConsents();
         $importLogs = $this->expiredImportLogs();
 
         $this->record('leads_company', $leads['company']->map(fn (Lead $lead) => "Vorgang {$lead->id} (Betrieb, letzter Kontakt {$this->lastContact($lead)->format('d.m.Y')})"));
         $this->record('leads_private', $leads['private']->map(fn (Lead $lead) => "Vorgang {$lead->id} (Privatperson, letzter Kontakt {$this->lastContact($lead)->format('d.m.Y')})"));
+        $this->record('participant_files', $files->map(fn (Lead $lead) => "Teilnehmerakte(n) an Vorgang {$lead->id} (Maßnahme beendet {$this->measureEnd($lead)?->format('d.m.Y')})"));
         $this->record('phone_consents', $consents->map(fn (Contact $contact) => "Einwilligungsnachweis an Kontakt {$contact->id}"));
         $this->record('import_logs', $importLogs->map(fn (ImportLog $log) => "Importprotokoll {$log->id} vom {$log->created_at->format('d.m.Y')}"));
 
-        $leadIds = $leads['company']->merge($leads['private'])->pluck('id');
+        $leadIds = $leads['company']->merge($leads['private'])->merge($files)->pluck('id');
 
         if ($dryRun) {
             $this->counts['activities'] = Activity::whereIn('lead_id', $leadIds)->count();
             $this->counts['appointments'] = Appointment::whereIn('lead_id', $leadIds)->count();
+            $this->counts['documents'] = Document::whereIn('lead_id', $leadIds)->count();
             $this->record('organizations', $this->orphanedOrganizations($leadIds)->map(fn (Organization $organization) => "Organisation {$organization->id}"));
             $this->record('contacts', $this->orphanedContacts($leadIds)->map(fn (Contact $contact) => "Kontakt {$contact->id}"));
 
@@ -140,13 +148,48 @@ class RetentionService
         return ImportLog::where('created_at', '<', $cutoff)->get();
     }
 
+    /**
+     * Vorgänge mit Teilnehmerakte, deren Akten alle abgelaufen sind: zehn Jahre nach Ende der Maßnahme.
+     * Akten ohne Austritts- und Kursende-Datum bleiben (Frist unbestimmt).
+     *
+     * @return Collection<int, Lead>
+     */
+    private function expiredParticipantLeads(): Collection
+    {
+        $years = config('adk.retention.participant_years');
+
+        return Lead::query()
+            ->whereNotNull('contracted_at')
+            ->whereHas('participants')
+            ->with('participants')
+            ->get()
+            ->filter(fn (Lead $lead) => $lead->participants->every(fn (Participant $p) => $p->measureEndedOn()?->addYears($years)->lt($this->now) ?? false))
+            ->values();
+    }
+
+    private function measureEnd(Lead $lead): ?CarbonImmutable
+    {
+        return $lead->participants->map(fn (Participant $p) => $p->measureEndedOn())->filter()->max();
+    }
+
     /** @param Collection<int, int> $leadIds */
     private function deleteLeads(Collection $leadIds): void
     {
         $this->counts['activities'] = 0;
         $this->counts['appointments'] = 0;
+        $this->counts['documents'] = 0;
 
         foreach ($leadIds->chunk(500) as $chunk) {
+            $documents = Document::whereIn('lead_id', $chunk)->get();
+            $this->purgeAuditLog(Document::class, $documents->pluck('id'));
+            $this->counts['documents'] += app(DocumentService::class)->purge($documents);
+            $participantIds = Participant::whereIn('lead_id', $chunk)->pluck('id');
+            $checkIds = ParticipantCheck::whereIn('participant_id', $participantIds)->pluck('id');
+            $this->purgeAuditLog(ParticipantCheck::class, $checkIds);
+            ParticipantCheck::whereIn('id', $checkIds)->delete();
+            $this->purgeAuditLog(Participant::class, $participantIds);
+            Participant::whereIn('id', $participantIds)->delete();
+
             $activityIds = Activity::whereIn('lead_id', $chunk)->pluck('id');
             $appointmentIds = Appointment::whereIn('lead_id', $chunk)->pluck('id');
 
@@ -199,7 +242,7 @@ class RetentionService
 
         $organizations = $this->orphanedOrganizations(collect());
         $organizationIds = $organizations->pluck('id');
-        $orphanContacts = Contact::whereIn('organization_id', $organizationIds)->whereDoesntHave('leads')->pluck('id');
+        $orphanContacts = Contact::whereIn('organization_id', $organizationIds)->whereDoesntHave('leads')->whereDoesntHave('participants')->pluck('id');
         $this->purgeAuditLog(Contact::class, $orphanContacts);
         $this->counts['contacts'] += Contact::whereIn('id', $orphanContacts)->delete();
         $checkIds = OrganizationCheck::whereIn('organization_id', $organizationIds)->pluck('id');
@@ -232,6 +275,7 @@ class RetentionService
     {
         return Contact::query()
             ->whereDoesntHave('leads', fn (Builder $q) => $q->whereNotIn('id', $deletedLeadIds))
+            ->whereDoesntHave('participants', fn (Builder $q) => $q->whereNotIn('lead_id', $deletedLeadIds))
             ->where('updated_at', '<', $this->graceCutoff())
             ->where(fn (Builder $q) => $q
                 ->whereNull('organization_id')

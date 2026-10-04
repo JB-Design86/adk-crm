@@ -5,6 +5,10 @@
     $current = $case->isOpen() ? $case->currentStep() : null;
     $steps = $case->steps();
     $canEdit = \Illuminate\Support\Facades\Gate::allows('leads.edit');
+    $presentDocuments = $lead->documents()->distinct()->pluck('category')->all();
+    $missingDocuments = $case->missingDocuments();
+    $participants = $case->participants()->with('contact')->get();
+    $canSeeFiles = \Illuminate\Support\Facades\Gate::allows('participants');
 @endphp
 
 <x-filament-panels::page>
@@ -17,7 +21,11 @@
             @if ($case->isOpen() && ! $current)
                 <div class="mb-4 rounded-lg border border-success-300 bg-success-50 p-4 dark:border-success-500/40 dark:bg-success-500/10">
                     <p class="font-semibold">Alle Schritte erledigt.</p>
-                    <p class="text-sm">Sobald der Kostenträger die Anmeldung bestätigt hat, oben „Einschreibung bestätigt“ wählen.</p>
+                    @if ($missingDocuments)
+                        <p class="text-sm"><span class="font-semibold text-danger-600 dark:text-danger-400">Vor der Einschreibung fehlen noch Unterlagen:</span> {{ implode(', ', array_map(fn ($c) => \App\Support\Adk::documentCategoryLabel($c), array_keys($missingDocuments))) }}. Bitte unten unter „Dokumente“ hochladen.</p>
+                    @else
+                        <p class="text-sm">Sobald der Kostenträger die Anmeldung bestätigt hat, oben „Einschreibung bestätigt“ wählen. Dann legt das CRM die Teilnehmerakte an.</p>
+                    @endif
                 </div>
             @endif
 
@@ -42,6 +50,13 @@
                             </span>
                             <div class="grow">
                                 <p @class(['font-medium', 'text-gray-500' => ! $entry && ! $isCurrent])>{{ $step->name }}</p>
+                                @if ($step->document_category)
+                                    @php($hasDocument = in_array($step->document_category, $presentDocuments, true))
+                                    <p @class(['text-xs', 'text-success-700 dark:text-success-400' => $hasDocument, 'text-danger-600 dark:text-danger-400' => ! $hasDocument && $step->requires_document, 'text-gray-500' => ! $hasDocument && ! $step->requires_document])>
+                                        Unterlage: {{ \App\Support\Adk::documentCategoryLabel($step->document_category) }}
+                                        · {{ $hasDocument ? 'liegt vor' : ($step->requires_document ? 'fehlt (Pflicht vor der Einschreibung)' : 'noch nicht hochgeladen') }}
+                                    </p>
+                                @endif
 
                                 @if ($entry)
                                     <p class="text-sm text-gray-600 dark:text-gray-400">
@@ -125,4 +140,39 @@
             </x-filament::section>
         </div>
     </div>
+
+    @if ($case->state === 'enrolled')
+        <x-filament::section icon="heroicon-o-identification">
+            <x-slot name="heading">{{ $case->pathway === 'employer' ? 'Teilnehmende des Betriebs' : 'Teilnehmerakte' }}</x-slot>
+            <x-slot name="description">Eingeschrieben am {{ $case->enrolled_at?->format('d.m.Y') }}. Ab hier geht es in der Teilnehmerakte weiter: Vertrag, Eintritt, Durchführung, Abschluss, Verbleib.</x-slot>
+            @if ($participants->isEmpty())
+                <p class="text-sm text-gray-500">
+                    @if ($case->pathway === 'employer')
+                        Noch keine Teilnehmenden angelegt. Oben „Teilnehmer/in anlegen“ für jede beschäftigte Person.
+                    @else
+                        Keine Teilnehmerakte vorhanden (am Vorgang ist keine Person hinterlegt).
+                    @endif
+                </p>
+            @else
+                <ul class="divide-y divide-gray-100 text-sm dark:divide-white/5">
+                    @foreach ($participants as $participant)
+                        <li class="flex items-center justify-between gap-3 py-2">
+                            <span><span class="font-medium">{{ $participant->displayName() }}</span> · {{ $participant->number }} · {{ $participant->stateLabel() }}</span>
+                            @if ($canSeeFiles)
+                                <a href="{{ \App\Filament\Resources\Participants\ParticipantResource::getUrl('view', ['record' => $participant]) }}" class="text-primary-600 hover:underline dark:text-primary-400">Akte öffnen</a>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </x-filament::section>
+    @endif
+
+    @can('documents')
+        <x-filament::section icon="heroicon-o-document-text">
+            <x-slot name="heading">Dokumente</x-slot>
+            <x-slot name="description">Bildungsgutschein, Bewilligung, Vertrag und Schriftverkehr. Verschlüsselt gespeichert, jeder Abruf im Protokoll. Die Unterlagen gehen mit in die Teilnehmerakte.</x-slot>
+            @livewire(\App\Livewire\DocumentList::class, ['lead' => $lead], key('documents-case-'.$case->id))
+        </x-filament::section>
+    @endcan
 </x-filament-panels::page>

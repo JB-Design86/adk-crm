@@ -90,13 +90,17 @@ return [
         'voucher_valid_until' => 'Bis wann der Bildungsgutschein eingelöst werden muss. Ab 14 Tagen vor Ablauf rot markiert.',
         'funder_contact' => 'Zuständige Vermittlungsfachkraft bzw. Reha-Management beim Kostenträger.',
         'step' => 'Welcher Schritt erledigt wurde. Vorausgewählt ist der nächste offene Schritt.',
+        'document_category' => 'Welche Art Unterlage das ist. Pflichtunterlagen (z. B. Bildungsgutschein, Vertrag) zählen für „Einschreibung bestätigt“ nur mit der passenden Art.',
         'sipgate_call' => 'Zuerst klingelt Ihr unter „Telefonie“ gewähltes Gerät. Nach dem Abheben wählt sipgate die Nummer des Vorgangs.',
     ],
 
     'seiten' => [
         'heute' => 'Alles, was heute zu tun ist: fällige und überfällige Wiedervorlagen, neue Anfragen (rot) und die Termine des Tages.',
         'anrufliste' => 'Ein Betrieb nach dem anderen, zuerst Priorität A. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
-        'vorgaenge' => 'Alle Vorgänge mit Filtern und Suche. Ein Klick öffnet den Vorgang mit allen Daten, Aktivitäten und Terminen.',
+        'vorgaenge' => 'Vorgänge nach Phase: Akquise (Standard), Förderfall, Teilnehmer, geschlossen. Übergebene Vorgänge stehen nicht mehr in der Akquise, sondern unter Förderfall bzw. Teilnehmer.',
+        'teilnehmer' => 'Teilnehmerakten: entstehen mit „Einschreibung bestätigt“ im Förderfall. Checkliste von Vertrag bis Verbleib, Dokumente, Ausgabe als ZIP.',
+        'checkliste' => 'Punkte der Checkliste in der Teilnehmerakte, je Phase. Umbenennen, sortieren, ergänzen oder abschalten.',
+        'dubletten' => 'Mögliche Dubletten: Datensätze, die einem vorhandenen sehr ähnlich sind. Vergleichen und entscheiden: derselbe (zusammenführen) oder verschieden (freigeben). Bis dahin erscheinen sie nicht in der Anrufliste.',
         'kalender' => 'Termine und Wiedervorlagen nach Tag oder Woche. Ein Klick auf einen Tag zeigt alle Einträge.',
         'auswertung' => 'Anrufe, Erreichte, Termine und Unterlagen je Tag und Woche, Quoten je Branche, Kanal und Importquelle.',
         'telefonie' => 'Eigenes sipgate-Konto verbinden: Dann starten Sie Anrufe per Klick, und das CRM übernimmt Ihre Telefonate automatisch als Aktivität.',

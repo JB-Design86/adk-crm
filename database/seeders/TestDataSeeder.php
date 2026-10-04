@@ -9,14 +9,21 @@ use App\Models\FundingCase;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
+use App\Models\ParticipantChecklistItem;
 use App\Models\User;
+use App\Services\Documents\DocumentService;
 use App\Services\FundingService;
 use App\Services\LeadStatusService;
+use App\Services\ParticipantService;
+use App\Support\Adk;
 use App\Support\WorkingDays;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Dompdf\Dompdf;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -195,9 +202,47 @@ class TestDataSeeder extends Seeder
 
             if ($index === 0 && $case->fresh()->allStepsDone()) {
                 $case->update(['customer_number' => '123D456789', 'voucher_number' => 'BGS-TEST-0001', 'voucher_valid_until' => today()->addMonths(2)]);
-                $funding->enroll($case->fresh(), $user);
+
+                // Pflichtunterlagen als erkennbar fiktive PDFs, damit die Einschreibung möglich ist.
+                foreach (array_keys($case->missingDocuments()) as $category) {
+                    app(DocumentService::class)->store($case->lead, $this->testPdf(Adk::documentCategoryLabel($category)), [
+                        'category' => $category,
+                        'title' => Adk::documentCategoryLabel($category).' (Testdokument)',
+                        'document_date' => today()->subDays(3)->toDateString(),
+                    ], user: $user);
+                }
+
+                $participant = $funding->enroll($case->fresh(), $user, [
+                    'course_name' => 'KI-Kompetenz für den Beruf (Testkurs)',
+                    'course_starts_on' => today()->addWeeks(2)->toDateString(),
+                    'course_ends_on' => today()->addWeeks(14)->toDateString(),
+                    'birth_date' => '1985-04-12',
+                    'street' => 'Musterstraße 1',
+                    'postal_code' => '55116',
+                    'city' => 'Mainz',
+                ]);
+
+                // Erste Punkte der Checkliste, damit die Akte nicht leer ist.
+                foreach (['contract', 'privacy'] as $key) {
+                    if ($participant && ($item = ParticipantChecklistItem::where('key', $key)->first())) {
+                        app(ParticipantService::class)->completeCheck($participant, $item, ['done_on' => today()->toDateString(), 'note' => 'Testdaten'], $user);
+                    }
+                }
             }
         }
+    }
+
+    /** Kleines PDF mit deutlichem Hinweis „Testdokument“. */
+    private function testPdf(string $title): UploadedFile
+    {
+        $pdf = new Dompdf;
+        $pdf->loadHtml('<h1 style="font-family: DejaVu Sans">TESTDOKUMENT</h1><p style="font-family: DejaVu Sans">'.e($title).'</p><p style="font-family: DejaVu Sans">Fiktive Daten für crm-test. Kein echtes Dokument.</p>', 'UTF-8');
+        $pdf->render();
+
+        $path = tempnam(sys_get_temp_dir(), 'test').'.pdf';
+        file_put_contents($path, $pdf->output());
+
+        return new UploadedFile($path, Str::slug($title).'.pdf', 'application/pdf', null, true);
     }
 
     /** Sperrliste auf genau 5 Einträge auffüllen (Taste 8 in der Simulation erzeugt bis zu 2). */

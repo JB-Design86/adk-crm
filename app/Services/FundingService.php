@@ -7,7 +7,9 @@ use App\Models\FundingCase;
 use App\Models\FundingCaseStep;
 use App\Models\FundingStep;
 use App\Models\Lead;
+use App\Models\Participant;
 use App\Models\User;
+use App\Support\Adk;
 use App\Support\WorkingDays;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -161,17 +163,27 @@ class FundingService
     }
 
     /**
-     * Einschreibung bestätigt: aus dem Förderfall wird ein Teilnehmer.
-     * Die Teilnehmerakte folgt in Stufe 4. Der Vorgang fällt ab jetzt nicht mehr
-     * unter die Löschfrist für Interessenten (contracted_at).
+     * Einschreibung bestätigt: aus dem Förderfall wird ein Teilnehmer mit Teilnehmerakte.
+     * Voraussetzung: alle Schritte erledigt und alle Pflichtunterlagen hochgeladen.
+     * Der Vorgang fällt ab jetzt nicht mehr unter die Löschfrist für Interessenten (contracted_at),
+     * die Akte wird zehn Jahre nach Ende der Maßnahme gelöscht.
+     * Beim Betrieb (§ 82 SGB III) wird die Organisation Firmenkunde; die Beschäftigten werden danach einzeln angelegt.
+     *
+     * @param  array<string, mixed>  $data  Angaben für die Teilnehmerakte (Kurs, Geburtsdatum, Anschrift)
      */
-    public function enroll(FundingCase $case, ?User $user = null): void
+    public function enroll(FundingCase $case, ?User $user = null, array $data = []): ?Participant
     {
         if (! $case->isOpen() || ! $case->allStepsDone()) {
             throw ValidationException::withMessages(['state' => 'Die Einschreibung kann erst bestätigt werden, wenn alle Schritte erledigt sind.']);
         }
 
-        DB::transaction(function () use ($case, $user) {
+        if ($missing = $case->missingDocuments()) {
+            throw ValidationException::withMessages(['documents' => 'Es fehlen Pflichtunterlagen: '.implode(', ', array_map(fn ($category) => Adk::documentCategoryLabel($category), array_keys($missing))).'. Bitte zuerst unter „Dokumente“ hochladen.']);
+        }
+
+        $user ??= auth()->user();
+
+        return DB::transaction(function () use ($case, $user, $data) {
             $case->update(['state' => 'enrolled', 'enrolled_at' => now()]);
 
             $lead = $case->lead;
@@ -181,14 +193,22 @@ class FundingService
             $lead->next_action_at = null;
             $lead->save();
 
+            if ($case->pathway === 'employer' && $lead->organization) {
+                $lead->organization->forceFill(['customer_since' => $lead->organization->customer_since ?? today()])->save();
+            }
+
             Activity::create([
                 'lead_id' => $lead->id,
-                'user_id' => ($user ?? auth()->user())?->id,
+                'user_id' => $user?->id,
                 'type' => 'status_change',
                 'status_from' => $from,
                 'status_to' => 'enrolled',
-                'body' => 'Einschreibung vom Kostenträger bestätigt. Teilnehmerakte folgt (Stufe 4).',
+                'body' => $case->pathway === 'employer'
+                    ? 'Einschreibung vom Kostenträger bestätigt. Betrieb ist Firmenkunde, Teilnehmende werden im Förderfall angelegt.'
+                    : 'Einschreibung vom Kostenträger bestätigt.',
             ]);
+
+            return app(ParticipantService::class)->createForCase($case->fresh(), $data, $user);
         });
     }
 

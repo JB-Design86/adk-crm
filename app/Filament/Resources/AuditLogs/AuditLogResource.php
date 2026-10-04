@@ -57,6 +57,11 @@ class AuditLogResource extends Resource
         'funding_steps' => 'Förderweg-Schritt',
         'retention' => 'Löschlauf',
         'sipgate' => 'sipgate',
+        'documents' => 'Dokument',
+        'participants' => 'Teilnehmerakte',
+        'participant_checks' => 'Checkliste',
+        'checklist_items' => 'Checklisten-Punkt',
+        'duplicates' => 'Dublettenprüfung',
     ];
 
     public const EVENTS = [
@@ -75,6 +80,10 @@ class AuditLogResource extends Resource
         'disconnected' => 'getrennt',
         'call_started' => 'Anruf gestartet',
         'sync' => 'Abgleich',
+        'uploaded' => 'hochgeladen',
+        'downloaded' => 'abgerufen',
+        'zip_export' => 'Aktenausgabe (ZIP)',
+        'resolved' => 'aufgelöst',
     ];
 
     public static function canViewAny(): bool

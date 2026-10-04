@@ -33,6 +33,9 @@ class AppServiceProvider extends ServiceProvider
 
         Password::defaults(fn () => Password::min(10));
 
+        // Hochladen von Dokumenten bis zur Grenze aus config/adk.php (Livewire-Standard wären 12 MB).
+        config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.config('adk.documents.max_kb')]]);
+
         // Jedes Recht aus config/adk.php als Gate, geprüft über die Rolle.
         foreach (array_keys(config('adk.permissions')) as $permission) {
             Gate::define($permission, fn (User $user) => ! $user->is_blocked && $user->hasPermission($permission));

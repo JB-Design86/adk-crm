@@ -23,6 +23,7 @@ class FundingStep extends Model
         'follow_up_days' => 5,
         'calendar_days' => false,
         'can_fail' => false,
+        'requires_document' => false,
         'sort_order' => 0,
     ];
 
@@ -32,6 +33,7 @@ class FundingStep extends Model
             'is_active' => 'boolean',
             'calendar_days' => 'boolean',
             'can_fail' => 'boolean',
+            'requires_document' => 'boolean',
             'follow_up_days' => 'integer',
             'sort_order' => 'integer',
         ];
@@ -50,7 +52,7 @@ class FundingStep extends Model
     {
         return LogOptions::defaults()
             ->useLogName('funding_steps')
-            ->logOnly(['pathway', 'name', 'instructions', 'default_party', 'follow_up_days', 'calendar_days', 'can_fail', 'sort_order', 'is_active'])
+            ->logOnly(['pathway', 'name', 'instructions', 'default_party', 'follow_up_days', 'calendar_days', 'can_fail', 'document_category', 'requires_document', 'sort_order', 'is_active'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }

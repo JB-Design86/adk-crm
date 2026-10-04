@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Today;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\SipgateController;
 use App\Http\Middleware\EnsureUserIsNotBlocked;
 use App\Support\InitialsAvatarProvider;
@@ -53,6 +54,7 @@ class AdminPanelProvider extends PanelProvider
             ->viteTheme('resources/css/filament/crm/theme.css')
             ->navigationGroups([
                 NavigationGroup::make('Akquise'),
+                NavigationGroup::make('Teilnehmer'),
                 NavigationGroup::make('Stammdaten'),
                 NavigationGroup::make('Verwaltung'),
             ])
@@ -75,10 +77,12 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
-            // sipgate-Verbindung (OAuth2): Weiterleitung zu sipgate und Rückruf, nur angemeldet.
+            // Eigene Routen, nur angemeldet: sipgate-Verbindung (OAuth2) und Dokumentabruf.
             ->authenticatedRoutes(function (): void {
                 Route::get('sipgate/connect', [SipgateController::class, 'connect'])->name('sipgate.connect');
                 Route::get('sipgate/callback', [SipgateController::class, 'callback'])->name('sipgate.callback');
+                // Dokumente: entschlüsselt ausliefern, Rechte prüfen, protokollieren.
+                Route::get('dokumente/{document}', DocumentController::class)->name('documents.show');
             })
             ->authMiddleware([
                 // Filament-Anmeldeprüfung plus sofortige Abmeldung gesperrter Konten.

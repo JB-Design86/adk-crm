@@ -97,7 +97,7 @@ class CallList extends Page
             ->leftJoin('organizations', 'organizations.id', '=', 'leads.organization_id')
             ->leftJoin('contacts', 'contacts.id', '=', 'leads.contact_id')
             ->whereNull('leads.closed_at')
-            ->where('leads.status', '!=', 'handed_over')
+            ->whereNotIn('leads.status', Lead::AFTER_ACQUISITION)
             ->where(fn (Builder $q) => $q->whereNull('leads.next_action_at')->orWhereDate('leads.next_action_at', '<=', today()))
             ->where(fn (Builder $q) => $q->whereNotNull('organizations.phone_e164')->orWhereNotNull('contacts.phone_e164'))
             // Privatpersonen: nur mit Einwilligung (Datum und Nachweis) oder bei eingehender Anfrage

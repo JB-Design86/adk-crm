@@ -60,6 +60,11 @@ class Contact extends Model
         return $this->hasMany(Lead::class);
     }
 
+    public function participants(): HasMany
+    {
+        return $this->hasMany(Participant::class);
+    }
+
     public function fullName(): string
     {
         return trim(implode(' ', array_filter([$this->salutation, $this->first_name, $this->last_name])));

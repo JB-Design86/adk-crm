@@ -66,16 +66,6 @@ class LeadsTable
                 TextColumn::make('last_contact_at')->label('letzter Kontakt')->dateTime('d.m.Y')->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                TernaryFilter::make('open')
-                    ->label('Offen / geschlossen')
-                    ->placeholder('alle')
-                    ->trueLabel('nur offene')
-                    ->falseLabel('nur geschlossene')
-                    ->default(true)
-                    ->queries(
-                        true: fn (Builder $query) => $query->whereNull('closed_at'),
-                        false: fn (Builder $query) => $query->whereNotNull('closed_at'),
-                    ),
                 SelectFilter::make('status')->label('Status')->options(Adk::statusOptions())->multiple(),
                 SelectFilter::make('target_group')->label('Zielgruppe')->options(Adk::targetGroupOptions())->multiple(),
                 SelectFilter::make('channel')->label('Eingangskanal')->options(Adk::channelOptions())->multiple(),

@@ -33,6 +33,8 @@ return [
                 'organizations.edit',
                 'contacts.edit',
                 'reports.view',
+                'documents',
+                'duplicates',
             ],
         ],
     ],
@@ -56,6 +58,10 @@ return [
         'settings.manage' => 'Einstellungen bearbeiten (z. B. Prüfstufen)',
         'audit.view' => 'Protokoll einsehen',
         'health.view' => 'Gesundheitsangaben einsehen',
+        'documents' => 'Dokumente ansehen und hochladen',
+        'documents.delete' => 'Dokumente löschen',
+        'participants' => 'Teilnehmerakten führen',
+        'duplicates' => 'Dubletten prüfen und auflösen',
     ],
 
     /*
@@ -194,6 +200,74 @@ return [
         'company' => 'Betrieb',
     ],
 
+    /*
+    | Teilnehmerakte (Stufe 4). Die Akte entsteht mit „Einschreibung bestätigt“.
+    | Die Punkte der Checkliste pflegt die Verwaltung (Verwaltung → Checkliste Teilnehmer).
+    */
+    'participant_states' => [
+        'registered' => ['label' => 'angemeldet', 'color' => 'info'],
+        'active' => ['label' => 'im Kurs', 'color' => 'primary'],
+        'completed' => ['label' => 'abgeschlossen', 'color' => 'success'],
+        'dropped' => ['label' => 'abgebrochen', 'color' => 'danger'],
+    ],
+
+    'checklist_phases' => [
+        'contract' => 'Vertrag',
+        'entry' => 'Eintritt',
+        'delivery' => 'Durchführung',
+        'completion' => 'Abschluss',
+        'follow_up' => 'Verbleib',
+    ],
+
+    'placement_statuses' => [
+        'employed' => 'sozialversicherungspflichtig beschäftigt',
+        'self_employed' => 'selbstständig',
+        'training' => 'Ausbildung oder weitere Qualifizierung',
+        'job_seeking' => 'arbeitsuchend',
+        'other' => 'Sonstiges',
+        'unknown' => 'nicht bekannt (keine Rückmeldung)',
+    ],
+
+    // Wiedervorlage zur Verbleibserhebung: Monate nach Kursende
+    'placement_follow_up_months' => 6,
+
+    /*
+    | Dokumente (Lastenheft 7.2). Verschlüsselt auf dem Server, jeder Abruf im Protokoll.
+    | health: nur mit Recht health.view sichtbar (Rolle Verwaltung).
+    */
+    'documents' => [
+        'max_kb' => 20480,
+        'mime_types' => [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.oasis.opendocument.text',
+            'message/rfc822',
+            'application/vnd.ms-outlook',
+        ],
+        'categories' => [
+            'funding_voucher' => ['label' => 'Bildungsgutschein'],
+            'funding_approval' => ['label' => 'Bewilligung oder Kostenzusage'],
+            'application' => ['label' => 'Antrag'],
+            'funder_correspondence' => ['label' => 'Schriftverkehr Kostenträger'],
+            'offer' => ['label' => 'Angebot'],
+            'aptitude' => ['label' => 'Eignung A-06'],
+            'info_sheet' => ['label' => 'Informationsblatt A-26'],
+            'contract' => ['label' => 'Schulungsvertrag A-16 (unterschrieben)'],
+            'privacy_notice' => ['label' => 'Datenschutzhinweis A-23 (bestätigt)'],
+            'consent' => ['label' => 'Einwilligung'],
+            'device_handover' => ['label' => 'Übergabeprotokoll Leihgerät'],
+            'protocol' => ['label' => 'Protokoll Zwischengespräch oder Befragung'],
+            'absence' => ['label' => 'Fehlzeitenmeldung'],
+            'assessment' => ['label' => 'Bewertungsbogen A-08'],
+            'certificate' => ['label' => 'Zertifikat oder Teilnahmebescheinigung A-09'],
+            'health' => ['label' => 'Gesundheitsangaben (nur Verwaltung)', 'health' => true],
+            'other' => ['label' => 'Sonstiges'],
+        ],
+    ],
+
     'appointment_types' => [
         'phone' => 'Telefon',
         'teams' => 'Teams',
@@ -244,6 +318,8 @@ return [
         'lead_private_months' => 6,
         // Nachweis Einwilligung Telefonansprache: Jahre ab Erteilung bzw. letzter Verwendung
         'phone_consent_years' => 5,
+        // Teilnehmerakte samt Dokumenten: Jahre nach Ende der Maßnahme (A-22)
+        'participant_years' => 10,
         // Importprotokoll: Jahre ab Ende des Kalenderjahres
         'import_log_years' => 3,
         // Organisationen und Kontakte ohne Vorgang: erst nach so vielen Tagen ohne Änderung

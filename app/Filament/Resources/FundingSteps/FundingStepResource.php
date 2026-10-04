@@ -6,6 +6,7 @@ use App\Filament\Resources\FundingSteps\Pages\CreateFundingStep;
 use App\Filament\Resources\FundingSteps\Pages\EditFundingStep;
 use App\Filament\Resources\FundingSteps\Pages\ListFundingSteps;
 use App\Models\FundingStep;
+use App\Support\Adk;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -91,6 +92,16 @@ class FundingStepResource extends Resource
                         Toggle::make('calendar_days')->label('Kalendertage statt Arbeitstage')->inline(false),
                         Toggle::make('can_fail')->label('Kann abgelehnt werden')->inline(false),
                     ]),
+                    Grid::make(2)->schema([
+                        Select::make('document_category')
+                            ->label('Erwartete Unterlage')
+                            ->options(fn () => Adk::documentCategoryOptions())
+                            ->helperText('Wird beim Erledigen zum Hochladen vorgeschlagen.'),
+                        Toggle::make('requires_document')
+                            ->label('Pflicht vor der Einschreibung')
+                            ->helperText('„Einschreibung bestätigt“ geht erst, wenn diese Unterlage im Vorgang liegt.')
+                            ->inline(false),
+                    ]),
                     Toggle::make('is_active')->label('aktiv')->default(true),
                 ]),
         ]);
@@ -106,6 +117,7 @@ class FundingStepResource extends Resource
                 TextColumn::make('pathway')->label('Förderweg')->formatStateUsing(fn (string $state) => self::pathwayOptions()[$state] ?? $state)->badge()->color('gray'),
                 TextColumn::make('name')->label('Bezeichnung')->weight('medium')->wrap(),
                 TextColumn::make('instructions')->label('Was ist zu tun?')->limit(80)->wrap()->placeholder('–'),
+                TextColumn::make('document_category')->label('Unterlage')->formatStateUsing(fn (?string $state, FundingStep $record) => Adk::documentCategoryLabel($state).($record->requires_document ? ' (Pflicht)' : ''))->placeholder('–')->toggleable(),
                 TextColumn::make('follow_up_days')->label('Wiedervorlage')->formatStateUsing(fn (FundingStep $record) => $record->followUpLabel()),
                 ToggleColumn::make('is_active')->label('aktiv'),
             ])

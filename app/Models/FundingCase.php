@@ -54,6 +54,11 @@ class FundingCase extends Model
         return $this->belongsTo(Lead::class);
     }
 
+    public function participants(): HasMany
+    {
+        return $this->hasMany(Participant::class);
+    }
+
     public function completedSteps(): HasMany
     {
         return $this->hasMany(FundingCaseStep::class)->orderBy('completed_on')->orderBy('id');
@@ -76,6 +81,21 @@ class FundingCase extends Model
         $done = $this->completedSteps()->pluck('funding_step_id')->all();
 
         return $this->steps()->first(fn (FundingStep $step) => ! in_array($step->id, $done, true));
+    }
+
+    /**
+     * Pflichtunterlagen, die noch fehlen (Schritte mit „Unterlage Pflicht“), als Dokumentart => Schritt.
+     *
+     * @return array<string, string>
+     */
+    public function missingDocuments(): array
+    {
+        $present = $this->lead->documents()->distinct()->pluck('category')->all();
+
+        return $this->steps()
+            ->filter(fn (FundingStep $step) => $step->requires_document && $step->document_category && ! in_array($step->document_category, $present, true))
+            ->mapWithKeys(fn (FundingStep $step) => [$step->document_category => $step->name])
+            ->all();
     }
 
     public function allStepsDone(): bool

@@ -113,4 +113,48 @@ class Adk
 
         return array_combine($industries, $industries);
     }
+
+    /**
+     * Dokumentarten. Ohne Recht health.view fehlt die Art „Gesundheitsangaben“.
+     *
+     * @return array<string, string>
+     */
+    public static function documentCategoryOptions(bool $withHealth = false): array
+    {
+        return collect(config('adk.documents.categories'))
+            ->reject(fn (array $category) => ! $withHealth && ($category['health'] ?? false))
+            ->map(fn (array $category) => $category['label'])
+            ->all();
+    }
+
+    public static function documentCategoryLabel(?string $key): ?string
+    {
+        return $key ? (config("adk.documents.categories.{$key}.label") ?? $key) : null;
+    }
+
+    public static function isHealthCategory(?string $key): bool
+    {
+        return (bool) config("adk.documents.categories.{$key}.health", false);
+    }
+
+    /** @return array<string, string> */
+    public static function participantStateOptions(): array
+    {
+        return array_map(fn (array $state) => $state['label'], config('adk.participant_states'));
+    }
+
+    public static function participantStateLabel(?string $key): ?string
+    {
+        return $key ? (config("adk.participant_states.{$key}.label") ?? $key) : null;
+    }
+
+    public static function participantStateColor(?string $key): string
+    {
+        return config("adk.participant_states.{$key}.color", 'gray');
+    }
+
+    public static function placementLabel(?string $key): ?string
+    {
+        return $key ? (config("adk.placement_statuses.{$key}") ?? $key) : null;
+    }
 }

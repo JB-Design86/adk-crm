@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // Dokumente der Vorgänge und Teilnehmerakten, nur verschlüsselt, nie direkt ausgeliefert.
+        'documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/documents'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
