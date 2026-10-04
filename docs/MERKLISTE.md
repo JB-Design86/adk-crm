@@ -19,6 +19,9 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
   - Teilnehmerakte entsteht mit „Einschreibung bestätigt“; Checkliste nach Lastenheft 7.1, Abschluss, Verbleib, ZIP-Ausgabe.
   - Dublettenprüfung gegen den ganzen Bestand (Import, Anlegen von Hand, Bestandsprüfung).
 
+- [ ] **Live-Schaltung** `crm.adk-akademie.de`: Ablauf in `LIVESCHALTUNG.md` (erst klären, dann einrichten ohne echte Daten, dann Konten, dann echte Daten).
+- [ ] Empfohlen vor dem Start: „Person bzw. Betrieb löschen“ für Löschersuchen nach Art. 17 DSGVO.
+
 ## Stufe 3 · Förderweg (vorgezogen)
 
 Ablauf aus Sicht des Vertriebs:
