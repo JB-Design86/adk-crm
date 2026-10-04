@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  *
  * - Vorgang ohne Vertragsschluss, Betrieb: 24 Monate ab letztem Kontakt
  * - Vorgang ohne Vertragsschluss, Privatperson: 6 Monate ab letztem Kontakt
- * - Teilnehmerakte samt Vorgang, Förderfall und Dokumenten: 10 Jahre nach Ende der Maßnahme (A-22)
+ * - Teilnehmerakte samt Vorgang, Förderfall und Dokumenten: 10 Jahre ab Jahresende nach Ende der Maßnahme (A-22)
  * - Aktivitäten, Termine und Dokumente: mit dem Vorgang
  * - Organisationen und Kontakte: wenn kein Vorgang mehr darauf verweist
  * - Nachweis Einwilligung Telefonansprache: 5 Jahre ab Erteilung bzw. letzter Verwendung
@@ -145,21 +145,20 @@ class RetentionService
     }
 
     /**
-     * Vorgänge mit Teilnehmerakte, deren Akten alle abgelaufen sind: zehn Jahre nach Ende der Maßnahme.
+     * Vorgänge mit Teilnehmerakte, deren Akten alle abgelaufen sind: zehn Jahre ab Ende des Jahres,
+     * in dem die Maßnahme endete (A-22, „Ende der Maßnahme (Jahresende)“).
      * Akten ohne Austritts- und Kursende-Datum bleiben (Frist unbestimmt).
      *
      * @return Collection<int, Lead>
      */
     private function expiredParticipantLeads(): Collection
     {
-        $years = config('adk.retention.participant_years');
-
         return Lead::query()
             ->whereNotNull('contracted_at')
             ->whereHas('participants')
             ->with('participants')
             ->get()
-            ->filter(fn (Lead $lead) => $lead->participants->every(fn (Participant $p) => $p->measureEndedOn()?->addYears($years)->lt($this->now) ?? false))
+            ->filter(fn (Lead $lead) => $lead->participants->every(fn (Participant $p) => $p->retentionEndsOn()?->lt($this->now) ?? false))
             ->values();
     }
 

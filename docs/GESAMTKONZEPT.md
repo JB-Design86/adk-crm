@@ -77,7 +77,7 @@ Ziel: Niemand wird versehentlich zweimal angerufen, egal ob der Datensatz in der
 |---|---|
 | Interessent ohne Vertrag, Betrieb | 24 Monate nach letztem Kontakt, samt Dokumenten |
 | Interessent ohne Vertrag, Privatperson | 6 Monate nach letztem Kontakt, samt Dokumenten |
-| Teilnehmerakte samt Vorgang, Förderfall und Dokumenten | 10 Jahre nach Ende der Maßnahme (A-22) |
+| Teilnehmerakte samt Vorgang, Förderfall und Dokumenten | 10 Jahre ab Ende des Jahres, in dem die Maßnahme endete (A-22) |
 
 Der tägliche Löschlauf löscht die Dateien mit. Akten ohne Kursende-Datum bleiben, bis das Datum eingetragen ist. Die Fristen hat Janosch am 04.10.2026 bestätigt.
 

@@ -283,16 +283,19 @@ it('gibt die Akte als ZIP mit PDF-Übersicht und allen Dokumenten aus', function
 
 // --- Löschfristen ---
 
-it('löscht Teilnehmerakte samt Dokumenten zehn Jahre nach Ende der Maßnahme', function () {
+it('löscht Teilnehmerakte samt Dokumenten zehn Jahre ab Jahresende nach Ende der Maßnahme', function () {
     $participant = enrolledParticipant();
     app(ParticipantService::class)->finish($participant, 'completed', '2027-03-31');
     $paths = Document::where('lead_id', $participant->lead_id)->pluck('path');
 
-    $this->travelTo(now()->setDate(2037, 3, 30));
+    // Maßnahme endete 2027: Frist läuft ab 31.12.2027 zehn Jahre, gelöscht ab 01.01.2038.
+    expect($participant->fresh()->retentionEndsOn()->format('d.m.Y'))->toBe('31.12.2037');
+
+    $this->travelTo(now()->setDate(2037, 12, 30));
     app(RetentionService::class)->run();
     expect(Participant::find($participant->id))->not->toBeNull();
 
-    $this->travelTo(now()->setDate(2037, 4, 2));
+    $this->travelTo(now()->setDate(2038, 1, 2));
     app(RetentionService::class)->run();
 
     expect(Participant::find($participant->id))->toBeNull()

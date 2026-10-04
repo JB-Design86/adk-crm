@@ -106,12 +106,18 @@ class Participant extends Model
         return in_array($this->state, ['completed', 'dropped'], true);
     }
 
-    /** Ende der Maßnahme für die Aufbewahrungsfrist: Austritt, sonst geplantes Kursende. */
+    /** Ende der Maßnahme: Austritt, sonst geplantes Kursende. */
     public function measureEndedOn(): ?CarbonImmutable
     {
         $date = $this->left_on ?? $this->course_ends_on;
 
         return $date ? CarbonImmutable::parse($date) : null;
+    }
+
+    /** Ab wann die Akte gelöscht wird: zehn Jahre ab Ende des Jahres, in dem die Maßnahme endete (A-22). */
+    public function retentionEndsOn(): ?CarbonImmutable
+    {
+        return $this->measureEndedOn()?->endOfYear()->addYears(config('adk.retention.participant_years'))->endOfDay();
     }
 
     /**

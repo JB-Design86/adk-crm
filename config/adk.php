@@ -321,7 +321,7 @@ return [
         'lead_private_months' => 6,
         // Nachweis Einwilligung Telefonansprache: Jahre ab Erteilung bzw. letzter Verwendung
         'phone_consent_years' => 5,
-        // Teilnehmerakte samt Dokumenten: Jahre nach Ende der Maßnahme (A-22)
+        // Teilnehmerakte samt Dokumenten: Jahre ab Ende des Jahres, in dem die Maßnahme endete (A-22)
         'participant_years' => 10,
         // Importprotokoll: Jahre ab Ende des Kalenderjahres
         'import_log_years' => 3,
