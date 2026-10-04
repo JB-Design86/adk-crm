@@ -26,7 +26,7 @@ Es gibt **eine** Akte je Person bzw. Betrieb und keine zweite Datenquelle. Der V
 
 Dann legt das CRM die **Teilnehmerakte** an (Nummer TN-Jahr-laufend):
 
-- **Bildungsgutschein, Arbeitsunfall, Selbstzahler:** eine Akte für die Person. Kurs, Geburtsdatum und Anschrift können gleich im Dialog eingetragen werden, sonst später in der Akte. Fehlt etwas für den Vertrag, zeigt die Akte einen Hinweis.
+- **Bildungsgutschein, Selbstzahler** (Arbeitsunfall wird nicht angeboten): eine Akte für die Person. Kurs, Geburtsdatum und Anschrift können gleich im Dialog eingetragen werden, sonst später in der Akte. Fehlt etwas für den Vertrag, zeigt die Akte einen Hinweis.
 - **Betrieb (§ 82 SGB III):** Der Betrieb wird **Firmenkunde**. Die Beschäftigten legt man danach im Förderfall einzeln an („Teilnehmer/in anlegen“), jede Person bekommt ihre eigene Akte.
 - Automatisch abgehakt: „Anmeldung beim Kostenträger bestätigt“ und, wenn der Vertrag im Förderfall liegt, „Schulungsvertrag A-16 unterschrieben“ samt Verknüpfung zum Dokument.
 
@@ -35,7 +35,7 @@ Dann legt das CRM die **Teilnehmerakte** an (Nummer TN-Jahr-laufend):
 - **Checkliste** nach Lastenheft 7.1 in fünf Phasen: Vertrag, Eintritt, Durchführung, Abschluss, Verbleib. Jeder Punkt mit Datum, wer, Notiz und dem Dokument dazu. Fehlzeitenmeldungen sind mehrfach möglich. Die Punkte pflegt die Verwaltung (Verwaltung → Checkliste Teilnehmer).
 - **Eintrittsmeldung** abgehakt → Stand „im Kurs“.
 - **Abschluss erfassen** (abgeschlossen oder abgebrochen, letzter Kurstag) → Wiedervorlage zur **Verbleibserhebung sechs Monate später**, sichtbar in „Heute“ und im Kalender. Danach „Verbleib erfassen“.
-- **Gesundheitsangaben** (Aufnahmeweg E, Nachteilsausgleich): eigener Bereich, nur Rolle Verwaltung, verschlüsselt, nicht im Protokoll.
+- **Gesundheitsangaben** (Nachteilsausgleich): eigener Bereich, nur Rolle Verwaltung, verschlüsselt, nicht im Protokoll.
 - **Ausgabe als ZIP** mit PDF-Übersicht (Stammdaten, Förderweg, Checkliste, Dokumentliste, Verlauf) und allen Dokumenten im Original. So bleibt die Akte auch ohne das CRM lesbar (Lastenheft 7.2).
 
 ## 4 Dokumente
@@ -78,6 +78,8 @@ Ziel: Niemand wird versehentlich zweimal angerufen, egal ob der Datensatz in der
 | Interessent ohne Vertrag, Betrieb | 24 Monate nach letztem Kontakt, samt Dokumenten |
 | Interessent ohne Vertrag, Privatperson | 6 Monate nach letztem Kontakt, samt Dokumenten |
 | Teilnehmerakte samt Vorgang, Förderfall und Dokumenten | 10 Jahre ab Ende des Jahres, in dem die Maßnahme endete (A-22) |
+| Protokoll (Anmeldungen, Änderungen, Exporte, Dokumentabrufe) | 3 Jahre ab Ende des Kalenderjahres |
+| Datensicherungen | 30 Tage, rollierend |
 
 Der tägliche Löschlauf löscht die Dateien mit. Akten ohne Kursende-Datum bleiben, bis das Datum eingetragen ist. Die Fristen hat Janosch am 04.10.2026 bestätigt.
 

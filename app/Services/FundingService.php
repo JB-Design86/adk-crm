@@ -30,11 +30,17 @@ class FundingService
             $lead->target_group = $targetGroup;
         }
 
+        if ($lead->target_group && array_key_exists($lead->target_group, config('adk.target_groups')) && ! Adk::isActiveTargetGroup($lead->target_group)) {
+            throw ValidationException::withMessages([
+                'target_group' => Adk::targetGroupLabel($lead->target_group).' wird derzeit nicht angeboten.',
+            ]);
+        }
+
         $pathway = $lead->fundingPathway();
 
         if ($pathway === null) {
             throw ValidationException::withMessages([
-                'target_group' => 'Bitte wählen Sie die Zielgruppe (A, B, C, D, E oder Selbstzahler), damit das CRM den passenden Förderweg kennt.',
+                'target_group' => 'Bitte wählen Sie die Zielgruppe ('.implode(', ', array_keys(Adk::targetGroupOptions())).'), damit das CRM den passenden Förderweg kennt.',
             ]);
         }
 

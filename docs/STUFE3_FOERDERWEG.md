@@ -18,7 +18,7 @@ Die Schritte stehen unter **Verwaltung → Förderweg-Schritte**. Dort lassen si
 |---|---|---|
 | Bildungsgutschein | A, B | Beratungsgespräch (2 AT) · Eignung A-06 (2 AT) · Informationsblatt A-26 (5 AT) · Termin Vermittlungsfachkraft (5 AT) · Gutschein beantragt (10 AT) · Gutschein bewilligt, *kann abgelehnt werden* (5 AT) · eingelöst (5 AT) · Vertrag (5 AT) · Anmeldung vom Kostenträger bestätigt |
 | Betrieb, § 82 SGB III | C, D | Gespräch mit dem Betrieb (3 AT) · Angebot (5 AT) · Antrag Arbeitgeber-Service (10 AT) · Bewilligung, *kann abgelehnt werden* (5 AT) · Vertrag (5 AT) · Anmeldung bestätigt |
-| Arbeitsunfall | E | Sachverhalt geklärt (2 AT) · formloser Antrag (**14 Kalendertage**, § 14 SGB IX Zuständigkeit) · Zuständigkeit geklärt (**21 Kalendertage**, Entscheidung) · ärztliche Bescheinigung liegt vor, nur Datum (5 AT) · Kontakt Reha-Management (5 AT) · Maßnahmenpaket (10 AT) · Kostenzusage, *kann abgelehnt werden* (5 AT) · Vertrag (5 AT) · Anmeldung bestätigt |
+| Arbeitsunfall (nicht angeboten) | E | Sachverhalt geklärt (2 AT) · formloser Antrag (**14 Kalendertage**, § 14 SGB IX Zuständigkeit) · Zuständigkeit geklärt (**21 Kalendertage**, Entscheidung) · ärztliche Bescheinigung liegt vor, nur Datum (5 AT) · Kontakt Reha-Management (5 AT) · Maßnahmenpaket (10 AT) · Kostenzusage, *kann abgelehnt werden* (5 AT) · Vertrag (5 AT) · Anmeldung bestätigt |
 | Selbstzahler | Selbstzahler | Angebot mit Ratenplan (5 AT) · Vertrag |
 
 AT = Arbeitstage (ohne Wochenende und Feiertage in Rheinland-Pfalz).
@@ -26,7 +26,7 @@ AT = Arbeitstage (ohne Wochenende und Feiertage in Rheinland-Pfalz).
 ## Regeln
 
 - Beim Übergeben an den Förderweg muss die Zielgruppe feststehen. Bei „Betrieb, Zuordnung offen“ fragt der Dialog danach.
-- **Zielgruppe E** startet nur, wenn am Kontakt die Einwilligung zu Gesundheitsangaben eingetragen ist. Gespeichert werden nur Daten und Fristen, keine medizinischen Inhalte.
+- **Zielgruppe E wird nicht angeboten** (Entscheidung 04.10.2026) und ist im CRM abgeschaltet (`config/adk.php`, `target_groups.E.active`). Falls sie später kommt: Sie startet nur, wenn am Kontakt die Einwilligung zu Gesundheitsangaben eingetragen ist. Gespeichert werden nur Daten und Fristen, keine medizinischen Inhalte.
 - Jeder erledigte Schritt: Datum (nicht in der Zukunft), wer gehandelt hat, Notiz, bei Bewilligungen auch „abgelehnt“. Er steht als Aktivität am Vorgang und im Protokoll. Versehentliche Einträge lassen sich zurücknehmen.
 - Die **Wiedervorlage** setzt das CRM nach der Frist des erledigten Schritts. Förderfälle erscheinen damit in „Heute“ (mit dem nächsten Schritt) und im Kalender, nicht aber in der Anrufliste.
 - **Einschreibung bestätigt** ist erst möglich, wenn alle Schritte erledigt und die Pflichtunterlagen (Gutschein bzw. Bewilligung, Vertrag) hochgeladen sind. Dann legt das CRM die Teilnehmerakte an; der Vorgang fällt nicht mehr unter die Löschfrist für Interessenten, sondern unter die zehn Jahre der Akte.

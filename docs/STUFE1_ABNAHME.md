@@ -143,12 +143,12 @@ Nicht gebaut, aber vorbereitet:
 
 ## 6 Offene Fragen an Janosch
 
-1. **Löschfrist Protokoll:** Wie lange sollen Einträge zu Anmeldungen, Exporten und Importen im Protokoll bleiben? Derzeit unbegrenzt, außer bei gelöschten Datensätzen.
+1. **Löschfrist Protokoll:** Wie lange sollen Einträge zu Anmeldungen, Exporten und Importen im Protokoll bleiben? **Entschieden 04.10.2026: 3 Jahre ab Ende des Kalenderjahres, der Löschlauf löscht automatisch.**
 2. **„Vorgang ruhen lassen“:** Reichen 3 Monate Wiedervorlage? Oder soll der Vorgang als „Kein Interesse“ geschlossen werden (dann beginnt die Löschfrist)?
 3. **Gelöschte Sperrlisteneinträge:** Beim Löschen eines Sperrlisteneintrags stehen Telefon, E-Mail und Firma weiter im Protokoll (Nachweis). Soll das so bleiben?
 4. **Sichtbarkeit Einwilligung Gesundheitsangaben:** Datum und Nachweis sehen heute beide Rollen. Soll das schon in Stufe 1 nur für die Verwaltung sichtbar sein?
 5. **Branchenmatrix und Prüfstufen:** Die Branchenmatrix lag nicht vor. Die zehn Branchen in `config/adk.php` sind Platzhalter mit plausiblen WZ-Codes. Die fünf Prüfstufen heißen vorerst „Prüfstufe 1“ bis „Prüfstufe 5“ und lassen sich unter Verwaltung → Prüfstufen selbst benennen und beschreiben.
-6. **Löschen von Hand:** Soll die Verwaltung einzelne Vorgänge sofort löschen können (z. B. bei einem Löschersuchen nach Art. 17 DSGVO)? Derzeit geht das nur über den Löschlauf bzw. direkt in der Datenbank.
+6. **Löschen von Hand:** Soll die Verwaltung einzelne Vorgänge sofort löschen können (z. B. bei einem Löschersuchen nach Art. 17 DSGVO)? **Erledigt 04.10.2026: Knopf „Löschersuchen (Art. 17)“, nur Verwaltung.**
 7. **Zuständigkeit bei Import:** Importierte Vorgänge sind niemandem zugewiesen und erscheinen allen in der Anrufliste („nur meine und nicht zugewiesene“). Gewünscht?
 8. **Verbindliche Uhrzeit Löschlauf:** 02:30 Uhr. Passt das zur Sicherung bei IONOS?
 9. **„Passwort“ oder „Kennwort“:** Soll die Anmeldeseite von Filament auf „Kennwort“ umgestellt werden (eigene Übersetzungsdatei)?

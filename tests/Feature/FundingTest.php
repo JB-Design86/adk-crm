@@ -10,6 +10,7 @@ use App\Services\FundingService;
 use App\Services\LeadStatusService;
 use App\Services\ReportService;
 use App\Services\RetentionService;
+use App\Support\Adk;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
@@ -59,7 +60,14 @@ it('verlangt bei offener Zielgruppe die Auswahl der Zielgruppe', function () {
         ->and($lead->fundingCase->pathway)->toBe('employer');
 });
 
-it('startet den Förderweg E nur mit Einwilligung zu Gesundheitsangaben', function () {
+it('bietet Zielgruppe E nicht an (Entscheidung 04.10.2026)', function () {
+    expect(Adk::targetGroupOptions())->not->toHaveKey('E')
+        ->and(fn () => $this->funding->start(privateLead('E', ['health_consent_at' => '2026-09-20', 'health_consent_proof' => 'Formular'])))
+        ->toThrow(ValidationException::class, 'nicht angeboten');
+});
+
+it('startet den Förderweg E nur mit Einwilligung zu Gesundheitsangaben, falls E wieder angeboten wird', function () {
+    config(['adk.target_groups.E.active' => true]);
     $without = privateLead('E');
     expect(fn () => $this->funding->start($without))->toThrow(ValidationException::class);
 
@@ -79,6 +87,7 @@ it('setzt nach jedem Schritt die Wiedervorlage nach der Frist des Schritts', fun
 });
 
 it('rechnet bei E die Fristen in Kalendertagen (§ 14 SGB IX)', function () {
+    config(['adk.target_groups.E.active' => true]);
     $case = $this->funding->start(privateLead('E', ['health_consent_at' => '2026-09-20', 'health_consent_proof' => 'Formular']));
     $steps = $case->steps();
 

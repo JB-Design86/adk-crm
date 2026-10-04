@@ -13,10 +13,10 @@ Stand 04.10.2026 · Ablauf vom Testbetrieb (`crm-test`) zum echten Betrieb (`crm
 | 1.1 | **Aufbewahrungsfristen**: Betriebe 24 Monate, Privatpersonen 6 Monate nach letztem Kontakt, Teilnehmerakte 10 Jahre nach Ende der Maßnahme | Janosch | bestätigt 04.10.2026 |
 | 1.2 | **Datenschutzunterlagen** ergänzen: A-11 (CRM als eigene Verarbeitungstätigkeit, IONOS als Auftragsverarbeiter „Hosting CRM“), A-21 (Server, Zwei-Faktor, Verschlüsselung der Dokumente, Schnittstellen), A-22 (CRM-Zeile mit den Fristen aus 1.1) | Claude formuliert, Janosch prüft | Entwurf liegt vor: `DATENSCHUTZ_CRM_ENTWURF.md` |
 | 1.3 | **Auftragsverarbeitungsvertrag mit IONOS**: liegt in der AVV-Ablage (Qualitätsmanagement/Datenschutz/AVV); prüfen, ob er den Server umfasst | Janosch | prüfen |
-| 1.4 | **Standort Deutschland** des Servers von IONOS bestätigt und abgelegt | Janosch | prüfen |
-| 1.5 | **Zielgruppe E (Arbeitsunfall)**: Gesundheitsdaten nach Art. 9 DSGVO. Entweder entscheiden und VVT ergänzen, oder E vorerst nicht nutzen | Janosch | offen |
+| 1.4 | **Standort des Servers**: im RIPE-Register heißt das Netz „fr-nbz-kw-ionos-cloud-nbz“, also vermutlich Frankreich. Im IONOS-Kundenbereich beim Server nachsehen. Frankreich ist rechtlich in Ordnung (EU, AVV), dann die Zusage „Deutschland“ in den Unterlagen auf „EU“ ändern. Oder vor dem Start einen Server in Deutschland bestellen; jetzt ist das einfach, weil nur Testdaten darauf liegen | Janosch | prüfen |
+| 1.5 | **Zielgruppe E (Arbeitsunfall)**: wird nicht angeboten, im CRM abgeschaltet | Janosch | entschieden 04.10.2026 |
 | 1.6 | **Löschen auf Anfrage (Art. 17 DSGVO)**: Knopf „Löschersuchen (Art. 17)“ an Organisation, Kontakt und Vorgang, nur Verwaltung. Löscht sofort samt Dokumenten und Protokolleinträgen, auf Wunsch Sperrliste; Teilnehmerakten in der Aufbewahrungsfrist werden nicht gelöscht | Claude | erledigt 04.10.2026 |
-| 1.7 | Offene Fragen aus `STUFE1_ABNAHME.md` Abschnitt 6 (Löschfrist Protokoll, „ruhen lassen“, Kennwort/Passwort …) | Janosch | offen |
+| 1.7 | Offene Fragen aus `STUFE1_ABNAHME.md` Abschnitt 6. Entschieden: Protokoll 3 Jahre ab Jahresende, Löschen von Hand (Löschersuchen). Übrige („ruhen lassen“, Kennwort/Passwort …) können auch nach dem Start entschieden werden | Janosch | teilweise |
 | 1.8 | **Vor der ersten echten Teilnehmerakte** (kann nach dem Start kommen): A-11 (V02, V03, V05, V09), A-21, A-22, A-23, Blatt „Aufbau der Teilnehmerakte“, Handbuch Kapitel 9, Änderungsprotokoll, KVP-Liste A-15, Mitteilung an GüteZert | Claude formuliert, Janosch prüft | offen |
 
 ## Schritt 2 · Betrieb einrichten (noch ohne echte Daten)
@@ -34,7 +34,7 @@ Janosch meldet sich in Plesk an, Claude arbeitet im Browser. Dauer etwa eine Stu
 | 2.7 | Geplante Aufgabe `/etc/cron.d/adk-crm` (Scheduler jede Minute: Löschlauf, später sipgate) | Claude |
 | 2.8 | Plesk-Standardseite `index.html` in `public` entfernen, Header „X-Powered-By“ abschalten | Claude |
 | 2.9 | Hochladen bis 20 MB prüfen (PHP-Grenzen, `BETRIEB.md` Abschnitt 11) | Claude |
-| 2.10 | **Sicherung**: IONOS-Backup aktiv, Plesk-Sicherungsverwaltung täglich mit Datenbank, `.env` und `storage/app/documents`. **APP_KEY im Passwortmanager ablegen**: Ohne ihn sind Dokumente und Zwei-Faktor-Geheimnisse nicht mehr lesbar | Claude richtet ein, Janosch legt den Schlüssel ab |
+| 2.10 | **Sicherung**: gebuchte Datensicherung aktiv, täglich mit Datenbank, `.env` und `storage/app/documents`, Aufbewahrung 30 Tage. **APP_KEY im Passwortmanager ablegen**: Ohne ihn sind Dokumente und Zwei-Faktor-Geheimnisse nicht mehr lesbar | Claude richtet ein, Janosch legt den Schlüssel ab |
 | 2.11 | Prüfung: HTTPS mit gültigem Zertifikat, Sicherheits-Header, Anmeldeseite, `robots.txt`, Löschlauf als Probelauf (`adk:loeschlauf --dry-run`) | Claude |
 | 2.12 | Einstellungen, die auf crm-test angepasst wurden (Prüfstufen, Förderweg-Schritte mit Erklärtexten, Checkliste), in den Betrieb übertragen. Die Daten auf crm-test sind nur Testdaten, übertragen werden nur die Einstellungen | Claude |
 

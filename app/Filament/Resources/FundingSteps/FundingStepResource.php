@@ -69,7 +69,11 @@ class FundingStepResource extends Resource
 
     public static function pathwayOptions(): array
     {
-        return collect(config('adk.funding_pathways'))->map(fn (array $pathway) => $pathway['label'])->all();
+        // Förderwege ohne angebotene Zielgruppe (z. B. Arbeitsunfall) ausblenden.
+        return collect(config('adk.funding_pathways'))
+            ->filter(fn (array $pathway) => collect($pathway['target_groups'])->contains(fn (string $group) => Adk::isActiveTargetGroup($group)))
+            ->map(fn (array $pathway) => $pathway['label'])
+            ->all();
     }
 
     public static function form(Schema $schema): Schema

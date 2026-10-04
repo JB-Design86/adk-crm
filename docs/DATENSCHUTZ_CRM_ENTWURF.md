@@ -1,6 +1,6 @@
 # ADK CRM · Ergänzungen für A-11, A-21 und A-22 (Entwurf)
 
-Stand 04.10.2026 · Entwurf von Claude zum Einfügen in die Anlagen, Prüfung und Freigabe durch die Trägerleitung · Grundlage: Lastenheft v0.2 Abschnitt 10 Nr. 2, A-11 Version 1.3 vom 15.09.2026, A-21 Version 1.1, A-22 Version 1.0, Fristen bestätigt am 04.10.2026.
+Stand 04.10.2026 · Entwurf von Claude zum Einfügen in die Anlagen, Prüfung und Freigabe durch die Trägerleitung · Grundlage: Lastenheft v0.2 Abschnitt 10 Nr. 2, A-11 Version 1.3 vom 15.09.2026, A-21 Version 1.1, A-22 Version 1.0. Entscheidungen der Trägerleitung vom 04.10.2026: Fristen (Betriebe 24 Monate, Privatpersonen 6 Monate, Teilnehmerakte 10 Jahre), Protokoll 3 Jahre, Sicherungen 30 Tage, Aufnahmeweg E wird nicht angeboten.
 
 Stellen mit **[prüfen: …]** sind wie in den Anlagen vor der Freigabe zu bestätigen. Die Ergänzungen beschreiben den Ist-Zustand des CRM. Teil D betrifft die Teilnehmerakte und muss erst vor der ersten echten Teilnehmerakte erledigt sein, nicht schon vor der Live-Schaltung.
 
@@ -18,9 +18,9 @@ Vorgeschlagene Versionen: A-11 1.4, A-21 1.2, A-22 1.1. Eintrag ins Änderungspr
 | Betroffene | Inhaber und Ansprechpersonen von Betrieben; Interessenten (Privatpersonen) mit eigener Anfrage oder Einwilligung; feste Interessenten im Förderweg; Ansprechpersonen bei Kostenträgern |
 | Datenkategorien | Betrieb: Name, Rechtsform, Branche, Anschrift, Telefon, E-Mail, Website, Fundstelle, Mitarbeiterzahl, Ergebnisse der Prüfstufen. Ansprechperson: Name, Funktion, dienstliche Kontaktdaten. Privatperson: Name, Kontaktdaten, Zielgruppe bzw. Kostenträger, Einwilligung in die Telefonansprache mit Datum und Nachweis, Datum des übermittelten Datenschutzhinweises. Verlauf: Anrufe mit Ergebnis, Notizen, Termine, Wiedervorlagen, Telefonate. Förderweg: Kundennummer beim Kostenträger, Gutscheinnummer und Gültigkeit, Ansprechperson beim Kostenträger, erledigte Schritte mit Datum, Dokumente (Bildungsgutschein, Bewilligung bzw. Kostenzusage, Vertrag, Schriftverkehr). Sperrliste: Telefon, E-Mail, Firmenname mit PLZ, Grund. Protokoll: wer wann was getan hat |
 | Herkunft | Betriebe: öffentlich zugängliche Quellen (Impressum, Branchenverzeichnisse); je Datensatz sind Quelle und Abrufdatum Pflicht. Privatpersonen: die betroffene Person selbst (Website-Formular, E-Mail, Telefon, Empfehlung). Kostenträger bei Zuweisung |
-| Rechtsgrundlage | Betriebe und Ansprechpersonen: **f** (Direktwerbung gegenüber Unternehmen, Erwägungsgrund 47 DSGVO); telefonische Ansprache nur bei mutmaßlicher Einwilligung nach § 7 Abs. 2 Nr. 1 UWG, geprüft über die Prüfstufen der Branchenmatrix. Privatpersonen: **b** bei eigener Anfrage; Telefonansprache ohne Anfrage nur mit Einwilligung (**a**, § 7 Abs. 2 Nr. 1 UWG), Nachweis im CRM. Förderweg: **b**. Sperrliste: **f** und **c** (Beachtung von Werbewiderspruch und Löschersuchen, Art. 17, Art. 21 Abs. 3). Protokoll: **f** und Art. 32. Gesundheitsangaben bei Zielgruppe E (Arbeitsunfall): Art. 9 Abs. 2 lit. a, ausdrückliche Einwilligung im Erstgespräch, im CRM mit Datum und Nachweis; keine medizinischen Inhalte, nur Daten und Fristen **[prüfen: Entscheidung zu Aufnahmeweg E, Lastenheft 10 Nr. 4; bis dahin Zielgruppe E nicht nutzen]** |
-| Systeme, Empfänger | ADK CRM unter crm.adk-akademie.de, eigene Anwendung auf einem virtuellen Server der IONOS SE, Rechenzentrum in Deutschland **[prüfen: Standortbestätigung von IONOS abgelegt]**, eigene Datenbank nur für das CRM. Zugriff: Trägerleitung (Rolle Verwaltung) und Vertrieb (Rolle Mitarbeitende), Gesundheitsangaben nur Verwaltung. Export nur für angemeldete Personen als Datei auf das eigene Gerät, jeder Export im Protokoll. Empfänger: Kostenträger im Förderweg (V04). Der Programmcode liegt bei GitHub und enthält keine personenbezogenen Daten. Testumgebung crm-test.adk-akademie.de nur mit erfundenen Daten |
-| Drittland | Keine. Der KI-Assistent Claude entwickelt den Programmcode und arbeitet ausschließlich mit erfundenen Testdaten in der Testumgebung, nicht im Betrieb und nicht mit personenbezogenen Daten (A-21, 2.4) |
+| Rechtsgrundlage | Betriebe und Ansprechpersonen: **f** (Direktwerbung gegenüber Unternehmen, Erwägungsgrund 47 DSGVO); telefonische Ansprache nur bei mutmaßlicher Einwilligung nach § 7 Abs. 2 Nr. 1 UWG, geprüft über die Prüfstufen der Branchenmatrix. Privatpersonen: **b** bei eigener Anfrage; Telefonansprache ohne Anfrage nur mit Einwilligung (**a**, § 7 Abs. 2 Nr. 1 UWG), Nachweis im CRM. Förderweg: **b**. Sperrliste: **f** und **c** (Beachtung von Werbewiderspruch und Löschersuchen, Art. 17, Art. 21 Abs. 3). Protokoll: **f** und Art. 32. Gesundheitsdaten (Art. 9) werden in Akquise und Förderweg nicht verarbeitet; der Aufnahmeweg E (Arbeitsunfall) wird nicht angeboten und ist im CRM abgeschaltet (Entscheidung der Trägerleitung vom 04.10.2026) |
+| Systeme, Empfänger | ADK CRM unter crm.adk-akademie.de, eigene Anwendung auf einem virtuellen Server der IONOS SE in einem Rechenzentrum in der EU **[prüfen: Standort laut IONOS-Kundenbereich; im RIPE-Register ist das Netz als „fr-nbz-kw-ionos-cloud-nbz“ eingetragen, vermutlich Frankreich. Steht dort nicht Deutschland, die Zusage „Rechenzentrum in Deutschland“ in Lastenheft und CRM-Unterlagen auf „EU“ ändern oder den Server in Deutschland neu bestellen]**, eigene Datenbank nur für das CRM. Zugriff: Trägerleitung (Rolle Verwaltung) und Vertrieb (Rolle Mitarbeitende), Gesundheitsangaben nur Verwaltung. Export nur für angemeldete Personen als Datei auf das eigene Gerät, jeder Export im Protokoll. Empfänger: Kostenträger im Förderweg (V04). Der Programmcode liegt bei GitHub und enthält keine personenbezogenen Daten. Testumgebung crm-test.adk-akademie.de nur mit erfundenen Daten |
+| Drittland | Keine (Verarbeitung in der EU). Der KI-Assistent Claude entwickelt den Programmcode und arbeitet ausschließlich mit erfundenen Testdaten in der Testumgebung, nicht im Betrieb und nicht mit personenbezogenen Daten (A-21, 2.4) |
 | Löschung | Automatisch durch den täglichen Löschlauf des CRM: Betriebe ohne Vertrag 24 Monate nach letztem Kontakt, Privatpersonen ohne Vertrag 6 Monate nach letztem Kontakt, Nachweis der Einwilligung in die Telefonansprache 5 Jahre nach Erteilung bzw. letzter Verwendung, Importprotokoll 3 Jahre ab Jahresende, Sperrliste unbefristet. Mit Vertrag: Fristen der Teilnehmerakte (V03). Löschersuchen sofort über die Löschfunktion des CRM (V15). Einzelheiten A-22 |
 
 ### A.2 Änderung V02 · Interessenten- und Beratungsverwaltung
@@ -38,7 +38,7 @@ Zeile **IONOS SE** ersetzen:
 
 | Anbieter | Leistung | Verarbeitungsort | Vertrag | Status |
 |---|---|---|---|---|
-| IONOS SE | DNS-Verwaltung der Domain; virtueller Server für das ADK CRM (Betrieb und Testumgebung) mit Datensicherung; bis 09/2026 E-Mail-Hosting | Deutschland **[prüfen: Standortbestätigung]** | AVV nach Art. 28, bestätigt; gilt für die Produkte des Kundenkontos **[prüfen: Server im Vertrag erfasst]** | vorhanden |
+| IONOS SE | DNS-Verwaltung der Domain; virtueller Server für das ADK CRM (Betrieb und Testumgebung) mit Datensicherung; bis 09/2026 E-Mail-Hosting | EU **[prüfen: Rechenzentrum Deutschland oder Frankreich]** | AVV nach Art. 28, bestätigt; gilt für die Produkte des Kundenkontos **[prüfen: Server im Vertrag erfasst]** | vorhanden |
 
 Satz „Kein Auftragsverarbeiter“ ergänzen um: „GitHub (Ablage des Programmcodes des CRM, keine personenbezogenen Daten), Let’s Encrypt (Ausstellung der Serverzertifikate, keine personenbezogenen Daten).“
 
@@ -58,7 +58,7 @@ Vorschlag: neuer Abschnitt **8 · ADK CRM**, dazu Zeilen in der Übersicht der P
 
 ### B.1 Zutrittskontrolle
 
-- Server im Rechenzentrum der IONOS SE in Deutschland, Zutritt nach den Maßnahmen des Anbieters (AVV, Anlage TOM des Anbieters) **[prüfen: Zertifizierung des Rechenzentrums, z. B. ISO 27001, in der AVV-Ablage]**.
+- Server in einem Rechenzentrum der IONOS SE in der EU, Zutritt nach den Maßnahmen des Anbieters (AVV, Anlage TOM des Anbieters) **[prüfen: Zertifizierung des Rechenzentrums, z. B. ISO 27001, in der AVV-Ablage]**.
 
 ### B.2 Zugangskontrolle
 
@@ -100,7 +100,7 @@ Vorschlag: neuer Abschnitt **8 · ADK CRM**, dazu Zeilen in der Übersicht der P
 
 ### B.8 Verfügbarkeit und Belastbarkeit
 
-- Tägliche Sicherung über das IONOS-Backup und die Plesk-Sicherungsverwaltung: Datenbank, Dokumente, Konfiguration **[prüfen: Rhythmus und Aufbewahrungsdauer der Sicherungen, z. B. 30 Tage]**.
+- Tägliche Sicherung über die gebuchte Datensicherung (IONOS-Backup bzw. Plesk-Sicherungsverwaltung): Datenbank, Dokumente, Konfiguration. Aufbewahrung 30 Tage, danach rollierend überschrieben.
 - Wiederherstellung einmal im Jahr erproben.
 - Der Programmcode liegt versioniert bei GitHub und lässt sich jederzeit neu bereitstellen.
 
@@ -133,8 +133,8 @@ Vorschlag: neuer Abschnitt **8 · ADK CRM**, dazu Zeilen in der Übersicht der P
 | CRM: Nachweis Einwilligung Telefonansprache | 5 Jahre | Erteilung bzw. letzte Verwendung | ADK CRM, täglicher Löschlauf (automatisch) |
 | CRM: Importprotokoll (Datei, Quelle, übersprungene Zeilen) | 3 Jahre | Jahresende | ADK CRM, täglicher Löschlauf (automatisch) |
 | CRM: Sperrliste (Werbewiderspruch, Löschersuchen) | unbefristet | – | bleibt als Nachweis, dass nicht mehr angesprochen wird; nur Telefon, E-Mail, Firmenname mit PLZ, Grund |
-| CRM: Protokoll (Anmeldungen, Exporte, Importe) | **[prüfen: Frist festlegen, Vorschlag 3 Jahre]** | Ereignis | ADK CRM; Einträge zu gelöschten Datensätzen entfallen mit dem Datensatz |
-| CRM: Datensicherungen | **[prüfen: z. B. 30 Tage]** | Erstellung | IONOS-Backup, Plesk-Sicherung, rollierend überschrieben |
+| CRM: Protokoll (Anmeldungen, Änderungen, Exporte, Importe, Dokumentabrufe) | 3 Jahre | Jahresende | ADK CRM, täglicher Löschlauf (automatisch); Einträge zu gelöschten Datensätzen entfallen schon mit dem Datensatz |
+| CRM: Datensicherungen | 30 Tage | Erstellung | gebuchte Datensicherung (IONOS bzw. Plesk), rollierend überschrieben |
 
 Zeile **Interessentendaten ohne Vertragsschluss** ergänzen um „außerhalb des CRM“.
 

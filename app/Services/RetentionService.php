@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
  * - Organisationen und Kontakte: wenn kein Vorgang mehr darauf verweist
  * - Nachweis Einwilligung Telefonansprache: 5 Jahre ab Erteilung bzw. letzter Verwendung
  * - Importprotokoll: 3 Jahre ab Ende des Kalenderjahres
+ * - Protokoll (Anmeldungen, Änderungen, Exporte, Dokumentabrufe …): 3 Jahre ab Ende des Kalenderjahres
  * - Sperrliste: unbefristet, bleibt unberührt
  *
  * Gelöscht wird endgültig, samt der Protokolleinträge zu den gelöschten Datensätzen.
@@ -64,7 +65,10 @@ class RetentionService
 
         $leadIds = $leads['company']->merge($leads['private'])->merge($files)->pluck('id');
 
+        $auditCutoff = $this->now->startOfYear()->subYears(config('adk.retention.audit_log_years'));
+
         if ($dryRun) {
+            $this->counts['audit_log'] = AuditLog::where('created_at', '<', $auditCutoff)->count();
             $this->counts['activities'] = Activity::whereIn('lead_id', $leadIds)->count();
             $this->counts['appointments'] = Appointment::whereIn('lead_id', $leadIds)->count();
             $this->counts['documents'] = Document::whereIn('lead_id', $leadIds)->count();
@@ -74,7 +78,7 @@ class RetentionService
             return $this->counts;
         }
 
-        DB::transaction(function () use ($leadIds, $consents, $importLogs) {
+        DB::transaction(function () use ($leadIds, $consents, $importLogs, $auditCutoff) {
             AuditLog::$allowDeletion = true;
 
             try {
@@ -82,6 +86,7 @@ class RetentionService
                 $this->eraseConsents($consents);
                 $this->deleteOrphans();
                 $this->deleteImportLogs($importLogs);
+                $this->counts['audit_log'] = AuditLog::where('created_at', '<', $auditCutoff)->delete();
             } finally {
                 AuditLog::$allowDeletion = false;
             }

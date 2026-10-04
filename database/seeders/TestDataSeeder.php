@@ -287,7 +287,7 @@ class TestDataSeeder extends Seeder
                 : CarbonImmutable::instance(fake()->dateTimeBetween($start, $now->subDay()))->setTime(fake()->numberBetween(8, 17), fake()->numberBetween(0, 59));
 
             $this->at($createdAt, function () use ($channels, $users, $i) {
-                $targetGroup = fake()->randomElement(['A', 'A', 'B', 'B', 'E', 'self_payer', 'D']);
+                $targetGroup = fake()->randomElement(['A', 'A', 'B', 'B', 'self_payer', 'D']);
                 $contact = Contact::factory()->private()->create([
                     'phone_consent_at' => fake()->boolean(40) ? today() : null,
                     'phone_consent_proof' => null,

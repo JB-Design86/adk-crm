@@ -60,9 +60,18 @@ class Adk
     }
 
     /** @return array<string, string> */
-    public static function targetGroupOptions(): array
+    public static function targetGroupOptions(bool $withInactive = false): array
     {
-        return array_map(fn (array $group) => $group['label'], config('adk.target_groups'));
+        return collect(config('adk.target_groups'))
+            ->filter(fn (array $group) => $withInactive || ($group['active'] ?? true))
+            ->map(fn (array $group) => $group['label'])
+            ->all();
+    }
+
+    /** Zielgruppe wird angeboten (config adk.target_groups.*.active). */
+    public static function isActiveTargetGroup(?string $key): bool
+    {
+        return $key !== null && (bool) config("adk.target_groups.{$key}.active", array_key_exists($key, config('adk.target_groups')));
     }
 
     public static function targetGroupLabel(?string $key): ?string

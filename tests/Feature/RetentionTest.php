@@ -167,3 +167,15 @@ it('ist als tägliche Aufgabe eingeplant', function () {
 
     expect($events->contains(fn ($event) => str_contains($event->command, 'adk:loeschlauf') && $event->expression === '30 2 * * *'))->toBeTrue();
 });
+
+it('löscht Protokolleinträge drei Jahre nach Ende des Kalenderjahres', function () {
+    $old = activity('auth')->event('login')->log('Anmeldung');
+    $old->forceFill(['created_at' => '2022-12-31 23:00:00'])->saveQuietly();
+    $kept = activity('auth')->event('login')->log('Anmeldung');
+    $kept->forceFill(['created_at' => '2023-01-02 08:00:00'])->saveQuietly();
+
+    app(RetentionService::class)->run();
+
+    expect(AuditLog::find($old->id))->toBeNull()
+        ->and(AuditLog::find($kept->id))->not->toBeNull();
+});

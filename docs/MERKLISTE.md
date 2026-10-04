@@ -20,6 +20,9 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
   - Dublettenprüfung gegen den ganzen Bestand (Import, Anlegen von Hand, Bestandsprüfung).
 
 - [ ] **Live-Schaltung** `crm.adk-akademie.de`: Ablauf in `LIVESCHALTUNG.md` (erst klären, dann einrichten ohne echte Daten, dann Konten, dann echte Daten).
+- [x] Zielgruppe E (Arbeitsunfall) wird nicht angeboten, im CRM abgeschaltet (Entscheidung 04.10.2026, Lastenheft 10 Nr. 4).
+- [x] Protokoll 3 Jahre ab Jahresende, Sicherungen 30 Tage (Entscheidung 04.10.2026).
+- [ ] Standort des Servers klären (RIPE: vermutlich Frankreich), siehe `LIVESCHALTUNG.md` 1.4.
 - [x] Löschersuchen nach Art. 17 DSGVO: Knopf an Organisation, Kontakt und Vorgang (nur Verwaltung), siehe `GESAMTKONZEPT.md` Abschnitt 6.
 
 ## Stufe 3 · Förderweg (vorgezogen)
@@ -37,7 +40,7 @@ Anforderungen:
 - **Erklärpfade:** Jeder Schritt bekommt einen Text „Was ist jetzt von unserer Seite zu tun?“, der am Förderfall angezeigt wird. Eingebaut, Texte pflegbar unter Verwaltung → Förderweg-Schritte. **Die Texte erarbeitet Janosch.**
 - Übersicht: welcher Förderfall steht bei welchem Schritt, was ist überfällig, wo muss nachgefasst werden.
 - Auswertung laut Lastenheft: Anfrage → Gutschein beantragt → Gutschein bewilligt, Kursstatistik Prüfpunkt 7.2.
-- Zielgruppe E (Arbeitsunfall): nur Daten und Fristen erfassen (§ 14 SGB IX: zwei Wochen Zuständigkeit, drei Wochen Entscheidung), **keine medizinischen Inhalte**. Einwilligung Gesundheitsangaben ist Voraussetzung. Offen: Lastenheft Abschnitt 10, Nr. 4.
+- Zielgruppe E (Arbeitsunfall): nur Daten und Fristen erfassen (§ 14 SGB IX: zwei Wochen Zuständigkeit, drei Wochen Entscheidung), **keine medizinischen Inhalte**. Einwilligung Gesundheitsangaben ist Voraussetzung. Entschieden 04.10.2026: E wird nicht angeboten.
 
 ## Stufe 2 · Eingänge automatisch
 

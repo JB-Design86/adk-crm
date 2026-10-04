@@ -75,7 +75,8 @@ return [
         'B' => ['label' => 'B · Arbeitsuchend (Agentur für Arbeit)'],
         'C' => ['label' => 'C · Beschäftigte eines Betriebs (§ 82 SGB III)'],
         'D' => ['label' => 'D · Geschäftsführung eines Betriebs'],
-        'E' => ['label' => 'E · Arbeitsunfall (BG, Rentenversicherung)'],
+        // Entscheidung 04.10.2026: Aufnahmeweg E wird nicht angeboten (Gesundheitsdaten, keine Zulassung geplant).
+        'E' => ['label' => 'E · Arbeitsunfall (BG, Rentenversicherung)', 'active' => false],
         'self_payer' => ['label' => 'Selbstzahler'],
         'company_open' => ['label' => 'Betrieb, Zuordnung offen'],
     ],
@@ -323,6 +324,8 @@ return [
         'phone_consent_years' => 5,
         // Teilnehmerakte samt Dokumenten: Jahre ab Ende des Jahres, in dem die Maßnahme endete (A-22)
         'participant_years' => 10,
+        // Protokoll (Anmeldungen, Änderungen, Exporte …): Jahre ab Ende des Kalenderjahres
+        'audit_log_years' => 3,
         // Importprotokoll: Jahre ab Ende des Kalenderjahres
         'import_log_years' => 3,
         // Organisationen und Kontakte ohne Vorgang: erst nach so vielen Tagen ohne Änderung
