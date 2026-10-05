@@ -21,7 +21,7 @@ Stand 04.10.2026 · Ablauf vom Testbetrieb (`crm-test`) zum echten Betrieb (`crm
 
 ## Schritt 2 · Betrieb einrichten (noch ohne echte Daten)
 
-**Erledigt am 05.10.2026**, Einzelheiten in `BETRIEB.md` Abschnitt 12. Offen aus 2.10: Kennwortschutz der Plesk-Sicherungen (Janosch) und Prüfung der bei IONOS gebuchten Datensicherung.
+**Erledigt am 05.10.2026**, Einzelheiten in `BETRIEB.md` Abschnitt 12. Offen aus 2.10: in Plesk unter Backup-Einstellungen „Angegebenes Passwort“ für die Kennwörter in den Sicherungen setzen, damit eine Wiederherstellung auch auf einem neuen Server geht (Janosch; Kennwort in den Kennwortmanager), und die bei IONOS gebuchte Datensicherung prüfen. Der Inhalt der Plesk-Sicherungen ist nicht verschlüsselt; sie liegen nur für root lesbar auf dem Server, die Dokumente des CRM sind zusätzlich mit dem APP_KEY verschlüsselt.
 
 Janosch meldet sich in Plesk an, Claude arbeitet im Browser. Dauer etwa eine Stunde.
 

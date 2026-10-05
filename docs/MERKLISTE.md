@@ -19,7 +19,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
   - Teilnehmerakte entsteht mit „Einschreibung bestätigt“; Checkliste nach Lastenheft 7.1, Abschluss, Verbleib, ZIP-Ausgabe.
   - Dublettenprüfung gegen den ganzen Bestand (Import, Anlegen von Hand, Bestandsprüfung).
 
-- [x] **Live-System `crm.adk-akademie.de` eingerichtet (05.10.2026)**, ohne Daten, Verwaltungskonto angelegt. Offen: Zwei-Faktor einrichten, APP_KEY in den Kennwortmanager, Kennwortschutz der Sicherungen, Konto Vertrieb.
+- [x] **Live-System `crm.adk-akademie.de` eingerichtet (05.10.2026)**, ohne Daten, Verwaltungskonto angelegt. Offen: Zwei-Faktor einrichten, APP_KEY in den Kennwortmanager, Backup-Einstellung „Angegebenes Passwort“, IONOS-Sicherung prüfen, Konto Vertrieb.
 - [ ] Empfehlung Server-Sicherheit (Janosch entscheidet, Claude ändert keine Sicherheitseinstellungen): SSH-Anmeldung als root mit Kennwort abschalten, Zwei-Faktor-Anmeldung für Plesk.
 - [ ] **Live-Schaltung** `crm.adk-akademie.de`: Ablauf in `LIVESCHALTUNG.md` (erst klären, dann einrichten ohne echte Daten, dann Konten, dann echte Daten).
 - [x] Zielgruppe E (Arbeitsunfall) wird nicht angeboten, im CRM abgeschaltet (Entscheidung 04.10.2026, Lastenheft 10 Nr. 4).
