@@ -294,3 +294,26 @@ Nach dem ersten Einspielen der Dublettenprüfung einmal den ganzen Bestand prüf
 ```bash
 /opt/plesk/php/8.4/bin/php artisan adk:dubletten-pruefen
 ```
+---
+
+## 12 Betrieb crm.adk-akademie.de (eingerichtet 05.10.2026)
+
+| Punkt | Stand |
+|---|---|
+| Abonnement | `crm.adk-akademie.de`, Paket Unlimited, eigene Domain wie crm-test |
+| Systembenutzer | `crmadk`, Shell `/bin/bash` (nötig für die Bereitstellungsaktionen) |
+| Dokumentstamm | `httpdocs/public` |
+| PHP | 8.4 FPM; `memory_limit` 256M, `max_execution_time` 120, `upload_max_filesize` 20M, `post_max_size` 25M, `expose_php` Off |
+| Zertifikat | Let’s Encrypt, automatische Verlängerung durch Plesk; HTTP → HTTPS |
+| Datenbank | MariaDB `adk_crm`, Benutzer `adk_crm`. Kennwort hat Janosch vergeben, steht nur in der `.env` und im Kennwortmanager |
+| `.env` | aus `.env.example`: `APP_ENV=production`, `APP_DEBUG=false`, eigener `APP_KEY`; Rechte 640 |
+| Git | Repository `adk-crm` mit eigenem Deploy-Schlüssel (nur lesen), Bereitstellung **manuell**, Aktionen wie Abschnitt 4 |
+| Zeitplan | `/etc/cron.d/adk-crm`, jede Minute `schedule:run` als `crmadk` |
+| Einstellungen | Prüfstufen, Förderweg-Schritte, Checkliste von crm-test übernommen (`adk:einstellungen`) |
+| Header | „X-Powered-By: PleskLin“ serverweit aus (`/usr/local/psa/admin/conf/panel.ini`, `[webserver] xPoweredByHeader = off`) |
+| Sicherung | Plesk-Backup-Manager: ganzer Server täglich 03:00 (nach dem Löschlauf), inkrementell, wöchentlich vollständig, 4 Vollsicherungen (rund 30 Tage), Speicher `/var/lib/psa/dumps`, E-Mail bei Fehlern. Außerhalb des Servers: die bei IONOS gebuchte Datensicherung |
+| Erstes Konto | Verwaltung, `j.baum@adk-akademie.de`, angelegt 05.10.2026; Zwei-Faktor-Anmeldung richtet Janosch bei der ersten Anmeldung ein |
+
+**Konten im Betrieb anlegen:** Das Kennwortfeld von `adk:benutzer-anlegen` bricht beim Einfügen über das Plesk-Web-Terminal ab („Cancelled“). Weitere Konten deshalb im CRM unter **Verwaltung → Benutzer** anlegen.
+
+**Neue Fassung einspielen:** Plesk → Websites & Domains → `crm.adk-akademie.de` → Git → **Jetzt bereitstellen**. Vorher auf crm-test prüfen.

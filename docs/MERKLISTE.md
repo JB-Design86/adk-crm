@@ -19,6 +19,8 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
   - Teilnehmerakte entsteht mit „Einschreibung bestätigt“; Checkliste nach Lastenheft 7.1, Abschluss, Verbleib, ZIP-Ausgabe.
   - Dublettenprüfung gegen den ganzen Bestand (Import, Anlegen von Hand, Bestandsprüfung).
 
+- [x] **Live-System `crm.adk-akademie.de` eingerichtet (05.10.2026)**, ohne Daten, Verwaltungskonto angelegt. Offen: Zwei-Faktor einrichten, APP_KEY in den Kennwortmanager, Kennwortschutz der Sicherungen, Konto Vertrieb.
+- [ ] Empfehlung Server-Sicherheit (Janosch entscheidet, Claude ändert keine Sicherheitseinstellungen): SSH-Anmeldung als root mit Kennwort abschalten, Zwei-Faktor-Anmeldung für Plesk.
 - [ ] **Live-Schaltung** `crm.adk-akademie.de`: Ablauf in `LIVESCHALTUNG.md` (erst klären, dann einrichten ohne echte Daten, dann Konten, dann echte Daten).
 - [x] Zielgruppe E (Arbeitsunfall) wird nicht angeboten, im CRM abgeschaltet (Entscheidung 04.10.2026, Lastenheft 10 Nr. 4).
 - [x] Protokoll 3 Jahre ab Jahresende, Sicherungen 30 Tage (Entscheidung 04.10.2026).
@@ -74,7 +76,7 @@ Anforderungen:
 ## Kleinere Punkte
 
 - [ ] Testdaten: fiktive Rufnummern aus den von der Bundesnetzagentur für Medien freigehaltenen Bereichen und Kennzeichen „(Test)“ im Firmennamen, damit niemand versehentlich einen echten Anschluss anruft.
-- [ ] Plesk: Header „X-Powered-By: PleskLin“ abschalten.
+- [x] Plesk: Header „X-Powered-By: PleskLin“ abgeschaltet (serverweit, 05.10.2026).
 - [ ] sipgate: AVV prüfen, A-11 und A-21 um den Abruf der Anrufliste ergänzen (`BETRIEB.md` 10.5). Falls ADK sipgate **neo** nutzt, statt `/sessions/calls` den neo-Endpunkt verwenden.
 - [ ] Branchenmatrix nachreichen: echte Branchen, WZ-Codes und Prüfstufen.
 - [ ] Offene Fragen aus `STUFE1_ABNAHME.md` Abschnitt 6.

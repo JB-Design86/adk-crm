@@ -21,6 +21,8 @@ Stand 04.10.2026 · Ablauf vom Testbetrieb (`crm-test`) zum echten Betrieb (`crm
 
 ## Schritt 2 · Betrieb einrichten (noch ohne echte Daten)
 
+**Erledigt am 05.10.2026**, Einzelheiten in `BETRIEB.md` Abschnitt 12. Offen aus 2.10: Kennwortschutz der Plesk-Sicherungen (Janosch) und Prüfung der bei IONOS gebuchten Datensicherung.
+
 Janosch meldet sich in Plesk an, Claude arbeitet im Browser. Dauer etwa eine Stunde.
 
 | Nr. | Schritt | Wer |
@@ -39,6 +41,8 @@ Janosch meldet sich in Plesk an, Claude arbeitet im Browser. Dauer etwa eine Stu
 | 2.12 | Einstellungen, die auf crm-test angepasst wurden (Prüfstufen, Förderweg-Schritte mit Erklärtexten, Checkliste), in den Betrieb übertragen: auf crm-test `php artisan adk:einstellungen export /tmp/adk-einstellungen.json`, im Betrieb `php artisan adk:einstellungen import /tmp/adk-einstellungen.json`, danach die Datei löschen. Übertragen werden nur Einstellungen, keine Testdaten; der Import geht nur in ein System ohne Förderfälle | Claude |
 
 ## Schritt 3 · Konten anlegen
+
+Verwaltungskonto `j.baum@adk-akademie.de` angelegt am 05.10.2026. Weitere Konten im CRM unter Verwaltung → Benutzer.
 
 | Nr. | Schritt | Wer |
 |---|---|---|
