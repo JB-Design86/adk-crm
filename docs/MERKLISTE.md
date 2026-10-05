@@ -11,6 +11,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 - [x] **Stufe 3 vorziehen: Förderweg** (erste Fassung fertig, siehe `STUFE3_FOERDERWEG.md`; Details unten). Ziel: Vertrieb kann vom ersten Anruf bis zur Anmeldung in einem Zug arbeiten.
 - [x] **Automatisches Einspielen auf crm-test** bei jedem Push nach GitHub (Plesk-Webhook), damit dafür keine Plesk-Anmeldung mehr nötig ist. Betrieb bleibt manuell.
 
+- [x] **sipgate im Betrieb eingerichtet** (05.10.2026). Offen: Vereinbarung zur Auftragsverarbeitung mit sipgate abschließen, A-11 und A-21 um sipgate ergänzen, erster Testanruf.
 - [x] **sipgate, erste Fassung:** Anruf per Klick (Anrufliste, Vorgangsseite) und automatische Protokollierung der Telefonate alle 5 Minuten. Einrichtung siehe `BETRIEB.md` Abschnitt 10. Offen: Einträge in der `.env` von crm-test (Janosch), Test mit eigener Nummer.
 
 - [x] **Gesamtkonzept Interessent → Förderfall → Teilnehmer** (Durchsicht 04.10.2026), siehe `GESAMTKONZEPT.md`:

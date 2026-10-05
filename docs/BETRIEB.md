@@ -313,6 +313,8 @@ Nach dem ersten Einspielen der Dublettenprüfung einmal den ganzen Bestand prüf
 | Header | „X-Powered-By: PleskLin“ serverweit aus (`/usr/local/psa/admin/conf/panel.ini`, `[webserver] xPoweredByHeader = off`) |
 | Sicherung | Plesk-Backup-Manager: ganzer Server täglich 03:00 (nach dem Löschlauf), inkrementell, wöchentlich vollständig, 4 Vollsicherungen (rund 30 Tage), Speicher `/var/lib/psa/dumps`, E-Mail bei Fehlern. Außerhalb des Servers: die bei IONOS gebuchte Datensicherung |
 | Erstes Konto | Verwaltung, `j.baum@adk-akademie.de`, angelegt 05.10.2026; Zwei-Faktor-Anmeldung richtet Janosch bei der ersten Anmeldung ein |
+| Konto Vertrieb | angelegt von Janosch im CRM |
+| sipgate | eingerichtet 05.10.2026 nur im Betrieb (nicht auf crm-test): Client-ID und Secret in der `.env`, eingegeben von Janosch; Redirect-URI `https://crm.adk-akademie.de/sipgate/callback`. Jede Person verbindet ihr Konto unter Akquise → Telefonie |
 
 **Konten im Betrieb anlegen:** Das Kennwortfeld von `adk:benutzer-anlegen` bricht beim Einfügen über das Plesk-Web-Terminal ab („Cancelled“). Weitere Konten deshalb im CRM unter **Verwaltung → Benutzer** anlegen.
 
