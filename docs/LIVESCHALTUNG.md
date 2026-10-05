@@ -56,6 +56,7 @@ Ab hier sind echte personenbezogene Daten im System. **Claude arbeitet ab jetzt 
 
 | Nr. | Schritt | Wer |
 |---|---|---|
+| 4.0 | **Sicherung außerhalb des Servers steht** (Voraussetzung für echte Daten, A-21). Stand 05.10.2026: Bei IONOS ist kein Server-Backup gebucht; vorhanden ist HiDrive (1 TB, noch nicht eingerichtet). Weg 1: Plesk sichert zusätzlich auf HiDrive (braucht HiDrive „Zusätzliche Protokolle“ für FTP/SFTP). Weg 2: IONOS Cloud Backup für den Server. Janosch vergleicht die Preise und entscheidet | Janosch, Claude richtet ein | offen |
 | 4.1 | Erste echte Leadliste importieren (z. B. `ADK_CRM_Leadliste_001-100.xlsx`), Quelle und Abrufdatum angeben, Importprotokoll ansehen | Janosch |
 | 4.2 | Stammdaten → Dublettenprüfung: Verdachtsfälle entscheiden | Janosch oder Vertrieb |
 | 4.3 | Anrufliste: Vertrieb startet | Vertrieb |
