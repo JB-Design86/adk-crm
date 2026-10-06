@@ -372,6 +372,10 @@ Kontaktformular und Kursheft-Anforderung auf adk-akademie.de legen jede Anfrage 
 | Daten auf der Website | Sieben Tage nach der Übergabe löscht `bin/loeschlauf.php` Name, E-Mail, Telefon und Nachricht aus der Website-Datenbank. Es bleibt eine Quittung mit der CRM-Nummer |
 | Geprüft | 26 Tests im CRM (`tests/Feature/WebsiteIntakeTest.php`); am 06.10.2026 lokal von Formular bis Vorgang durchgespielt: Kontakt, Kursheft mit Bestätigung, CRM aus und Nachlauf, Löschung nach sieben Tagen |
 
+**Eingerichtet im Betrieb am 06.10.2026** (Schritte 1 bis 4, Freigabe Janosch). Sicherungen: `/root/adk-website-konfig.php.vor-crm`, `/root/adk-website-vor-update-2026-10-06.tgz`. Beim ersten Nachlauf gingen die zwei Test-Anfragen von Janosch vom Nachmittag ins CRM.
+
+**Achtung beim Hochladen von ZIP-Dateien aus Windows:** Die Dateien kommen mit Rechten 666 an. Danach `chmod 644` auf die Dateien (Verzeichnisse 755) und mit `find httpdocs -perm /022` prüfen.
+
 **Einrichtung im Betrieb** (einmalig, in dieser Reihenfolge):
 
 1. CRM-Stand mit der Schnittstelle einspielen: crm-test übernimmt ihn automatisch nach dem Push; im Betrieb Plesk → `crm.adk-akademie.de` → Git → **Jetzt bereitstellen** (die Migration läuft mit).

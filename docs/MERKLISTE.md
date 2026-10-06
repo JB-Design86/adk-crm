@@ -54,7 +54,7 @@ Anforderungen:
 
 ## Stufe 2 · Eingänge automatisch
 
-- [x] **Website-Formular → CRM** gebaut 06.10.2026 (`BETRIEB.md` Abschnitt 14): signierte Schnittstelle `/api/eingang`, Vorgang „Neu“ mit Kanal Website-Formular, Kursheft erst nach Double-Opt-in, Finanzierung setzt die Zielgruppe, „Kein Anruf gewünscht“ sperrt Anrufe. Offen: Einrichtung im Betrieb (Schlüssel, Dateien, Cron) und Probe.
+- [x] **Website-Formular → CRM** gebaut 06.10.2026 (`BETRIEB.md` Abschnitt 14): signierte Schnittstelle `/api/eingang`, Vorgang „Neu“ mit Kanal Website-Formular, Kursheft erst nach Double-Opt-in, Finanzierung setzt die Zielgruppe, „Kein Anruf gewünscht“ sperrt Anrufe. Im Betrieb eingerichtet 06.10.2026 (Schlüssel, Website-Dateien, Cron). Offen: Probe Kursheft mit eigener Adresse, DKIM-Eintrag bei IONOS.
 - **Opt-in für E-Mail:**
   - Im Formular getrennte, nicht vorausgefüllte Häkchen: Rückruf per Telefon, E-Mail-Werbung bzw. Newsletter.
   - Double-Opt-in per Bestätigungslink als Nachweis.
