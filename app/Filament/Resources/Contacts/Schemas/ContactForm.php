@@ -48,6 +48,10 @@ class ContactForm
     {
         return [
             DatePicker::make('privacy_notice_sent_at')->label('Datenschutzhinweis übermittelt am')->maxDate(today()),
+            Toggle::make('phone_refused')
+                ->label('Kein Anruf gewünscht')
+                ->helperText('Gesetzt, wenn im Website-Formular kein Rückruf erlaubt wurde. Sperrt Anrufe aus dem CRM.')
+                ->inline(false),
             DatePicker::make('phone_consent_at')
                 ->label('Einwilligung Telefonansprache am')
                 ->maxDate(today())
@@ -58,6 +62,16 @@ class ContactForm
                 ->rows(2)
                 ->placeholder('z. B. Formular vom …, E-Mail vom …, Gesprächsnotiz')
                 ->requiredWith('phone_consent_at')
+                ->columnSpanFull(),
+            DatePicker::make('email_consent_at')
+                ->label('Einwilligung Kontakt per E-Mail am')
+                ->maxDate(today())
+                ->helperText('Z. B. Kursheft über die Website angefordert und per Link bestätigt (Double-Opt-in).')
+                ->requiredWith('email_consent_proof'),
+            Textarea::make('email_consent_proof')
+                ->label('Nachweis Einwilligung E-Mail')
+                ->rows(2)
+                ->requiredWith('email_consent_at')
                 ->columnSpanFull(),
             DatePicker::make('health_consent_at')
                 ->label('Einwilligung Gesundheitsangaben am')

@@ -319,3 +319,70 @@ Nach dem ersten Einspielen der Dublettenprüfung einmal den ganzen Bestand prüf
 **Konten im Betrieb anlegen:** Das Kennwortfeld von `adk:benutzer-anlegen` bricht beim Einfügen über das Plesk-Web-Terminal ab („Cancelled“). Weitere Konten deshalb im CRM unter **Verwaltung → Benutzer** anlegen.
 
 **Neue Fassung einspielen:** Plesk → Websites & Domains → `crm.adk-akademie.de` → Git → **Jetzt bereitstellen**. Vorher auf crm-test prüfen.
+---
+
+## 13 Website adk-akademie.de (umgezogen von df.eu am 06.10.2026)
+
+Die Website liegt seit dem 06.10.2026 auf demselben Server wie das CRM. Quelle ist das Paket `ADK_Website_FTP_2026-10-06.zip` (OneDrive, Marketing → Corporate Design → webseite → Neue Webseite September). Darin steht in `LIESMICH.txt`, was die Gestaltung ändern darf.
+
+| Punkt | Stand |
+|---|---|
+| Abonnement | `adk-akademie.de`, Paket Unlimited, Systembenutzer `adkweb` (keine Shell) |
+| Dokumentstamm | `httpdocs`, statische Seiten plus `kontakt.php`, `kursheft.php`, `bestaetigen.php` |
+| Formulardaten | SQLite `adk-daten/adk.sqlite` **außerhalb** von `httpdocs` (`/var/www/vhosts/adk-akademie.de/adk-daten`, Rechte 770) |
+| E-Mail | Mail-Dienst der Domain in Plesk **an** (sonst sperrt Plesk den Versand der Formulare: „The user adkweb is not allowed to send email“). Damit nichts lokal hängen bleibt, gilt eine feste Regel in Postfix: `/etc/postfix/transport_extern` mit `adk-akademie.de smtp:`, eingebunden als erstes in `transport_maps`. Alles an `@adk-akademie.de` geht so an den MX von Microsoft 365. Keine Postfächer auf dem Server. Eingerichtet 06.10.2026 mit Freigabe von Janosch, Sicherung `/root/postfix-main.cf.vor-2026-10-06` |
+| DNS | DNS-Dienst der Domain in Plesk aus, die Einträge liegen bei IONOS. A `@` und `www` → 217.160.106.171. SPF: `v=spf1 ip4:217.160.106.171 ip4:92.205.174.49 include:_spf-eu.ionos.com include:spf.protection.outlook.com ~all` (df.eu-Adresse raus, sobald df.eu gekündigt ist) |
+| PHP | 8.4 FPM, `expose_php` Off, PDO SQLite vorhanden |
+| Zertifikat | Let's Encrypt für `adk-akademie.de` und `www`, automatische Verlängerung; HTTP → HTTPS (Plesk und `.htaccess`), www → ohne www (Plesk, bevorzugte Domain) |
+| HSTS | in `.htaccess` eingeschaltet, `max-age=31536000; includeSubDomains`. Geprüft: alle Subdomains (crm, crm-test, Microsoft-365-Einträge) laufen über HTTPS. **Neue Subdomains nur mit HTTPS anlegen** |
+| Protokolle | Besucherstatistik aus. Webserver-Protokolle täglich rotiert, 28 Stück, also gelöscht nach spätestens 30 Tagen wie in der Datenschutzerklärung |
+| Löschlauf | `/etc/cron.d/adk-website`, täglich 02:40 als `adkweb`, vor der Sicherung um 03:00; Ausgabe in `adk-daten/loeschlauf.log` (nur Zahlen) |
+| Nicht hochgeladen | `LIESMICH.txt`, `pruefsummen.txt`, `download/PLATZHALTER.txt` (gehören zum Paket, nicht ins Netz) |
+| Geprüft | `inc/` und `bin/` 403, `.htaccess` 403, Datenbank nicht erreichbar, Schutz-Kopfzeilen und Inhaltsrichtlinie kommen an, keine Meldung in der Konsole |
+
+**Auf dem Server angepasst** (bei einem neuen Paket wieder nötig, besser gleich ins Paket übernehmen):
+
+- `.htaccess`: Abschnitt 1 (HTTPS-Umleitung) und HSTS-Zeile eingeschaltet. Die Fassung aus dem Paket liegt unter `/root/adk-website-htaccess.orig`.
+- `datenschutz.html`, Abschnitt 7, IONOS: „Verarbeitung ausschließlich in Rechenzentren in der Europäischen Union“ statt „… in Deutschland“. Der Standort des Servers ist nicht als Deutschland zugesichert (siehe `LIVESCHALTUNG.md` 1.4). Freigegeben von Janosch am 06.10.2026.
+- `img/weg-2-quadrat-*` (Schritt „Termin bei der Agentur“ auf arbeitsuchende.html und betriebe.html): neues Kalenderbild, gewünscht von Janosch am 06.10.2026. Quelle: `ADK_Website_Bildtausch_Termin_2026-10-06.zip` neben dem Paket, die alten Bilder liegen unter `/root/adk-website-alt/`.
+- `download/ADK_Kursheft.pdf` hochgeladen am 06.10.2026 (fehlte im Paket).
+
+**Mailversand der Formulare:** Die Formulare senden über PHP `mail()` an das Postfix des Servers, Absender `noreply@adk-akademie.de`. Postfix liefert direkt beim Empfänger ein, Mails an `@adk-akademie.de` beim MX von Microsoft 365 (wie jeder fremde Mailserver, ohne Anmeldung, ohne Lizenz). SPF enthält die Server-IP. Port 25 ausgehend hat IONOS am 06.10.2026 auf Antrag freigeschaltet. Der Server hat kein IPv6, deshalb `smtp_address_preference = ipv4`. Erste Testmail an info@ am 06.10.2026 angenommen (`250 2.6.0`).
+
+**Prüfen nach Plesk-Updates:** `postconf -h transport_maps` muss mit `hash:/etc/postfix/transport_extern` beginnen. Fehlt der Eintrag, landen Mails an `@adk-akademie.de` im Nichts von Plesk statt bei Microsoft. Wieder setzen: `postconf -e 'transport_maps = hash:/etc/postfix/transport_extern, hash:/var/spool/postfix/plesk/transport' && postfix reload`. Zurück zum alten Stand: Sicherung von `main.cf` einspielen, `postfix reload`, Mail-Dienst der Domain aus (dann kann die Website aber nicht mehr senden).
+
+**Neue Fassung der Website einspielen:** ZIP im Plesk-Dateimanager nach `httpdocs` hochladen, dann im Terminal als root entpacken und die drei Paketdateien weglassen. Anschließend die beiden Anpassungen oben prüfen, solange sie noch nicht im Paket sind. `inc/konfig.php` und `adk-daten` nie überschreiben, ohne vorher nachzusehen.
+
+---
+
+## 14 Website-Eingang: Formulare der Website ins CRM (gebaut 06.10.2026)
+
+Kontaktformular und Kursheft-Anforderung auf adk-akademie.de legen jede Anfrage als Vorgang „Neu“ im CRM an (Kanal Website-Formular, Wiedervorlage heute). Die Mail an info@ bleibt zusätzlich, damit sofort jemand Bescheid weiß.
+
+| Punkt | Stand |
+|---|---|
+| Schnittstelle | `POST https://crm.adk-akademie.de/api/eingang`, JSON. Herkunft: HMAC-SHA256 über den ganzen Inhalt im Kopf `X-ADK-Signatur`. Ohne Schlüssel antwortet das CRM 503, bei falscher Signatur 401. Höchstens 60 Aufrufe je Minute |
+| Schlüssel | `WEBSITE_INTAKE_SECRET` in der `.env` des CRM, derselbe Wert als `crm_schluessel` in `inc/konfig.php` der Website. Steht nirgends sonst, nicht im Paket, nicht im Repository |
+| Einmal je Vorgang | Jede Anfrage trägt die Nummer der Website (`kontakt-17`, `kursheft-5`). Kommt sie doppelt, liefert das CRM die vorhandene Vorgangsnummer und legt nichts neu an |
+| Sperrliste | Steht E-Mail oder Telefon auf der Sperrliste, legt das CRM nichts an (Protokoll: „Website-Eingang wegen Sperrliste verworfen“, ohne Namen) |
+| Anruf | Häkchen „Sie dürfen mich dazu auch anrufen“ gesetzt: Einwilligung Telefonansprache mit Nachweis (Zeitpunkt, gekürzte IP, Seite, Wortlaut). Nicht gesetzt: Kontakt bekommt „Kein Anruf gewünscht“, das CRM sperrt Anrufe und die Anrufliste lässt ihn aus |
+| Kursheft | Geht erst nach der Bestätigung (Double-Opt-in) ins CRM. Einwilligung „Kontakt per E-Mail“ mit Nachweis. Finanzierung setzt die Zielgruppe (Agentur → B, Jobcenter → A, Arbeitgeber → Betrieb offen, selbst → Selbstzahler, sonst „Zuordnung offen“) |
+| Zielgruppe „Zuordnung offen“ | Für Anfragen, bei denen A oder B noch nicht feststeht. Vor „Übergeben an Förderweg“ muss sie gewählt werden |
+| CRM nicht erreichbar | Die Website nimmt die Anfrage trotzdem an. `bin/crm_nachlauf.php` versucht es stündlich erneut, höchstens zehnmal; danach Mail an info@ „Übergabe an das CRM fehlgeschlagen“, Vorgang von Hand anlegen |
+| Daten auf der Website | Sieben Tage nach der Übergabe löscht `bin/loeschlauf.php` Name, E-Mail, Telefon und Nachricht aus der Website-Datenbank. Es bleibt eine Quittung mit der CRM-Nummer |
+| Geprüft | 26 Tests im CRM (`tests/Feature/WebsiteIntakeTest.php`); am 06.10.2026 lokal von Formular bis Vorgang durchgespielt: Kontakt, Kursheft mit Bestätigung, CRM aus und Nachlauf, Löschung nach sieben Tagen |
+
+**Einrichtung im Betrieb** (einmalig, in dieser Reihenfolge):
+
+1. CRM-Stand mit der Schnittstelle einspielen: crm-test übernimmt ihn automatisch nach dem Push; im Betrieb Plesk → `crm.adk-akademie.de` → Git → **Jetzt bereitstellen** (die Migration läuft mit).
+2. Schlüssel erzeugen und in beide Dateien schreiben, ohne dass er angezeigt wird. Im Plesk-Terminal als root:
+   ```bash
+   K=$(openssl rand -hex 32); E=/var/www/vhosts/crm.adk-akademie.de/httpdocs/.env; if grep -q '^WEBSITE_INTAKE_SECRET=' $E; then sed -i "s/^WEBSITE_INTAKE_SECRET=.*/WEBSITE_INTAKE_SECRET=$K/" $E; else printf '\nWEBSITE_INTAKE_SECRET=%s\n' "$K" >> $E; fi; KF=/var/www/vhosts/adk-akademie.de/httpdocs/inc/konfig.php; sed -i "s|'crm_url'           => ''|'crm_url'           => 'https://crm.adk-akademie.de/api/eingang'|; s|'crm_schluessel'    => ''|'crm_schluessel'    => '$K'|" $KF; unset K; cd /var/www/vhosts/crm.adk-akademie.de/httpdocs && sudo -u crmadk -H /opt/plesk/php/8.4/bin/php artisan optimize >/dev/null && grep -c "crm.adk-akademie.de/api/eingang" $KF
+   ```
+   Ausgabe `1` heißt: eingetragen. Der Schlüssel besteht nur aus Ziffern und a–f.
+3. Die geänderten Website-Dateien hochladen (Liste in der Übergabe vom 06.10.2026).
+4. Nachlauf als Cron-Job ergänzen, stündlich, in `/etc/cron.d/adk-website`:
+   `20 * * * * adkweb /opt/plesk/php/8.4/bin/php /var/www/vhosts/adk-akademie.de/httpdocs/bin/crm_nachlauf.php >> /var/www/vhosts/adk-akademie.de/adk-daten/crm_nachlauf.log 2>&1`
+5. Probe mit eigenen Daten: Kontaktformular und Kursheft. Im CRM erscheinen zwei Vorgänge „Neu“, in info@ zwei Mails.
+
+**Voraussetzung:** Ab Schritt 5 kommen echte Anfragen ins CRM. Dafür gilt `LIVESCHALTUNG.md` Schritt 4 (Sicherung außerhalb des Servers).

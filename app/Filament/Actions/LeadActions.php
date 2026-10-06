@@ -77,7 +77,7 @@ class LeadActions
                 ->live(),
             Select::make('target_group')
                 ->label('Zielgruppe für den Förderweg')
-                ->options(collect(Adk::targetGroupOptions())->except('company_open')->all())
+                ->options(collect(Adk::targetGroupOptions())->except(['company_open', 'open'])->all())
                 ->default($lead->fundingPathway() ? $lead->target_group : null)
                 ->visible(fn (Get $get) => $get('status') === 'handed_over')
                 ->required(fn (Get $get) => $get('status') === 'handed_over'),

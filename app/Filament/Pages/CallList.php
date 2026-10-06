@@ -85,7 +85,8 @@ class CallList extends Page
 
     /**
      * Warteschlange: offene Vorgänge mit Wiedervorlage heute, überfällig oder ohne Datum.
-     * Privatpersonen ohne Einwilligung aus der Kaltakquise erscheinen nicht.
+     * Privatpersonen ohne Einwilligung aus der Kaltakquise erscheinen nicht, Personen mit
+     * „Kein Anruf gewünscht“ auch nicht.
      */
     public function queue(): Builder
     {
@@ -105,6 +106,8 @@ class CallList extends Page
                     ->orWhere(fn ($c) => $c->where('duplicate_candidates.type', 'contact')->whereColumn('duplicate_candidates.subject_id', 'leads.contact_id'))))
             ->where(fn (Builder $q) => $q->whereNull('leads.next_action_at')->orWhereDate('leads.next_action_at', '<=', today()))
             ->where(fn (Builder $q) => $q->whereNotNull('organizations.phone_e164')->orWhereNotNull('contacts.phone_e164'))
+            // Kein Anruf gewünscht (Website-Formular ohne Rückruf)
+            ->where(fn (Builder $q) => $q->whereNull('contacts.phone_refused')->orWhere('contacts.phone_refused', false))
             // Privatpersonen: nur mit Einwilligung (Datum und Nachweis) oder bei eingehender Anfrage
             ->where(fn (Builder $q) => $q
                 ->where(fn (Builder $b) => $b->whereNotNull('leads.organization_id')->where(fn ($c) => $c->whereNull('contacts.is_private')->orWhere('contacts.is_private', false)))

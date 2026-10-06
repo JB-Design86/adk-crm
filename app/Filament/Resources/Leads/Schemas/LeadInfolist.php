@@ -34,6 +34,9 @@ class LeadInfolist
                             ->visible(fn (Lead $record) => $record->close_reason !== null),
                         TextEntry::make('target_group')->label('Zielgruppe')->formatStateUsing(fn ($state) => Adk::targetGroupLabel($state)),
                         TextEntry::make('channel')->label('Eingangskanal')->formatStateUsing(fn ($state) => Adk::channelLabel($state)),
+                        TextEntry::make('intake_ref')
+                            ->label('Website-Vorgang')
+                            ->visible(fn (Lead $record) => $record->intake_ref !== null),
                         TextEntry::make('next_action_at')
                             ->label('nächste Aktion am')
                             ->date('d.m.Y')
@@ -101,9 +104,16 @@ class LeadInfolist
                             ->url(fn (Lead $record) => $record->contact?->phone_e164 && $record->isCallable() ? 'tel:'.$record->contact->phone_e164 : null)
                             ->placeholder('–'),
                         TextEntry::make('contact.email')->label('E-Mail')->placeholder('–'),
+                        IconEntry::make('contact.phone_refused')
+                            ->label('Kein Anruf gewünscht')
+                            ->boolean()
+                            ->trueColor('danger')
+                            ->falseColor('gray'),
                         TextEntry::make('contact.privacy_notice_sent_at')->label('Datenschutzhinweis übermittelt am')->date('d.m.Y')->placeholder('noch nicht'),
                         TextEntry::make('contact.phone_consent_at')->label('Einwilligung Telefonansprache am')->date('d.m.Y')->placeholder('keine'),
-                        TextEntry::make('contact.phone_consent_proof')->label('Nachweis Einwilligung')->placeholder('–')->columnSpanFull(),
+                        TextEntry::make('contact.phone_consent_proof')->label('Nachweis Einwilligung Telefon')->placeholder('–')->columnSpanFull(),
+                        TextEntry::make('contact.email_consent_at')->label('Einwilligung Kontakt per E-Mail am')->date('d.m.Y')->placeholder('keine'),
+                        TextEntry::make('contact.email_consent_proof')->label('Nachweis Einwilligung E-Mail')->placeholder('–')->columnSpanFull(),
                         TextEntry::make('contact.health_consent_at')
                             ->label('Einwilligung Gesundheitsangaben am')
                             ->date('d.m.Y')

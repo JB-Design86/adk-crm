@@ -49,4 +49,13 @@ return [
         'api_url' => 'https://api.sipgate.com/v2',
     ],
 
+    /*
+    | Website-Eingang (POST /api/eingang): Kontaktformular und Kursheft-Anforderung der Website.
+    | Gemeinsamer HMAC-Schlüssel mit der Website (inc/konfig.php, crm_schluessel).
+    | Ohne Schlüssel antwortet die Schnittstelle mit 503.
+    */
+    'website' => [
+        'intake_secret' => env('WEBSITE_INTAKE_SECRET'),
+    ],
+
 ];

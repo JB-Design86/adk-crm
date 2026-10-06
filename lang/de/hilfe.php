@@ -19,7 +19,7 @@ return [
 
     'felder' => [
         // Vorgang
-        'target_group' => 'Über welchen Weg die Weiterbildung bezahlt würde: A Jobcenter, B Agentur für Arbeit, C Beschäftigte eines Betriebs (§ 82 SGB III), D Geschäftsführung, E Arbeitsunfall, Selbstzahler. Bei Kaltakquise zunächst „Betrieb, Zuordnung offen“.',
+        'target_group' => 'Über welchen Weg die Weiterbildung bezahlt würde: A Jobcenter, B Agentur für Arbeit, C Beschäftigte eines Betriebs (§ 82 SGB III), D Geschäftsführung, E Arbeitsunfall, Selbstzahler. Bei Kaltakquise zunächst „Betrieb, Zuordnung offen“, bei Website-Anfragen ohne klare Finanzierung „Zuordnung offen“.',
         'channel' => 'Wie der Kontakt zustande kam. Alles außer „Kaltakquise“ gilt als eingehende Anfrage: rot oben in „Heute“, Wiedervorlage heute, Anruf auch bei Privatpersonen erlaubt.',
         'status' => 'Stand des Vorgangs in der Akquise. Wird über „Status setzen“ oder die Tasten in der Anrufliste geändert, damit Wiedervorlage und Sperrliste automatisch stimmen.',
         'next_action_at' => 'Wiedervorlage: An diesem Tag erscheint der Vorgang in „Heute“ und in der Anrufliste. Wird bei vielen Status automatisch gesetzt.',
@@ -53,6 +53,9 @@ return [
         'privacy_notice_sent_at' => 'Wann der Datenschutzhinweis übermittelt wurde. Wird mit Taste 3 (Unterlagen versendet) automatisch gesetzt.',
         'phone_consent_at' => 'Datum der Einwilligung in Anrufe. Pflicht für Anrufe bei Privatpersonen aus der Kaltakquise, nur zusammen mit dem Nachweis gültig.',
         'phone_consent_proof' => 'Womit die Einwilligung belegt ist, z. B. „Formular vom 12.09., Häkchen Rückruf“. Wird 5 Jahre nach Erteilung bzw. letzter Nutzung gelöscht.',
+        'phone_refused' => 'Die Person möchte nicht angerufen werden, z. B. weil im Website-Formular kein Rückruf erlaubt wurde. Das CRM sperrt dann Anrufe, bitte per E-Mail antworten.',
+        'email_consent_at' => 'Datum der Einwilligung in die Kontaktaufnahme per E-Mail, z. B. Kursheft über die Website angefordert und per Link bestätigt. Nur zusammen mit dem Nachweis gültig.',
+        'email_consent_proof' => 'Womit die Einwilligung in E-Mails belegt ist: Zeitpunkt von Anforderung und Bestätigung, gekürzte IP, Wortlaut der Checkbox.',
         'health_consent_at' => 'Nur Zielgruppe E (Arbeitsunfall): Datum der ausdrücklichen Einwilligung. Keine medizinischen Angaben in Notizen.',
         'health_consent_proof' => 'Womit die Einwilligung zu Gesundheitsangaben belegt ist.',
         'position' => 'Funktion im Betrieb, z. B. Geschäftsführung oder Personalleitung.',

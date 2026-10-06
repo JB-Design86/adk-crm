@@ -24,6 +24,8 @@ class Contact extends Model
             'privacy_notice_sent_at' => 'date',
             'phone_consent_at' => 'date',
             'phone_consent_last_used_at' => 'date',
+            'phone_refused' => 'boolean',
+            'email_consent_at' => 'date',
             'health_consent_at' => 'date',
         ];
     }
@@ -73,6 +75,12 @@ class Contact extends Model
     public function hasPhoneConsent(): bool
     {
         return $this->phone_consent_at !== null && filled($this->phone_consent_proof);
+    }
+
+    /** Einwilligung in die Kontaktaufnahme per E-Mail (z. B. Kursheft mit Double-Opt-in), nur mit Nachweis gültig. */
+    public function hasEmailConsent(): bool
+    {
+        return $this->email_consent_at !== null && filled($this->email_consent_proof);
     }
 
     public function isBlocked(): bool

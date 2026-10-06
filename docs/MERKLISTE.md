@@ -28,6 +28,12 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 - [x] Protokoll 3 Jahre ab Jahresende, Sicherungen 30 Tage (Entscheidung 04.10.2026).
 - [ ] Genauen Serverstandort beim IONOS-Support erfragen und ablegen. Anfrage am 04.10.2026: Standardantwort ohne Standort, Verweis auf die Hotline 0721 170 555; dort telefonisch nachfragen und um Bestätigung per E-Mail bitten. Kundenbereich: „Europa“, AVV: EU bzw. EWR, RIPE: vermutlich Frankreich. Unterlagen sagen „EU“, siehe `LIVESCHALTUNG.md` 1.4.
 - [x] Löschersuchen nach Art. 17 DSGVO: Knopf an Organisation, Kontakt und Vorgang (nur Verwaltung), siehe `GESAMTKONZEPT.md` Abschnitt 6.
+- [x] **Website adk-akademie.de von df.eu auf den Server umgezogen (06.10.2026)**, siehe `BETRIEB.md` Abschnitt 13. HTTPS, HSTS, Löschlauf, Protokolle 30 Tage; Datenschutzerklärung: IONOS „in der Europäischen Union“.
+- [x] **Mailversand vom Server** (06.10.2026): Port 25 von IONOS freigeschaltet, Mail-Dienst der Domain an mit fester Weiterleitung an Microsoft 365 (`BETRIEB.md` Abschnitt 13). Testmail an info@ angenommen.
+- [ ] Formulare testen: Kontaktformular und Kursheft mit eigener Adresse (Janosch), Junk-Ordner prüfen. Danach DKIM für `adk-akademie.de` (Schlüssel aus Plesk, TXT-Eintrag bei IONOS).
+- [ ] Website: df.eu erst kündigen, wenn die Formulare getestet sind; danach `ip4:92.205.174.49` aus dem SPF-Eintrag nehmen und A-11 nachziehen.
+- [ ] Website-Paket: die Anpassungen vom Server ins Paket übernehmen, damit eine neue Fassung sie nicht zurückdreht: `.htaccess` (HTTPS, HSTS), Satz zur EU in `datenschutz.html`, neues Kalenderbild `img/weg-2-quadrat-*`, Kursheft-PDF.
+- [x] Website: Kursheft-PDF liegt unter `download/ADK_Kursheft.pdf` (06.10.2026).
 
 ## Stufe 3 · Förderweg (vorgezogen)
 
@@ -48,7 +54,7 @@ Anforderungen:
 
 ## Stufe 2 · Eingänge automatisch
 
-- **Website-Formular → CRM:** gesicherte Schnittstelle (HTTPS mit Zugangsschlüssel) zur neuen ADK-Website. Jede Anfrage wird sofort Vorgang „Neu“ mit Kanal Website-Formular, das Feld Kostenträger setzt die Zielgruppe.
+- [x] **Website-Formular → CRM** gebaut 06.10.2026 (`BETRIEB.md` Abschnitt 14): signierte Schnittstelle `/api/eingang`, Vorgang „Neu“ mit Kanal Website-Formular, Kursheft erst nach Double-Opt-in, Finanzierung setzt die Zielgruppe, „Kein Anruf gewünscht“ sperrt Anrufe. Offen: Einrichtung im Betrieb (Schlüssel, Dateien, Cron) und Probe.
 - **Opt-in für E-Mail:**
   - Im Formular getrennte, nicht vorausgefüllte Häkchen: Rückruf per Telefon, E-Mail-Werbung bzw. Newsletter.
   - Double-Opt-in per Bestätigungslink als Nachweis.

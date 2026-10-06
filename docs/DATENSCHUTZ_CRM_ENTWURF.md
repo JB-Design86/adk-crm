@@ -26,6 +26,8 @@ Vorgeschlagene Versionen: A-11 1.4, A-21 1.2, A-22 1.1. Eintrag ins Änderungspr
 ### A.2 Änderung V02 · Interessenten- und Beratungsverwaltung
 
 - **Systeme, Empfänger** ergänzen: „Interessentenvorgänge, Termine und Wiedervorlagen im ADK CRM (V18).“
+- **Herkunft** ergänzen: „Anfragen über das Kontaktformular und bestätigte Kursheft-Anforderungen der Website werden automatisch als Vorgang ins ADK CRM übernommen (signierte Übertragung auf demselben Server). Die Website löscht ihre Kopie sieben Tage nach der Übergabe.“
+- **Kursheft** (V01 bzw. Website): Name, E-Mail, Finanzierungsweg, freiwillig Telefon. Einwilligung in Zusendung und Beratung per E-Mail (Double-Opt-in), Anruf nur mit eigenem Häkchen. Rechtsgrundlage Art. 6 Abs. 1 Buchst. a DSGVO, § 7 UWG. **[prüfen: Kopplung Kursheft und E-Mail-Beratung mit der Datenschutz-Beratung abstimmen]**
 - **Löschung** ersetzen durch: „Privatpersonen 6 Monate nach letztem Kontakt, wenn kein Vertrag zustande kommt. Betriebe und deren Ansprechpersonen 24 Monate nach letztem Kontakt, weil die Wiedervorlage ‚Später Interesse‘ und die Förderwege von Betrieben (§ 82 SGB III) länger als ein halbes Jahr laufen (Entscheidung der Trägerleitung vom 04.10.2026, Handbuch 9.6).“
 
 ### A.3 Änderung V15 · Betroffenenrechte und Datenschutzvorfälle
@@ -38,7 +40,9 @@ Zeile **IONOS SE** ersetzen:
 
 | Anbieter | Leistung | Verarbeitungsort | Vertrag | Status |
 |---|---|---|---|---|
-| IONOS SE | DNS-Verwaltung der Domain; virtueller Server für das ADK CRM (Betrieb und Testumgebung) mit Datensicherung; bis 09/2026 E-Mail-Hosting | EU bzw. EWR (AVV Ziffer 4.3; Kundenbereich: „Europa“) | AVV nach Art. 28, Version 1.2 vom 06/2023, bestätigt; gilt für alle Verträge unter der Kundennummer (Ziffer 12.1), damit auch für den Server; Nachweis ISO 27001 (Ziffer 9.2) | vorhanden |
+| IONOS SE | DNS-Verwaltung der Domain; virtueller Server für das ADK CRM (Betrieb und Testumgebung) und seit 06.10.2026 für die Website adk-akademie.de mit Kontaktformular und Kursheft-Anforderung, mit Datensicherung; bis 09/2026 E-Mail-Hosting | EU bzw. EWR (AVV Ziffer 4.3; Kundenbereich: „Europa“) | AVV nach Art. 28, Version 1.2 vom 06/2023, bestätigt; gilt für alle Verträge unter der Kundennummer (Ziffer 12.1), damit auch für den Server; Nachweis ISO 27001 (Ziffer 9.2) | vorhanden |
+
+Zeile **df.eu (domainfactory)**, falls dort als Hoster der Website geführt: Website-Hosting bis 06.10.2026, danach IONOS. Nach der Kündigung Status „beendet“ und die Löschung der Daten durch df.eu bestätigen lassen.
 
 Satz „Kein Auftragsverarbeiter“ ergänzen um: „GitHub (Ablage des Programmcodes des CRM, keine personenbezogenen Daten), Let’s Encrypt (Ausstellung der Serverzertifikate, keine personenbezogenen Daten).“
 
@@ -48,6 +52,7 @@ Neue Zeile:
 
 | System | Nutzung | Zuständig, Zugriff |
 |---|---|---|
+| Website adk-akademie.de | Auftritt, Kontaktformular, Kursheft mit Double-Opt-in; Formulardaten in einer Datei-Datenbank außerhalb des öffentlichen Bereichs, täglicher Löschlauf (14 Tage, 6 Monate, 7 Tage), Server-Protokolle 30 Tage. Auf dem Server des CRM, aber getrennter Systembenutzer | Trägerleitung (Plesk) |
 | ADK CRM crm.adk-akademie.de | Akquise, Förderweg, Dokumente, Sperrliste; ab der ersten Teilnehmerakte auch Teilnehmerverwaltung (Teil D). Testumgebung crm-test.adk-akademie.de nur mit erfundenen Daten | Konto je Person, Zwei-Faktor-Anmeldung Pflicht, Rollen Verwaltung (Trägerleitung) und Mitarbeitende (Vertrieb); Server-Verwaltung (Plesk) nur Trägerleitung |
 
 ---

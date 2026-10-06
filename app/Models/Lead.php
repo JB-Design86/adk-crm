@@ -206,6 +206,10 @@ class Lead extends Model
             return 'Die Nummer oder die Firma steht auf der Sperrliste. Ein Anruf ist nicht möglich.';
         }
 
+        if ($this->contact?->phone_refused) {
+            return 'Die Person möchte nicht angerufen werden (Website-Formular). Bitte per E-Mail antworten.';
+        }
+
         if ($this->isPrivatePerson() && ! $this->isInbound() && ! $this->contact?->hasPhoneConsent()) {
             return 'Privatperson ohne eingetragene Einwilligung in die Telefonansprache. Ein Anruf ist nicht möglich.';
         }

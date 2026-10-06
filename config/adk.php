@@ -79,6 +79,8 @@ return [
         'E' => ['label' => 'E · Arbeitsunfall (BG, Rentenversicherung)', 'active' => false],
         'self_payer' => ['label' => 'Selbstzahler'],
         'company_open' => ['label' => 'Betrieb, Zuordnung offen'],
+        // Website-Anfragen, bei denen Kostenträger bzw. A/B noch zu klären ist.
+        'open' => ['label' => 'Zuordnung offen'],
     ],
 
     /*
@@ -99,6 +101,29 @@ return [
         'social_media' => ['label' => 'LinkedIn und Social Media', 'inbound' => true],
         'chatgpt_ad' => ['label' => 'ChatGPT-Anzeige', 'inbound' => true],
         'other' => ['label' => 'Sonstiges', 'inbound' => true],
+    ],
+
+    /*
+    | Website-Eingang (POST /api/eingang, App\Services\WebsiteIntakeService).
+    | Kontaktformular: Anliegen; Kursheft-Anforderung: Finanzierung. Je Schlüssel
+    | die Bezeichnung (für die Notiz am Vorgang) und die Zielgruppe des neuen Vorgangs.
+    | Die Schlüssel kommen so von der Website und dürfen nicht umbenannt werden.
+    */
+    'website_intake' => [
+        'anliegen' => [
+            'bildungsgutschein' => ['label' => 'Weiterbildung mit Bildungsgutschein', 'target_group' => 'open'],
+            'betrieb' => ['label' => 'Förderung für den Betrieb nach § 82 SGB III', 'target_group' => 'company_open'],
+            'einzelkurs' => ['label' => 'Einzelkurs vormerken', 'target_group' => 'self_payer'],
+            'kostentraeger' => ['label' => 'Anfrage als Agentur, Jobcenter oder Kostenträger', 'target_group' => 'open'],
+            'sonstiges' => ['label' => 'Sonstiges', 'target_group' => 'open'],
+        ],
+        'finanzierung' => [
+            'agentur' => ['label' => 'Bildungsgutschein der Agentur für Arbeit', 'target_group' => 'B'],
+            'jobcenter' => ['label' => 'Bildungsgutschein des Jobcenters', 'target_group' => 'A'],
+            'betrieb' => ['label' => 'über meinen Arbeitgeber', 'target_group' => 'company_open'],
+            'selbst' => ['label' => 'selbst', 'target_group' => 'self_payer'],
+            'offen' => ['label' => 'weiß ich noch nicht', 'target_group' => 'open'],
+        ],
     ],
 
     /*

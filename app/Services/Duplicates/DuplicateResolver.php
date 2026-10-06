@@ -33,7 +33,8 @@ class DuplicateResolver
         'website' => 'Website', 'source_url' => 'Fundstelle', 'employee_count' => 'Mitarbeitende', 'is_training_company' => 'Ausbildungsbetrieb',
         'salutation' => 'Anrede', 'first_name' => 'Vorname', 'last_name' => 'Nachname', 'position' => 'Funktion',
         'privacy_notice_sent_at' => 'Datenschutzhinweis übermittelt am', 'phone_consent_at' => 'Einwilligung Telefon am',
-        'phone_consent_proof' => 'Nachweis Einwilligung Telefon', 'health_consent_at' => 'Einwilligung Gesundheitsangaben am',
+        'phone_consent_proof' => 'Nachweis Einwilligung Telefon', 'email_consent_at' => 'Einwilligung E-Mail am',
+        'email_consent_proof' => 'Nachweis Einwilligung E-Mail', 'health_consent_at' => 'Einwilligung Gesundheitsangaben am',
         'health_consent_proof' => 'Nachweis Einwilligung Gesundheitsangaben',
     ];
 
@@ -41,7 +42,7 @@ class DuplicateResolver
 
     public const ORGANIZATION_FIELDS = ['name', 'legal_form', 'industry', 'wz_code', 'priority', 'street', 'postal_code', 'city', 'phone_display', 'email', 'website', 'source_url', 'employee_count', 'is_training_company'];
 
-    public const CONTACT_FIELDS = ['salutation', 'first_name', 'last_name', 'position', 'phone_display', 'email', 'privacy_notice_sent_at', 'phone_consent_at', 'phone_consent_proof', 'health_consent_at', 'health_consent_proof'];
+    public const CONTACT_FIELDS = ['salutation', 'first_name', 'last_name', 'position', 'phone_display', 'email', 'privacy_notice_sent_at', 'phone_consent_at', 'phone_consent_proof', 'email_consent_at', 'email_consent_proof', 'health_consent_at', 'health_consent_proof'];
 
     /** @param array<string, string> $choices Feld => 'match' (vorhandenen Wert behalten) oder 'subject' (neuen Wert übernehmen) */
     public function merge(DuplicateCandidate $candidate, ?User $user = null, array $choices = []): void
@@ -140,6 +141,13 @@ class DuplicateResolver
     private function mergeContact(Contact $subject, Contact $match, array $choices = []): array
     {
         $filled = $this->apply($match, $subject, self::CONTACT_FIELDS, $choices);
+
+        // Kein Anruf gewünscht: Der strengere Wert gilt.
+        if ($subject->phone_refused && ! $match->phone_refused) {
+            $match->phone_refused = true;
+            $match->save();
+            $filled[] = 'phone_refused';
+        }
 
         $leads = Lead::where('contact_id', $subject->id)->get();
 
