@@ -116,16 +116,22 @@ class SipgateClient
     /** @param  array<string, mixed>  $claims */
     private function callNeo(PendingRequest $request, SipgateConnection $connection, string $e164, array $claims): string
     {
-        if (! in_array('rtcm:write', explode(' ', (string) ($claims['scope'] ?? '')), true)) {
+        $scopes = explode(' ', (string) ($claims['scope'] ?? ''));
+
+        if (! in_array('rtcm:write', $scopes, true) || ! in_array('channels:read', $scopes, true)) {
             throw new RuntimeException('Ihr sipgate-Konto läuft auf der neuen sipgate-Anlage. Bitte trennen Sie sipgate unter „Telefonie“ und verbinden Sie es neu, damit das CRM dort Anrufe starten darf.');
         }
 
+        // Ohne channelId nimmt sipgate den Standard-Channel des Geräts. Die Handy-App hat keinen, dann klingelt nichts.
+        $channelId = $this->channelFor($request, $connection);
+
         // Erst mit +, das ist eindeutig. Lehnt sipgate das Format ab (400, es wurde nichts gewählt), ohne + wie im Beispiel der API.
         foreach ([$e164, ltrim($e164, '+')] as $target) {
-            $response = $request->post($this->api('/calls'), [
+            $response = $request->post($this->api('/calls'), array_filter([
                 'deviceId' => $connection->device_id,
                 'targetNumber' => $target,
-            ]);
+                'channelId' => $channelId,
+            ]));
 
             if ($response->status() !== 400) {
                 break;
@@ -137,6 +143,30 @@ class SipgateClient
         }
 
         return (string) ($response->json('callId') ?? $response->json('sessionId') ?? '');
+    }
+
+    /**
+     * Neo: Channel für den Anruf. Zuerst einer, in dem das gewählte Gerät der Person eingetragen ist,
+     * sonst der erste Channel der Person. Null, wenn sipgate keinen liefert (dann Standard-Channel des Geräts).
+     */
+    private function channelFor(PendingRequest $request, SipgateConnection $connection): ?string
+    {
+        $response = $request->get($this->api('/channels'));
+
+        if ($response->failed()) {
+            return null;
+        }
+
+        $mine = collect($response->json('items') ?? [])
+            ->map(fn (array $channel) => [
+                'id' => $channel['id'] ?? null,
+                'devices' => collect($channel['users'] ?? [])->firstWhere('id', $connection->sipgate_user_id)['deviceIds'] ?? null,
+            ])
+            ->filter(fn (array $channel) => $channel['id'] !== null && $channel['devices'] !== null);
+
+        $channel = $mine->first(fn (array $channel) => in_array($connection->device_id, $channel['devices'], true)) ?? $mine->first();
+
+        return $channel['id'] ?? null;
     }
 
     /**

@@ -44,8 +44,8 @@ return [
         'client_secret' => env('SIPGATE_CLIENT_SECRET'),
         'redirect' => env('SIPGATE_REDIRECT_URI', rtrim((string) env('APP_URL'), '/').'/sipgate/callback'),
         'realm' => env('SIPGATE_REALM', 'third-party'),
-        // rtcm:write braucht die neue sipgate-Anlage (Neo) zum Starten von Anrufen über /calls.
-        'scopes' => 'sessions:calls:write rtcm:write history:read devices:read',
+        // rtcm:write und channels:read braucht die neue sipgate-Anlage (Neo) zum Starten von Anrufen über /calls.
+        'scopes' => 'sessions:calls:write rtcm:write channels:read history:read devices:read',
         'login_url' => 'https://login.sipgate.com/auth/realms/',
         'api_url' => 'https://api.sipgate.com/v2',
     ],

@@ -222,41 +222,88 @@ function sipgateJwt(array $claims): string
     return $part(['alg' => 'RS256']).'.'.$part($claims).'.signatur';
 }
 
-it('startet den Anruf bei der neuen sipgate-Anlage (Neo) über /calls', function () {
-    sipgateConnection($this->user, ['access_token' => sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => 'sessions:calls:write rtcm:write history:read devices:read'])]);
+/** Neo-Token mit allen Rechten für den Anruf per Klick. */
+function neoToken(string $scope = 'sessions:calls:write rtcm:write channels:read history:read devices:read'): string
+{
+    return sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => $scope]);
+}
+
+/** Channels wie von sipgate: Gerät e0 der Person w0 nur im zweiten Channel. */
+function neoChannels(): array
+{
+    return ['items' => [
+        ['id' => 'ch-zentrale', 'name' => 'Zentrale', 'users' => [['id' => 'w0', 'deviceIds' => ['e5']], ['id' => 'w1', 'deviceIds' => ['e0']]]],
+        ['id' => 'ch-janosch', 'name' => 'Janosch', 'users' => [['id' => 'w0', 'deviceIds' => ['e2', 'e0']]]],
+    ]];
+}
+
+it('startet den Anruf bei der neuen sipgate-Anlage (Neo) über /calls mit dem Channel des Geräts', function () {
+    sipgateConnection($this->user, ['access_token' => neoToken()]);
     $lead = leadWithPhone('06131 123456');
-    Http::fake(['api.sipgate.com/v2/calls' => Http::response(['callId' => 'C1'])]);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/calls' => Http::response(['callId' => 'C1']),
+    ]);
 
     Livewire::test(ViewLead::class, ['record' => $lead->id])
         ->callAction('sipgateCall')
         ->assertNotified('Ihr Telefon klingelt gleich');
 
     Http::assertSent(fn (Request $request) => $request->url() === 'https://api.sipgate.com/v2/calls'
-        && $request['deviceId'] === 'e0' && $request['targetNumber'] === '+496131123456');
+        && $request['deviceId'] === 'e0' && $request['targetNumber'] === '+496131123456' && $request['channelId'] === 'ch-janosch');
     Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/sessions/calls'));
 });
 
+it('nimmt bei Neo den ersten Channel der Person, wenn das Gerät in keinem eingetragen ist', function () {
+    $connection = sipgateConnection($this->user, ['access_token' => neoToken(), 'device_id' => 'e9']);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/calls' => Http::response(['callId' => 'C3']),
+    ]);
+
+    app(SipgateClient::class)->call($connection, '+496131123456');
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/v2/calls') && $request['channelId'] === 'ch-zentrale');
+});
+
+it('startet den Anruf bei Neo ohne Channel, wenn sipgate keine Channels liefert', function () {
+    $connection = sipgateConnection($this->user, ['access_token' => neoToken()]);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response([], 500),
+        'api.sipgate.com/v2/calls' => Http::response(['callId' => 'C4']),
+    ]);
+
+    app(SipgateClient::class)->call($connection, '+496131123456');
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/v2/calls') && ! isset($request['channelId']));
+});
+
 it('versucht die Nummer bei Neo ohne +, wenn sipgate das Format ablehnt', function () {
-    sipgateConnection($this->user, ['access_token' => sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => 'rtcm:write'])]);
+    sipgateConnection($this->user, ['access_token' => neoToken()]);
     $lead = leadWithPhone('06131 123456');
-    Http::fake(['api.sipgate.com/v2/calls' => Http::sequence()->push(['message' => 'invalid'], 400)->push(['callId' => 'C2'])]);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/calls' => Http::sequence()->push(['message' => 'invalid'], 400)->push(['callId' => 'C2']),
+    ]);
 
     Livewire::test(ViewLead::class, ['record' => $lead->id])
         ->callAction('sipgateCall')
         ->assertNotified('Ihr Telefon klingelt gleich');
 
-    Http::assertSentInOrder([
-        fn (Request $request) => $request['targetNumber'] === '+496131123456',
-        fn (Request $request) => $request['targetNumber'] === '496131123456',
-    ]);
+    $targets = Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/v2/calls'))
+        ->map(fn (array $pair) => $pair[0]['targetNumber'])->values()->all();
+    expect($targets)->toBe(['+496131123456', '496131123456']);
 });
 
 it('nennt bei einer Ablehnung die Anlage und die Begründung von sipgate', function () {
-    $connection = sipgateConnection($this->user, ['access_token' => sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => 'rtcm:write'])]);
-    Http::fake(['api.sipgate.com/v2/calls' => Http::response(['error' => 'device has no channel'], 400)]);
+    $connection = sipgateConnection($this->user, ['access_token' => neoToken()]);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/calls' => Http::response(['errors' => ['Invalid invitable device']], 400),
+    ]);
 
     expect(fn () => app(SipgateClient::class)->call($connection, '+496131123456'))
-        ->toThrow(RuntimeException::class, 'sipgate hat den Anruf abgelehnt (400, Anlage Neo). device has no channel');
+        ->toThrow(RuntimeException::class, 'sipgate hat den Anruf abgelehnt (400, Anlage Neo). {"errors":["Invalid invitable device"]}');
 
     $classic = sipgateConnection(User::factory()->create(), ['access_token' => 'access-klassisch']);
     Http::fake(['api.sipgate.com/v2/sessions/calls' => Http::response('Bad Request', 400)]);
@@ -266,7 +313,7 @@ it('nennt bei einer Ablehnung die Anlage und die Begründung von sipgate', funct
 });
 
 it('bittet bei Neo ohne Recht zum Anrufen um eine neue Verbindung', function () {
-    sipgateConnection($this->user, ['access_token' => sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => 'sessions:calls:write history:read devices:read'])]);
+    sipgateConnection($this->user, ['access_token' => neoToken('sessions:calls:write rtcm:write history:read devices:read')]);
     $lead = leadWithPhone();
     Http::fake();
 
@@ -278,10 +325,10 @@ it('bittet bei Neo ohne Recht zum Anrufen um eine neue Verbindung', function () 
     Http::assertNothingSent();
 });
 
-it('fordert bei der Anmeldung das Recht für Anrufe auf der neuen sipgate-Anlage an', function () {
+it('fordert bei der Anmeldung die Rechte für Anrufe auf der neuen sipgate-Anlage an', function () {
     $location = $this->get(route('filament.crm.sipgate.connect'))->headers->get('Location');
 
-    expect($location)->toContain('rtcm%3Awrite')->toContain('sessions%3Acalls%3Awrite');
+    expect($location)->toContain('rtcm%3Awrite')->toContain('channels%3Aread')->toContain('sessions%3Acalls%3Awrite');
 });
 
 it('übernimmt Anrufe aus sipgate einmal als Aktivität am passenden Vorgang', function () {
