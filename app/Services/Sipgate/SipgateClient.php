@@ -6,7 +6,9 @@ use App\Models\SipgateConnection;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -94,10 +96,18 @@ class SipgateClient
         }
 
         if ($response->failed()) {
-            throw new RuntimeException('sipgate hat den Anruf abgelehnt ('.$response->status().'). '.($response->json('message') ?? ''));
+            throw $this->rejected($response, 'klassisch');
         }
 
         return (string) $response->json('sessionId');
+    }
+
+    /** Ablehnung mit Weg und Begründung von sipgate, damit sich der Fehler ohne Serverprotokoll eingrenzen lässt. */
+    private function rejected(Response $response, string $route): RuntimeException
+    {
+        $reason = $response->json('message') ?? $response->json('error') ?? trim(strip_tags($response->body()));
+
+        return new RuntimeException('sipgate hat den Anruf abgelehnt ('.$response->status().', Anlage '.$route.'). '.Str::limit((string) (is_scalar($reason) ? $reason : json_encode($reason)), 300));
     }
 
     /** @param  array<string, mixed>  $claims */
@@ -120,7 +130,7 @@ class SipgateClient
         }
 
         if ($response->failed()) {
-            throw new RuntimeException('sipgate hat den Anruf abgelehnt ('.$response->status().'). '.($response->json('message') ?? ''));
+            throw $this->rejected($response, 'Neo');
         }
 
         return (string) ($response->json('callId') ?? $response->json('sessionId') ?? '');

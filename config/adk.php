@@ -301,6 +301,7 @@ return [
         'phone' => 'Telefon',
         'teams' => 'Teams',
         'onsite' => 'vor Ort',
+        'email' => 'E-Mail (nachfassen)',
     ],
 
     /*

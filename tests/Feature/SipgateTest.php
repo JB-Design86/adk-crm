@@ -12,6 +12,7 @@ use App\Models\Organization;
 use App\Models\SipgateConnection;
 use App\Models\User;
 use App\Services\ReportService;
+use App\Services\Sipgate\SipgateClient;
 use App\Services\Sipgate\SipgateSync;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
@@ -237,6 +238,20 @@ it('versucht die Nummer bei Neo ohne +, wenn sipgate das Format ablehnt', functi
         fn (Request $request) => $request['targetNumber'] === '+496131123456',
         fn (Request $request) => $request['targetNumber'] === '496131123456',
     ]);
+});
+
+it('nennt bei einer Ablehnung die Anlage und die Begründung von sipgate', function () {
+    $connection = sipgateConnection($this->user, ['access_token' => sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => 'rtcm:write'])]);
+    Http::fake(['api.sipgate.com/v2/calls' => Http::response(['error' => 'device has no channel'], 400)]);
+
+    expect(fn () => app(SipgateClient::class)->call($connection, '+496131123456'))
+        ->toThrow(RuntimeException::class, 'sipgate hat den Anruf abgelehnt (400, Anlage Neo). device has no channel');
+
+    $classic = sipgateConnection(User::factory()->create(), ['access_token' => 'access-klassisch']);
+    Http::fake(['api.sipgate.com/v2/sessions/calls' => Http::response('Bad Request', 400)]);
+
+    expect(fn () => app(SipgateClient::class)->call($classic, '+496131123456'))
+        ->toThrow(RuntimeException::class, 'sipgate hat den Anruf abgelehnt (400, Anlage klassisch). Bad Request');
 });
 
 it('bittet bei Neo ohne Recht zum Anrufen um eine neue Verbindung', function () {
