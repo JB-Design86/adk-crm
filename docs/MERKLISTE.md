@@ -34,6 +34,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 - [ ] Website: df.eu erst kündigen, wenn die Formulare getestet sind; danach `ip4:92.205.174.49` aus dem SPF-Eintrag nehmen und A-11 nachziehen.
 - [ ] Website-Paket: die Anpassungen vom Server ins Paket übernehmen, damit eine neue Fassung sie nicht zurückdreht: `.htaccess` (HTTPS, HSTS), Satz zur EU in `datenschutz.html`, neues Kalenderbild `img/weg-2-quadrat-*`, Kursheft-PDF.
 - [x] Website: Kursheft-PDF liegt unter `download/ADK_Kursheft.pdf` (06.10.2026).
+- [ ] Website, Scroll-Effekte (Rückmeldung UX, 07.10.2026): Das Anhalten beim Scrollen nervt. Ziel: Parallaxe im Hintergrund läuft weiter, auch während der Abschnitt steht, damit der Flow bleibt. Auf weiterbildung.html unten: Hintergrundbild zu groß gezogen (wirkt verpixelt), Punkte zu groß. Der Abschnitt, bei dem der Hintergrund bewusst als Bild mitwechselt, bleibt wie er ist (Screenshot von Janosch folgt). **Jeden Effekt einzeln mit Janosch durchgehen**: welcher Hintergrund, welche Farbe, passend zu den Nachbarabschnitten. Nichts eigenständig ändern.
 
 ## Stufe 3 · Förderweg (vorgezogen)
 
