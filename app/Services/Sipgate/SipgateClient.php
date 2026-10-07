@@ -66,8 +66,9 @@ class SipgateClient
 
     /**
      * Anruf per Klick: Zuerst klingelt das gewählte Gerät, danach wird die Nummer angerufen.
+     * Klassische sipgate-Anlagen nutzen /sessions/calls, die neue Anlage (Neo) /calls.
      *
-     * @return string sessionId von sipgate
+     * @return string sessionId (klassisch) bzw. callId (Neo) von sipgate
      */
     public function call(SipgateConnection $connection, string $e164): string
     {
@@ -75,17 +76,68 @@ class SipgateClient
             throw new RuntimeException('Bitte wählen Sie zuerst unter „Telefonie“ das Gerät, das klingeln soll.');
         }
 
-        $response = $this->request($connection)->post($this->api('/sessions/calls'), [
+        $request = $this->request($connection);
+        $claims = $this->tokenClaims($connection);
+
+        if (($claims['featureScope'] ?? null) === 'NEO_PBX') {
+            return $this->callNeo($request, $connection, $e164, $claims);
+        }
+
+        $response = $request->post($this->api('/sessions/calls'), [
             'deviceId' => $connection->device_id,
             'caller' => $connection->device_id,
             'callee' => $e164,
         ]);
+
+        if ($response->status() === 403) {
+            throw new RuntimeException('sipgate erlaubt mit dem gewählten Gerät keinen Anruf (403). Bitte wählen Sie unter „Telefonie“ ein anderes Gerät oder verbinden Sie sipgate neu.');
+        }
 
         if ($response->failed()) {
             throw new RuntimeException('sipgate hat den Anruf abgelehnt ('.$response->status().'). '.($response->json('message') ?? ''));
         }
 
         return (string) $response->json('sessionId');
+    }
+
+    /** @param  array<string, mixed>  $claims */
+    private function callNeo(PendingRequest $request, SipgateConnection $connection, string $e164, array $claims): string
+    {
+        if (! in_array('rtcm:write', explode(' ', (string) ($claims['scope'] ?? '')), true)) {
+            throw new RuntimeException('Ihr sipgate-Konto läuft auf der neuen sipgate-Anlage. Bitte trennen Sie sipgate unter „Telefonie“ und verbinden Sie es neu, damit das CRM dort Anrufe starten darf.');
+        }
+
+        // Erst mit +, das ist eindeutig. Lehnt sipgate das Format ab (400, es wurde nichts gewählt), ohne + wie im Beispiel der API.
+        foreach ([$e164, ltrim($e164, '+')] as $target) {
+            $response = $request->post($this->api('/calls'), [
+                'deviceId' => $connection->device_id,
+                'targetNumber' => $target,
+            ]);
+
+            if ($response->status() !== 400) {
+                break;
+            }
+        }
+
+        if ($response->failed()) {
+            throw new RuntimeException('sipgate hat den Anruf abgelehnt ('.$response->status().'). '.($response->json('message') ?? ''));
+        }
+
+        return (string) ($response->json('callId') ?? $response->json('sessionId') ?? '');
+    }
+
+    /**
+     * Angaben im Zugriffstoken (JWT) von sipgate, z. B. featureScope (CLASSIC oder NEO_PBX) und scope.
+     * Nur zum Auswählen des Wegs, die Echtheit prüft sipgate bei jedem Aufruf selbst.
+     *
+     * @return array<string, mixed>
+     */
+    private function tokenClaims(SipgateConnection $connection): array
+    {
+        $payload = explode('.', (string) $connection->access_token)[1] ?? '';
+        $claims = json_decode((string) base64_decode(strtr($payload, '-_', '+/')), true);
+
+        return is_array($claims) ? $claims : [];
     }
 
     /**

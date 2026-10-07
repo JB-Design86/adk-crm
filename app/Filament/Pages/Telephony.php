@@ -107,6 +107,7 @@ class Telephony extends Page
         return match ($type) {
             'REGISTER' => 'Telefon oder Softphone',
             'MOBILE' => 'Mobiltelefon',
+            'APP' => 'sipgate-App',
             'EXTERNAL' => 'externe Rufnummer',
             default => $type,
         };

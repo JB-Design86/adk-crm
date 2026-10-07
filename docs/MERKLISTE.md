@@ -30,11 +30,12 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 - [x] Löschersuchen nach Art. 17 DSGVO: Knopf an Organisation, Kontakt und Vorgang (nur Verwaltung), siehe `GESAMTKONZEPT.md` Abschnitt 6.
 - [x] **Website adk-akademie.de von df.eu auf den Server umgezogen (06.10.2026)**, siehe `BETRIEB.md` Abschnitt 13. HTTPS, HSTS, Löschlauf, Protokolle 30 Tage; Datenschutzerklärung: IONOS „in der Europäischen Union“.
 - [x] **Mailversand vom Server** (06.10.2026): Port 25 von IONOS freigeschaltet, Mail-Dienst der Domain an mit fester Weiterleitung an Microsoft 365 (`BETRIEB.md` Abschnitt 13). Testmail an info@ angenommen.
-- [ ] Formulare testen: Kontaktformular und Kursheft mit eigener Adresse (Janosch), Junk-Ordner prüfen. Danach DKIM für `adk-akademie.de` (Schlüssel aus Plesk, TXT-Eintrag bei IONOS).
+- [x] Formulare getestet (Kontakt und Kursheft, 06./07.10.2026): kommen an, landen im CRM. DKIM Plesk (`default`) und Microsoft 365 (`selector1`/`selector2`, aktiv seit 07.10.2026), DMARC `p=none`, Versand über Microsoft 365 (`BETRIEB.md` Abschnitt 13).
+- [ ] Zustellung Hotmail und Yahoo nach dem Einschalten von DKIM bei Microsoft erneut prüfen (Junk-Ordner, Kopfzeile `dkim=pass`).
 - [ ] Website: df.eu erst kündigen, wenn die Formulare getestet sind; danach `ip4:92.205.174.49` aus dem SPF-Eintrag nehmen und A-11 nachziehen.
-- [ ] Website-Paket: die Anpassungen vom Server ins Paket übernehmen, damit eine neue Fassung sie nicht zurückdreht: `.htaccess` (HTTPS, HSTS), Satz zur EU in `datenschutz.html`, neues Kalenderbild `img/weg-2-quadrat-*`, Kursheft-PDF.
+- [ ] Website-Paket: die Anpassungen vom Server ins Paket übernehmen, damit eine neue Fassung sie nicht zurückdreht: `.htaccess` (HTTPS, HSTS), Satz zur EU in `datenschutz.html`, neues Kalenderbild `img/weg-2-quadrat-*`, Kursheft-PDF, CRM-Anbindung (`inc/funktionen.php`, `bin/crm_nachlauf.php`, Kursheft-Formular), Scroll-Effekte und Texte vom 07.10.2026. Der aktuelle Stand liegt vollständig in der Arbeitskopie `Projekte/adk-website` (gleich Server).
 - [x] Website: Kursheft-PDF liegt unter `download/ADK_Kursheft.pdf` (06.10.2026).
-- [ ] Website, Scroll-Effekte (Rückmeldung UX, 07.10.2026): Das Anhalten beim Scrollen nervt. Ziel: Parallaxe im Hintergrund läuft weiter, auch während der Abschnitt steht, damit der Flow bleibt. Auf weiterbildung.html unten: Hintergrundbild zu groß gezogen (wirkt verpixelt), Punkte zu groß. Der Abschnitt, bei dem der Hintergrund bewusst als Bild mitwechselt, bleibt wie er ist (Screenshot von Janosch folgt). **Jeden Effekt einzeln mit Janosch durchgehen**: welcher Hintergrund, welche Farbe, passend zu den Nachbarabschnitten. Nichts eigenständig ändern.
+- [x] Website, Scroll-Effekte (Rückmeldung UX, 07.10.2026), mit Janosch durchgegangen und danach auf allen Seiten umgesetzt, live seit 07.10.2026 (`ADK_Website_Scrolleffekte_2026-10-07.zip`). Ursprünglicher Auftrag: Das Anhalten beim Scrollen nervt. Ziel: Parallaxe im Hintergrund läuft weiter, auch während der Abschnitt steht, damit der Flow bleibt. Auf weiterbildung.html unten: Hintergrundbild zu groß gezogen (wirkt verpixelt), Punkte zu groß. Der Abschnitt, bei dem der Hintergrund bewusst als Bild mitwechselt, bleibt wie er ist (Screenshot von Janosch folgt). **Jeden Effekt einzeln mit Janosch durchgehen**: welcher Hintergrund, welche Farbe, passend zu den Nachbarabschnitten. Nichts eigenständig ändern.
 
 ## Stufe 3 · Förderweg (vorgezogen)
 
@@ -55,7 +56,7 @@ Anforderungen:
 
 ## Stufe 2 · Eingänge automatisch
 
-- [x] **Website-Formular → CRM** gebaut 06.10.2026 (`BETRIEB.md` Abschnitt 14): signierte Schnittstelle `/api/eingang`, Vorgang „Neu“ mit Kanal Website-Formular, Kursheft erst nach Double-Opt-in, Finanzierung setzt die Zielgruppe, „Kein Anruf gewünscht“ sperrt Anrufe. Im Betrieb eingerichtet 06.10.2026 (Schlüssel, Website-Dateien, Cron). Offen: Probe Kursheft mit eigener Adresse, DKIM-Eintrag bei IONOS.
+- [x] **Website-Formular → CRM** gebaut 06.10.2026 (`BETRIEB.md` Abschnitt 14): signierte Schnittstelle `/api/eingang`, Vorgang „Neu“ mit Kanal Website-Formular, Kursheft erst nach Double-Opt-in, Finanzierung setzt die Zielgruppe, „Kein Anruf gewünscht“ sperrt Anrufe. Im Betrieb eingerichtet 06.10.2026 (Schlüssel, Website-Dateien, Cron). Probe Kontakt und Kursheft bestanden, DKIM eingetragen.
 - **Opt-in für E-Mail:**
   - Im Formular getrennte, nicht vorausgefüllte Häkchen: Rückruf per Telefon, E-Mail-Werbung bzw. Newsletter.
   - Double-Opt-in per Bestätigungslink als Nachweis.
