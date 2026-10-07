@@ -133,6 +133,17 @@ it('zeigt die Geräte und speichert das Gerät für „Anrufen“', function () 
         ->and($connection->fresh()->device_alias)->toBe('Handy');
 });
 
+it('fragt bei Neo alle Gerätearten ab, damit die sipgate-App erscheint', function () {
+    sipgateConnection($this->user, ['device_id' => null, 'device_alias' => null, 'access_token' => sipgateJwt(['featureScope' => 'NEO_PBX', 'scope' => 'devices:read'])]);
+    Http::fake(['api.sipgate.com/v2/w0/devices*' => Http::response(['items' => [
+        ['id' => 'a0', 'alias' => 'iPhone', 'type' => 'APP', 'online' => true],
+    ]])]);
+
+    Livewire::test(Telephony::class)->assertSee('iPhone')->assertSee('sipgate-App');
+
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://api.sipgate.com/v2/w0/devices?type=all');
+});
+
 it('startet einen Anruf per Klick auf der Vorgangsseite', function () {
     sipgateConnection($this->user);
     $lead = leadWithPhone('06131 123456');

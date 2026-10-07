@@ -56,7 +56,10 @@ class SipgateClient
     /** @return list<array{id: string, alias: string, type: string, online: bool}> */
     public function devices(SipgateConnection $connection): array
     {
-        $response = $this->request($connection)->get($this->api('/'.rawurlencode($connection->sipgate_user_id).'/devices'))->throw();
+        $request = $this->request($connection);
+        // Neo: ausdrücklich alle Gerätearten, damit auch die sipgate-App erscheint.
+        $query = ($this->tokenClaims($connection)['featureScope'] ?? null) === 'NEO_PBX' ? ['type' => 'all'] : [];
+        $response = $request->get($this->api('/'.rawurlencode($connection->sipgate_user_id).'/devices'), $query)->throw();
 
         return array_map(fn (array $device) => [
             'id' => $device['id'],
