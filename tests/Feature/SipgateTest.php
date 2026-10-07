@@ -254,6 +254,44 @@ it('startet den Anruf bei der neuen sipgate-Anlage (Neo) über /calls mit dem Ch
     Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/sessions/calls'));
 });
 
+it('zeigt bei Neo die Channels mit den eigenen Geräten und welcher für Anrufe genutzt wird', function () {
+    sipgateConnection($this->user, ['access_token' => neoToken()]);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/w0/devices*' => Http::response(['items' => [
+            ['id' => 'e0', 'alias' => 'Bürotelefon', 'type' => 'REGISTER'],
+            ['id' => 'e2', 'alias' => 'Mobile App', 'type' => 'REGISTER'],
+            ['id' => 'e5', 'alias' => 'CLINQ App Extension', 'type' => 'REGISTER'],
+        ]]),
+    ]);
+
+    Livewire::test(Telephony::class)
+        ->assertSee('Channels bei sipgate')
+        ->assertSee('Zentrale')
+        ->assertSee('Ihre Geräte: CLINQ App Extension')
+        ->assertSee('Ihre Geräte: Mobile App, Bürotelefon')
+        ->assertSeeInOrder(['Janosch', 'wird für „Anrufen“ genutzt'])
+        ->assertDontSee('in keinem Ihrer Channels eingetragen');
+});
+
+it('weist bei Neo darauf hin, wenn das gewählte Gerät in keinem Channel steht', function () {
+    sipgateConnection($this->user, ['access_token' => neoToken(), 'device_id' => 'e9', 'device_alias' => 'Mobile App']);
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/w0/devices*' => Http::response(['items' => []]),
+    ]);
+
+    Livewire::test(Telephony::class)->assertSee('Das Gerät „Mobile App“ ist in keinem Ihrer Channels eingetragen');
+});
+
+it('zeigt bei der klassischen Anlage keine Channels', function () {
+    sipgateConnection($this->user);
+    Http::fake(['api.sipgate.com/v2/w0/devices*' => Http::response(['items' => []])]);
+
+    Livewire::test(Telephony::class)->assertDontSee('Channels bei sipgate');
+    Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/channels'));
+});
+
 it('nimmt bei Neo den ersten Channel der Person, wenn das Gerät in keinem eingetragen ist', function () {
     $connection = sipgateConnection($this->user, ['access_token' => neoToken(), 'device_id' => 'e9']);
     Http::fake([

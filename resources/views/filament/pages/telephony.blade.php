@@ -57,6 +57,48 @@
                 @endif
             @endif
         </x-filament::section>
+
+        @php($channels = $this->channels())
+        @if ($channels !== null)
+            @php($aliases = collect($this->devices())->pluck('alias', 'id'))
+            @php($used = \App\Services\Sipgate\SipgateClient::channelForDevice($channels, $connection->device_id))
+            <x-filament::section icon="heroicon-o-queue-list">
+                <x-slot name="heading">Channels bei sipgate</x-slot>
+                <x-slot name="description">Bei der neuen sipgate-Anlage läuft jeder Anruf über einen Channel. So meldet sipgate Ihre Channels und Ihre Geräte darin.</x-slot>
+
+                @if ($channelsError)
+                    <p class="text-sm text-red-600 dark:text-red-400">{{ $channelsError }}</p>
+                @elseif (count($channels) === 0)
+                    <p class="text-sm text-gray-500">sipgate meldet keine Channels.</p>
+                @else
+                    <ul class="divide-y divide-gray-100 text-sm dark:divide-white/10">
+                        @foreach ($channels as $channel)
+                            <li class="flex flex-wrap items-center gap-2 py-2">
+                                <span class="font-medium">{{ $channel['name'] }}</span>
+                                @if (($used['id'] ?? null) === $channel['id'])
+                                    <x-filament::badge color="success">wird für „Anrufen“ genutzt</x-filament::badge>
+                                @endif
+                                <span class="basis-full text-gray-500">
+                                    @if ($channel['deviceIds'] === null)
+                                        Sie sind in diesem Channel nicht eingetragen.
+                                    @elseif (count($channel['deviceIds']) === 0)
+                                        Sie sind eingetragen, aber ohne Gerät.
+                                    @else
+                                        Ihre Geräte: {{ collect($channel['deviceIds'])->map(fn ($id) => $aliases[$id] ?? $id)->join(', ') }}
+                                    @endif
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if ($connection->device_id && ! collect($channels)->contains(fn ($channel) => in_array($connection->device_id, $channel['deviceIds'] ?? [], true)))
+                        <p class="mt-3 text-sm text-amber-700 dark:text-amber-400">
+                            Das Gerät „{{ $connection->device_alias }}“ ist in keinem Ihrer Channels eingetragen. Dann klingelt es beim Anruf per Klick womöglich nicht.
+                            In sipgate unter Channels können Sie das Gerät bei sich eintragen.
+                        </p>
+                    @endif
+                @endif
+            </x-filament::section>
+        @endif
     @endif
 
     <x-filament::section icon="heroicon-o-question-mark-circle" collapsible collapsed>

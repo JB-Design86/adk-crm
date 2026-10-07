@@ -10,6 +10,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * Anbindung an die sipgate-REST-API (https://api.sipgate.com/v2) per OAuth2.
@@ -58,7 +59,7 @@ class SipgateClient
     {
         $request = $this->request($connection);
         // Neo: ausdrücklich alle Gerätearten, damit auch die sipgate-App erscheint.
-        $query = ($this->tokenClaims($connection)['featureScope'] ?? null) === 'NEO_PBX' ? ['type' => 'all'] : [];
+        $query = $this->isNeo($connection) ? ['type' => 'all'] : [];
         $response = $request->get($this->api('/'.rawurlencode($connection->sipgate_user_id).'/devices'), $query)->throw();
 
         return array_map(fn (array $device) => [
@@ -123,7 +124,11 @@ class SipgateClient
         }
 
         // Ohne channelId nimmt sipgate den Standard-Channel des Geräts. Die Handy-App hat keinen, dann klingelt nichts.
-        $channelId = $this->channelFor($request, $connection);
+        try {
+            $channelId = self::channelForDevice($this->channels($connection), $connection->device_id)['id'] ?? null;
+        } catch (Throwable) {
+            $channelId = null;
+        }
 
         // Erst mit +, das ist eindeutig. Lehnt sipgate das Format ab (400, es wurde nichts gewählt), ohne + wie im Beispiel der API.
         foreach ([$e164, ltrim($e164, '+')] as $target) {
@@ -146,27 +151,43 @@ class SipgateClient
     }
 
     /**
-     * Neo: Channel für den Anruf. Zuerst einer, in dem das gewählte Gerät der Person eingetragen ist,
-     * sonst der erste Channel der Person. Null, wenn sipgate keinen liefert (dann Standard-Channel des Geräts).
+     * Neo: Channels des Kontos. deviceIds sind die Geräte der verbundenen Person in diesem Channel,
+     * null, wenn sie dort nicht eingetragen ist.
+     *
+     * @return list<array{id: string, name: string, deviceIds: ?list<string>}>
      */
-    private function channelFor(PendingRequest $request, SipgateConnection $connection): ?string
+    public function channels(SipgateConnection $connection): array
     {
-        $response = $request->get($this->api('/channels'));
+        $response = $this->request($connection)->get($this->api('/channels'))->throw();
 
-        if ($response->failed()) {
-            return null;
-        }
-
-        $mine = collect($response->json('items') ?? [])
+        return collect($response->json('items') ?? [])
+            ->filter(fn (array $channel) => filled($channel['id'] ?? null))
             ->map(fn (array $channel) => [
-                'id' => $channel['id'] ?? null,
-                'devices' => collect($channel['users'] ?? [])->firstWhere('id', $connection->sipgate_user_id)['deviceIds'] ?? null,
+                'id' => $channel['id'],
+                'name' => $channel['name'] ?? $channel['id'],
+                'deviceIds' => collect($channel['users'] ?? [])->firstWhere('id', $connection->sipgate_user_id)['deviceIds'] ?? null,
             ])
-            ->filter(fn (array $channel) => $channel['id'] !== null && $channel['devices'] !== null);
+            ->values()
+            ->all();
+    }
 
-        $channel = $mine->first(fn (array $channel) => in_array($connection->device_id, $channel['devices'], true)) ?? $mine->first();
+    /**
+     * Channel für den Anruf: zuerst einer, in dem das Gerät der Person eingetragen ist,
+     * sonst der erste Channel der Person. Null ohne Channel (dann Standard-Channel des Geräts).
+     *
+     * @param  list<array{id: string, name: string, deviceIds: ?list<string>}>  $channels
+     * @return array{id: string, name: string, deviceIds: ?list<string>}|null
+     */
+    public static function channelForDevice(array $channels, ?string $deviceId): ?array
+    {
+        $mine = collect($channels)->filter(fn (array $channel) => $channel['deviceIds'] !== null);
 
-        return $channel['id'] ?? null;
+        return $mine->first(fn (array $channel) => in_array($deviceId, $channel['deviceIds'], true)) ?? $mine->first();
+    }
+
+    public function isNeo(SipgateConnection $connection): bool
+    {
+        return ($this->tokenClaims($connection)['featureScope'] ?? null) === 'NEO_PBX';
     }
 
     /**

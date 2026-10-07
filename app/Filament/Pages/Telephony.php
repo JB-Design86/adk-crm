@@ -38,6 +38,8 @@ class Telephony extends Page
 
     public ?string $devicesError = null;
 
+    public ?string $channelsError = null;
+
     public static function canAccess(): bool
     {
         return Gate::allows('call_list');
@@ -81,6 +83,31 @@ class Telephony extends Page
         } catch (Throwable $exception) {
             report($exception);
             $this->devicesError = 'Die Geräte konnten nicht von sipgate geladen werden. Bitte verbinden Sie sipgate erneut.';
+
+            return [];
+        }
+    }
+
+    /**
+     * Neue sipgate-Anlage (Neo): Channels mit den eigenen Geräten, zur Kontrolle, worüber Anrufe laufen.
+     * Null bei der klassischen Anlage.
+     *
+     * @return list<array{id: string, name: string, deviceIds: ?list<string>}>|null
+     */
+    #[Computed]
+    public function channels(): ?array
+    {
+        if (! $this->configured() || ! $this->connection() || ! app(SipgateClient::class)->isNeo($this->connection())) {
+            return null;
+        }
+
+        try {
+            $this->channelsError = null;
+
+            return app(SipgateClient::class)->channels($this->connection());
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->channelsError = 'Die Channels konnten nicht von sipgate geladen werden. Bitte trennen Sie sipgate und verbinden Sie es neu.';
 
             return [];
         }
