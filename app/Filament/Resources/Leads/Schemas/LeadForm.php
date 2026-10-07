@@ -11,6 +11,8 @@ use App\Services\Duplicates\DuplicateFinder;
 use App\Support\Adk;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TimePicker;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -69,9 +71,15 @@ class LeadForm
                         ->label('zuständig')
                         ->options(fn () => User::where('is_blocked', false)->orderBy('name')->pluck('name', 'id'))
                         ->default(fn () => auth()->id()),
-                    DatePicker::make('next_action_at')
-                        ->label('nächste Aktion am')
-                        ->helperText('Bei eingehenden Anfragen automatisch heute.'),
+                    Grid::make(2)->schema([
+                        DatePicker::make('next_action_at')
+                            ->label('nächste Aktion am')
+                            ->helperText('Bei eingehenden Anfragen automatisch heute.'),
+                        TimePicker::make('next_action_time')
+                            ->label('Uhrzeit (optional)')
+                            ->seconds(false)
+                            ->helperText('Für einen Rückruf zu einer festen Zeit, nur zusammen mit dem Datum.'),
+                    ]),
                 ]),
         ]);
     }

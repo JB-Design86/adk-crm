@@ -39,9 +39,9 @@ class LeadInfolist
                             ->visible(fn (Lead $record) => $record->intake_ref !== null),
                         TextEntry::make('next_action_at')
                             ->label('nächste Aktion am')
-                            ->date('d.m.Y')
+                            ->formatStateUsing(fn (Lead $record) => $record->nextActionLabel())
                             ->placeholder('–')
-                            ->color(fn (Lead $record) => $record->isOverdue() ? 'danger' : null),
+                            ->color(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'danger' : null),
                         TextEntry::make('assignee.name')->label('zuständig')->placeholder('–'),
                         TextEntry::make('call_attempts')->label('Anrufversuche'),
                         TextEntry::make('last_contact_at')->label('letzter Kontakt')->dateTime('d.m.Y H:i')->placeholder('–'),

@@ -64,7 +64,11 @@
                     @foreach ($entry['followUps'] as $lead)
                         <a href="{{ LeadResource::getUrl('view', ['record' => $lead]) }}"
                            class="block truncate rounded-md px-2 py-1 text-xs hover:bg-gray-100 dark:hover:bg-white/5">
-                            <span class="text-gray-500">WV</span> {{ $lead->displayName() }}
+                            <span class="text-gray-500">WV</span>
+                            @if ($lead->next_action_time)
+                                <span class="font-semibold">{{ $lead->next_action_time }}</span>
+                            @endif
+                            {{ $lead->displayName() }}
                             @if ($mode === 'day')
                                 <span class="text-gray-500">· {{ Adk::statusLabel($lead->status) }}</span>
                             @endif
@@ -88,5 +92,5 @@
         @endforeach
     </div>
 
-    <p class="text-xs text-gray-500">Termine farbig, „WV“ = Wiedervorlage, „JB“ = Wiedervorlage Cross-Selling JB Design.</p>
+    <p class="text-xs text-gray-500">Termine farbig, „WV“ = Wiedervorlage (mit Uhrzeit: Rückruf), „JB“ = Wiedervorlage Cross-Selling JB Design.</p>
 </x-filament-panels::page>

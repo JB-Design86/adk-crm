@@ -32,7 +32,9 @@ class LeadsTable
             ->defaultSort(fn (Builder $query) => $query
                 ->orderByRaw('CASE WHEN status = ? AND channel IN ('.implode(',', array_fill(0, count(Adk::inboundChannels()), '?')).') THEN 0 ELSE 1 END', ['new', ...Adk::inboundChannels()])
                 ->orderByRaw('next_action_at IS NULL')
-                ->orderBy('next_action_at'))
+                ->orderBy('next_action_at')
+                ->orderByRaw('next_action_time IS NULL')
+                ->orderBy('next_action_time'))
             ->recordClasses(fn (Lead $record) => $record->isNewInbound() ? 'adk-row-inbound' : null)
             ->columns([
                 TextColumn::make('name')
@@ -56,10 +58,10 @@ class LeadsTable
                 TextColumn::make('organization.city')->label('Ort')->toggleable(),
                 TextColumn::make('next_action_at')
                     ->label('Wiedervorlage')
-                    ->date('d.m.Y')
-                    ->sortable()
-                    ->color(fn (Lead $record) => $record->isOverdue() ? 'danger' : null)
-                    ->weight(fn (Lead $record) => $record->isOverdue() ? 'bold' : null),
+                    ->formatStateUsing(fn (Lead $record) => $record->nextActionLabel())
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('next_action_at', $direction)->orderBy('next_action_time', $direction))
+                    ->color(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'danger' : null)
+                    ->weight(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'bold' : null),
                 TextColumn::make('call_attempts')->label('Versuche')->alignCenter()->toggleable(),
                 IconColumn::make('cross_selling')->label('JB')->boolean()->trueIcon(Heroicon::OutlinedSparkles)->falseIcon('')->tooltip('Cross-Selling JB Design'),
                 TextColumn::make('assignee.name')->label('zuständig')->toggleable(),

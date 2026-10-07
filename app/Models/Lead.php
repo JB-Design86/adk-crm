@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Support\Adk;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -26,6 +29,9 @@ class Lead extends Model
         'call_attempts' => 0,
         'cross_selling' => false,
     ];
+
+    /** Uhrzeit der Wiedervorlage seit dem letzten Speichern ausdrücklich gesetzt (siehe booted()). */
+    private bool $nextActionTimeAssigned = false;
 
     protected function casts(): array
     {
@@ -50,6 +56,30 @@ class Lead extends Model
 
             $lead->last_contact_at ??= now();
         });
+
+        // Die Uhrzeit gehört zum Datum: neues Datum ohne neue Uhrzeit heißt „irgendwann am Tag“.
+        static::saving(function (Lead $lead) {
+            if ($lead->next_action_at === null || ($lead->isDirty('next_action_at') && ! $lead->nextActionTimeAssigned)) {
+                $lead->next_action_time = null;
+            }
+        });
+
+        static::saved(function (Lead $lead) {
+            $lead->nextActionTimeAssigned = false;
+        });
+    }
+
+    /** Uhrzeit für einen Rückruf zur Wiedervorlage, z. B. „07:00“. Gespeichert mit Sekunden wie in MariaDB. */
+    protected function nextActionTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => $value === null ? null : substr($value, 0, 5),
+            set: function (mixed $value) {
+                $this->nextActionTimeAssigned = true;
+
+                return blank($value) ? null : Carbon::parse($value)->format('H:i:00');
+            },
+        );
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -146,6 +176,29 @@ class Lead extends Model
         return $query->open()->whereDate('next_action_at', '<=', today());
     }
 
+    /** Rückruf mit Uhrzeit, deren Zeitpunkt erreicht ist: heute ab der Uhrzeit oder von einem früheren Tag. */
+    public function scopeCallbackDue(Builder $query): Builder
+    {
+        $date = $query->qualifyColumn('next_action_at');
+        $time = $query->qualifyColumn('next_action_time');
+
+        return $query->whereNotNull($time)->where(fn (Builder $q) => $q
+            ->whereDate($date, '<', today())
+            ->orWhere(fn (Builder $t) => $t->whereDate($date, today())->where($time, '<=', now()->format('H:i:s'))));
+    }
+
+    /** Sortierung: fällige Rückrufe mit Uhrzeit zuerst (gleiche Bedingung wie scopeCallbackDue). */
+    public function scopeOrderByCallbackDue(Builder $query): Builder
+    {
+        $date = $query->qualifyColumn('next_action_at');
+        $time = $query->qualifyColumn('next_action_time');
+
+        return $query->orderByRaw(
+            "CASE WHEN {$time} IS NOT NULL AND (DATE({$date}) < ? OR (DATE({$date}) = ? AND {$time} <= ?)) THEN 0 ELSE 1 END",
+            [today()->toDateString(), today()->toDateString(), now()->format('H:i:s')],
+        );
+    }
+
     public function isOpen(): bool
     {
         return $this->closed_at === null;
@@ -164,6 +217,34 @@ class Lead extends Model
     public function isOverdue(): bool
     {
         return $this->isOpen() && $this->next_action_at !== null && $this->next_action_at->lt(today());
+    }
+
+    /** Zeitpunkt des Rückrufs (Datum und Uhrzeit), null ohne Uhrzeit. */
+    public function nextActionDueAt(): ?CarbonImmutable
+    {
+        if ($this->next_action_at === null || $this->next_action_time === null) {
+            return null;
+        }
+
+        return CarbonImmutable::parse($this->next_action_at->format('Y-m-d').' '.$this->next_action_time);
+    }
+
+    /** Offener Vorgang mit Rückruf zu einer Uhrzeit, die erreicht ist. */
+    public function isCallbackDue(): bool
+    {
+        $dueAt = $this->nextActionDueAt();
+
+        return $this->isOpen() && $dueAt !== null && $dueAt->lte(now());
+    }
+
+    /** Wiedervorlage zur Anzeige: „08.10.2026, 07:00 Uhr“ oder „08.10.2026“. */
+    public function nextActionLabel(): ?string
+    {
+        if ($this->next_action_at === null) {
+            return null;
+        }
+
+        return $this->next_action_at->format('d.m.Y').($this->next_action_time ? ", {$this->next_action_time} Uhr" : '');
     }
 
     public function isPrivatePerson(): bool

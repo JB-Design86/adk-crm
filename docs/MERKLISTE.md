@@ -10,6 +10,7 @@ Stand 28.09.2026 · Punkte aus der Durchsicht mit Janosch, damit nichts verloren
 - [x] **Hilfe-Fragezeichen:** ein **?** mit kurzer Erklärung an Feldern, Spalten und Status, dazu ein Satz je Seite, wofür sie da ist. Texte an einer Stelle gesammelt, damit sie leicht anpassbar sind.
 - [x] **Stufe 3 vorziehen: Förderweg** (erste Fassung fertig, siehe `STUFE3_FOERDERWEG.md`; Details unten). Ziel: Vertrieb kann vom ersten Anruf bis zur Anmeldung in einem Zug arbeiten.
 - [x] **Automatisches Einspielen auf crm-test** bei jedem Push nach GitHub (Plesk-Webhook), damit dafür keine Plesk-Anmeldung mehr nötig ist. Betrieb bleibt manuell.
+- [x] **Rückruf mit Uhrzeit** (07.10.2026, Wunsch Vertrieb: „morgen zwischen 7 und 8 nochmal anrufen“): Beim Status lässt sich die Wiedervorlage ändern und eine Uhrzeit angeben, auch bei „Nicht erreicht“. Zur Uhrzeit erscheint ein Hinweis „Rückruf fällig“ auf jeder Seite, der Vorgang steht in „Heute“ oben und in der Anrufliste vor Priorität A. Vorher bietet die Anrufliste ihn nicht an. Siehe `STUFE1_ABNAHME.md` 3.3 und Abweichung 13.
 
 - [x] **sipgate im Betrieb eingerichtet** (05.10.2026). Offen: Vereinbarung zur Auftragsverarbeitung mit sipgate abschließen, A-11 und A-21 um sipgate ergänzen, erster Testanruf.
 - [x] **sipgate, erste Fassung:** Anruf per Klick (Anrufliste, Vorgangsseite) und automatische Protokollierung der Telefonate alle 5 Minuten. Einrichtung siehe `BETRIEB.md` Abschnitt 10. Offen: Einträge in der `.env` von crm-test (Janosch), Test mit eigener Nummer.
@@ -65,6 +66,7 @@ Anforderungen:
   - Die Antwort auf die Anfrage selbst braucht kein Opt-in, Werbung schon. Einzelheiten mit der Datenschutz-Beratung klären.
 - Datenschutzerklärung der Website ergänzen (Lastenheft 10, Nr. 5). A-11 und A-21 wegen der neuen Schnittstellen anpassen.
 - Postfach info@ über Microsoft Graph, E-Mail-Versand aus dem Vorgang, Calendly (Lastenheft 5).
+- **sipgate, KI-Zusammenfassungen der Gespräche** (Wunsch Janosch 07.10.2026): Die sipgate-App erstellt Zusammenfassungen der Telefonate. Diese sollen automatisch als Aktivität am Vorgang landen. Prüfen, ob sipgate sie über eine Schnittstelle oder einen Webhook herausgibt. In der öffentlichen REST-API (Stand 07.10.2026) steht dazu nichts. Datenschutz vorher klären: Gesprächsinhalte, Einwilligung, AVV mit sipgate.
 - **sipgate, eingehende Anrufe:** Bei einem Anruf sofort den passenden Vorgang anzeigen (sipgate-Webhook). Unbekannte Nummer: Vorgang „Neu“ mit Kanal Anruf vorschlagen. Verpasste Anrufe als Wiedervorlage für heute.
 
 ## Stufe 4 · Teilnehmerakte (erste Fassung steht, siehe `GESAMTKONZEPT.md`)

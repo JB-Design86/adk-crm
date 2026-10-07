@@ -23,6 +23,7 @@ return [
         'channel' => 'Wie der Kontakt zustande kam. Alles außer „Kaltakquise“ gilt als eingehende Anfrage: rot oben in „Heute“, Wiedervorlage heute, Anruf auch bei Privatpersonen erlaubt.',
         'status' => 'Stand des Vorgangs in der Akquise. Wird über „Status setzen“ oder die Tasten in der Anrufliste geändert, damit Wiedervorlage und Sperrliste automatisch stimmen.',
         'next_action_at' => 'Wiedervorlage: An diesem Tag erscheint der Vorgang in „Heute“ und in der Anrufliste. Wird bei vielen Status automatisch gesetzt.',
+        'next_action_time' => 'Für einen Rückruf zu einer festen Zeit, z. B. „morgen um 07:00 Uhr anrufen“. Zur Uhrzeit erscheint ein Hinweis im CRM, der Vorgang steht in „Heute“ und in der Anrufliste oben. Vorher bietet die Anrufliste ihn nicht an. Leer lassen, wenn der ganze Tag passt.',
         'assigned_to' => 'Wer sich um den Vorgang kümmert. „nur meine“ in Heute und Anrufliste zeigt die eigenen und nicht zugewiesenen Vorgänge.',
         'call_attempts' => 'Wie oft niemand erreicht wurde (Taste 1). Nach dem dritten Versuch fragt die Anrufliste, ob der Vorgang ruhen soll.',
         'last_contact_at' => 'Letzter Kontakt oder Versuch. Ab hier läuft die Löschfrist: Betriebe 24 Monate, Privatpersonen 6 Monate.',
@@ -98,8 +99,8 @@ return [
     ],
 
     'seiten' => [
-        'heute' => 'Alles, was heute zu tun ist: fällige und überfällige Wiedervorlagen, neue Anfragen (rot) und die Termine des Tages.',
-        'anrufliste' => 'Ein Betrieb nach dem anderen, zuerst Priorität A. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
+        'heute' => 'Alles, was heute zu tun ist: fällige und überfällige Wiedervorlagen, neue Anfragen (rot), Rückrufe mit Uhrzeit und die Termine des Tages.',
+        'anrufliste' => 'Ein Betrieb nach dem anderen: zuerst fällige Rückrufe mit Uhrzeit, dann Priorität A. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
         'vorgaenge' => 'Vorgänge nach Phase: Akquise (Standard), Förderfall, Teilnehmer, geschlossen. Übergebene Vorgänge stehen nicht mehr in der Akquise, sondern unter Förderfall bzw. Teilnehmer.',
         'teilnehmer' => 'Teilnehmerakten: entstehen mit „Einschreibung bestätigt“ im Förderfall. Checkliste von Vertrag bis Verbleib, Dokumente, Ausgabe als ZIP.',
         'checkliste' => 'Punkte der Checkliste in der Teilnehmerakte, je Phase. Umbenennen, sortieren, ergänzen oder abschalten.',
@@ -121,11 +122,11 @@ return [
 
     'status' => [
         'new' => 'Noch nicht bearbeitet. Eingehende Anfragen erscheinen rot ganz oben, Wiedervorlage heute.',
-        'not_reached' => 'Niemand erreicht. Versuch wird gezählt, Wiedervorlage automatisch in 2 Arbeitstagen.',
-        'interested' => 'Gespräch geführt, Interesse vorhanden. Wiedervorlagedatum ist Pflicht.',
-        'documents_sent' => 'Unterlagen mit Datenschutzhinweis versendet. Datum wird am Kontakt gesetzt, Wiedervorlage in 5 Arbeitstagen.',
+        'not_reached' => 'Niemand erreicht. Versuch wird gezählt, Wiedervorlage automatisch in 2 Arbeitstagen. Datum änderbar, Uhrzeit für einen festen Rückruf möglich.',
+        'interested' => 'Gespräch geführt, Interesse vorhanden. Wiedervorlagedatum ist Pflicht, Uhrzeit möglich.',
+        'documents_sent' => 'Unterlagen mit Datenschutzhinweis versendet. Datum wird am Kontakt gesetzt, Wiedervorlage in 5 Arbeitstagen (änderbar).',
         'appointment' => 'Termin vereinbart (Datum, Uhrzeit, Art). Der Vorgang erscheint am Termintag in „Heute“.',
-        'later' => 'Später Interesse, z. B. nächster Durchlauf. Wiedervorlagedatum ist Pflicht.',
+        'later' => 'Später Interesse, z. B. nächster Durchlauf. Wiedervorlagedatum ist Pflicht, Uhrzeit möglich.',
         'no_interest' => 'Kein Interesse. Vorgang wird geschlossen, die Löschfrist läuft.',
         'no_need' => 'Kein Bedarf, falsche Zielgruppe (z. B. Ein-Personen-Betrieb). Vorgang wird geschlossen.',
         'objection' => 'Werbewiderspruch: Vorgang geschlossen, Telefon, E-Mail und Firma dauerhaft auf der Sperrliste. Mit Sicherheitsabfrage.',

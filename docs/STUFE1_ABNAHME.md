@@ -61,17 +61,20 @@ Tabellen wie vorgegeben, dazu `activity_log` (Protokoll). Telefonnummern als E.1
 - `check_levels` und `organization_checks`: frei verwaltbare Prüfstufen und ihre Ergebnisse je Organisation (bestanden, nicht bestanden, offen), dazu `organizations.check_notes`
 - `contacts.phone_consent_last_used_at`: für die Frist „5 Jahre ab letzter Verwendung“
 - `leads.close_reason` (Grund bei „Datensatz falsch“), `leads.contracted_at` (Vertragsschluss, für Stufe 3 und den Löschlauf), `leads.import_log_id`
+- `leads.next_action_time`: Uhrzeit zur Wiedervorlage für einen Rückruf zu einer festen Zeit (07.10.2026). Ändert sich das Datum ohne neue Uhrzeit, entfällt die Uhrzeit
 
 ### 3.3 Status und Regeln (Auftrag 5)
 
 Umgesetzt in `app/Services/LeadStatusService.php`, gesteuert über `config/adk.php`. Arbeitstage mit bundeseinheitlichen Feiertagen und Rheinland-Pfalz (Fronleichnam, Allerheiligen) in `app/Support/WorkingDays.php`. Jeder Statuswechsel erzeugt eine Aktivität (in der Anrufliste Typ „Anruf“ mit Ergebnis, sonst „Statuswechsel“).
 
+**Rückruf mit Uhrzeit (07.10.2026):** Bei allen Status mit Wiedervorlage (außer „Termin vereinbart“) lässt sich das Datum ändern und eine Uhrzeit angeben. Bei „Nicht erreicht“ und „Unterlagen versendet“ ist das berechnete Datum vorgeschlagen, leer bleibt es bei diesem Vorschlag. Zur Uhrzeit erscheint auf jeder Seite des CRM ein Hinweis „Rückruf fällig“ (eigene und nicht zugewiesene Vorgänge, je Anmeldung einmal, `App\Livewire\CallbackReminder`). Das CRM fragt dafür beim Laden einer Seite und danach jede Minute nach, aber nur, solange mit Maus oder Tastatur im CRM gearbeitet wird. Sonst prüft es bei der nächsten Eingabe. So bleibt die Abmeldung nach 120 Minuten Inaktivität erhalten.
+
 ### 3.4 Ansichten (Auftrag 6)
 
 | Ansicht | Adresse | Hinweise |
 |---|---|---|
-| Heute | `/` | fällig und überfällig, dazu fällige Cross-Selling-Wiedervorlagen; Termine des Tages; neue eingehende Anfragen rot mit Balken oben; Filter „nur meine“ |
-| Anrufliste | `/anrufliste` | ein Vorgang, Reihenfolge Priorität A, B, C, dann älteste Wiedervorlage, Vorgänge ohne Datum zuletzt; Schalter „nur meine und nicht zugewiesene“; Überspringen |
+| Heute | `/` | fällig und überfällig, dazu fällige Cross-Selling-Wiedervorlagen; Termine des Tages; neue eingehende Anfragen rot mit Balken oben, danach fällige Rückrufe mit Uhrzeit („Rückruf jetzt fällig“), am selben Tag Uhrzeit vor ohne; Filter „nur meine“ |
+| Anrufliste | `/anrufliste` | ein Vorgang, Reihenfolge fällige Rückrufe mit Uhrzeit, dann Priorität A, B, C, dann älteste Wiedervorlage, Vorgänge ohne Datum zuletzt; Rückrufe mit Uhrzeit erst ab der Uhrzeit; Schalter „nur meine und nicht zugewiesene“; Überspringen |
 | Vorgänge | `/vorgaenge` | alle geforderten Filter, zusätzlich offen/geschlossen und „nur meine“; Suche nach Firma, Ort, PLZ, Name, E-Mail; Export für die Verwaltung |
 | Vorgang | `/vorgaenge/{id}` | Vorgang, Organisation, Kontakt mit Einwilligungen, Aktivitäten, Termine; Status setzen, Cross-Selling, Aktivität erfassen |
 | Kalender | `/kalender` | Tag und Woche, Termine, Wiedervorlagen, Cross-Selling, Feiertage; „nur meine“ |
@@ -125,6 +128,7 @@ Nicht gebaut, aber vorbereitet:
 | 10 | Aufbewahrung Interessenten | Betriebe 24 Monate, Privatpersonen 6 Monate | Empfehlung aus Lastenheft Abschnitt 10 Nr. 1, im Auftrag so vorgegeben. Werte in `config/adk.php` |
 | 11 | Beschriftung „Passwort“ | Die Anmeldeseite von Filament schreibt „Passwort“ statt „Kennwort“ | Übersetzung des Pakets. Eigene Texte verwenden „Kennwort“. Siehe offene Frage 9 |
 | 12 | Prüfstufen | Nicht fest „Prüfstufe 1 bis 5“ und nicht in `config/adk.php`, sondern von der Verwaltung unter **Verwaltung → Prüfstufen** anlegbar, umbenennbar, sortierbar, abschaltbar und löschbar. Import-Spalten und Mustervorlage folgen den aktiven Prüfstufen | Wunsch aus der Durchsicht vom 27.09.2026. Nachvollziehbarkeit über das Protokoll statt über Git |
+| 13 | Rückruf mit Uhrzeit | Wiedervorlage bei Taste 1 und 3 änderbar (Vorschlag 2 bzw. 5 Arbeitstage), Uhrzeit optional bei Taste 1, 2, 3 und 5. Fällige Rückrufe stehen in der Anrufliste vor Priorität A, noch nicht fällige erscheinen dort erst zur Uhrzeit | Wunsch des Vertriebs vom 07.10.2026: „morgen zwischen 7 und 8 nochmal anrufen“, ohne sich das für viele Vorgänge merken zu müssen |
 
 ---
 

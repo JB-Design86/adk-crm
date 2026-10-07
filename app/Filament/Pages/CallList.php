@@ -20,8 +20,8 @@ use RuntimeException;
 use UnitEnum;
 
 /**
- * Anrufliste: ein Betrieb nach dem anderen. Reihenfolge Priorität A, B, C,
- * dann älteste Wiedervorlage. Bedienung über die Tasten 0 bis 9, Enter speichert.
+ * Anrufliste: ein Betrieb nach dem anderen. Reihenfolge fällige Rückrufe mit Uhrzeit,
+ * dann Priorität A, B, C, dann älteste Wiedervorlage. Bedienung über die Tasten 0 bis 9, Enter speichert.
  */
 class CallList extends Page
 {
@@ -51,6 +51,8 @@ class CallList extends Page
     public string $note = '';
 
     public ?string $nextActionAt = null;
+
+    public ?string $nextActionTime = null;
 
     /** @var array{date?: ?string, time?: ?string, type?: ?string} */
     public array $appointment = ['date' => null, 'time' => null, 'type' => 'phone'];
@@ -85,6 +87,7 @@ class CallList extends Page
 
     /**
      * Warteschlange: offene Vorgänge mit Wiedervorlage heute, überfällig oder ohne Datum.
+     * Rückrufe mit Uhrzeit erst ab der Uhrzeit, dann aber vor allen anderen.
      * Privatpersonen ohne Einwilligung aus der Kaltakquise erscheinen nicht, Personen mit
      * „Kein Anruf gewünscht“ auch nicht.
      */
@@ -105,6 +108,8 @@ class CallList extends Page
                     ->where(fn ($o) => $o->where('duplicate_candidates.type', 'organization')->whereColumn('duplicate_candidates.subject_id', 'leads.organization_id'))
                     ->orWhere(fn ($c) => $c->where('duplicate_candidates.type', 'contact')->whereColumn('duplicate_candidates.subject_id', 'leads.contact_id'))))
             ->where(fn (Builder $q) => $q->whereNull('leads.next_action_at')->orWhereDate('leads.next_action_at', '<=', today()))
+            // Wer um 14:00 Uhr angerufen werden möchte, erscheint nicht schon um 9:00 Uhr.
+            ->where(fn (Builder $q) => $q->whereNull('leads.next_action_time')->orWhere(fn (Builder $c) => $c->callbackDue()))
             ->where(fn (Builder $q) => $q->whereNotNull('organizations.phone_e164')->orWhereNotNull('contacts.phone_e164'))
             // Kein Anruf gewünscht (Website-Formular ohne Rückruf)
             ->where(fn (Builder $q) => $q->whereNull('contacts.phone_refused')->orWhere('contacts.phone_refused', false))
@@ -115,6 +120,10 @@ class CallList extends Page
                 ->orWhere(fn (Builder $p) => $p->whereNotNull('contacts.phone_consent_at')->whereNotNull('contacts.phone_consent_proof')))
             ->when($this->onlyMine, fn (Builder $q) => $q->where(fn ($m) => $m->whereNull('leads.assigned_to')->orWhere('leads.assigned_to', auth()->id())))
             ->when($this->skipped, fn (Builder $q) => $q->whereNotIn('leads.id', $this->skipped))
+            // Fällige Rückrufe mit Uhrzeit zuerst, nach Zeitpunkt (bei allen anderen sind beide Ausdrücke leer).
+            ->orderByCallbackDue()
+            ->orderByRaw('CASE WHEN leads.next_action_time IS NOT NULL THEN leads.next_action_at END')
+            ->orderBy('leads.next_action_time')
             ->orderByRaw($priorityOrder)
             ->orderByRaw('leads.next_action_at IS NULL')
             ->orderBy('leads.next_action_at')
@@ -152,6 +161,11 @@ class CallList extends Page
 
         if ($status === null) {
             return;
+        }
+
+        if ($status !== $this->status) {
+            // Vorschlag für die Wiedervorlage (z. B. in 2 Arbeitstagen), änderbar. Pflichtdatum bleibt leer.
+            $this->nextActionAt = LeadStatusService::suggestedDate($status)?->toDateString();
         }
 
         $this->status = $status;
@@ -285,6 +299,7 @@ class CallList extends Page
             $result = app(LeadStatusService::class)->apply($lead, $this->status, [
                 'note' => $this->note,
                 'next_action_at' => $this->nextActionAt,
+                'next_action_time' => $this->nextActionTime,
                 'appointment' => $this->appointment,
                 'close_reason' => $this->closeReason,
                 'confirmed' => $confirmed,
@@ -325,7 +340,7 @@ class CallList extends Page
 
     private function resetForm(): void
     {
-        $this->reset(['status', 'note', 'nextActionAt', 'closeReason', 'confirmingObjection', 'crossSellingOpen', 'crossSellingDate']);
+        $this->reset(['status', 'note', 'nextActionAt', 'nextActionTime', 'closeReason', 'confirmingObjection', 'crossSellingOpen', 'crossSellingDate']);
         $this->appointment = ['date' => null, 'time' => null, 'type' => 'phone'];
         $this->recipient = ['first_name' => null, 'last_name' => null, 'email' => null];
         $this->resetErrorBag();

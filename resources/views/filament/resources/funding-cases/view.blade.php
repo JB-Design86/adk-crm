@@ -16,7 +16,7 @@
         {{-- Schrittfolge --}}
         <x-filament::section class="lg:col-span-2">
             <x-slot name="heading">Schrittfolge</x-slot>
-            <x-slot name="description">{{ $case->progressLabel() }} Schritten erledigt. Wiedervorlage: {{ $lead->next_action_at?->format('d.m.Y') ?? '–' }}</x-slot>
+            <x-slot name="description">{{ $case->progressLabel() }} Schritten erledigt. Wiedervorlage: {{ $lead->nextActionLabel() ?? '–' }}</x-slot>
 
             @if ($case->isOpen() && ! $current)
                 <div class="mb-4 rounded-lg border border-success-300 bg-success-50 p-4 dark:border-success-500/40 dark:bg-success-500/10">

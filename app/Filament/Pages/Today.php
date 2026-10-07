@@ -33,7 +33,7 @@ use UnitEnum;
 
 /**
  * Startseite „Heute“: offene Vorgänge mit Wiedervorlage heute oder überfällig,
- * dazu die Termine des Tages. Neue eingehende Anfragen rot ganz oben.
+ * dazu die Termine des Tages. Neue eingehende Anfragen rot ganz oben, danach fällige Rückrufe mit Uhrzeit.
  */
 class Today extends Page implements HasActions, HasSchemas, HasTable
 {
@@ -83,10 +83,14 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
                     ->orWhere(fn (Builder $n) => $n->where('status', 'new')->whereIn('channel', $inbound))
                     ->orWhere(fn (Builder $c) => $c->where('cross_selling', true)->whereDate('cross_selling_follow_up_at', '<=', today())))
                 ->orderByRaw("CASE WHEN status = 'new' AND channel IN ({$placeholders}) THEN 0 ELSE 1 END", $inbound)
+                ->orderByCallbackDue()
                 ->orderBy('next_action_at')
+                // Am selben Tag: Rückrufe mit Uhrzeit vor denen ohne, nach Uhrzeit.
+                ->orderByRaw('next_action_time IS NULL')
+                ->orderBy('next_action_time')
                 ->orderBy('id'))
             ->heading('Wiedervorlagen')
-            ->description('Heute fällig und überfällig. Neue eingehende Anfragen stehen rot oben.')
+            ->description('Heute fällig und überfällig. Neue eingehende Anfragen stehen rot oben, danach fällige Rückrufe mit Uhrzeit.')
             ->recordClasses(fn (Lead $record) => $record->isNewInbound() ? 'adk-row-inbound' : null)
             ->columns([
                 TextColumn::make('name')
@@ -112,10 +116,15 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
                     ->tooltip(fn (Lead $record) => $record->callBlockReason()),
                 TextColumn::make('next_action_at')
                     ->label('Wiedervorlage')
-                    ->date('d.m.Y')
-                    ->description(fn (Lead $record) => $record->isOverdue() ? 'überfällig' : null)
-                    ->color(fn (Lead $record) => $record->isOverdue() ? 'danger' : null)
-                    ->weight(fn (Lead $record) => $record->isOverdue() ? 'bold' : null),
+                    ->formatStateUsing(fn (Lead $record) => $record->nextActionLabel())
+                    ->description(fn (Lead $record) => match (true) {
+                        $record->isCallbackDue() => 'Rückruf jetzt fällig',
+                        $record->next_action_time !== null && $record->next_action_at?->isToday() => "Rückruf um {$record->next_action_time} Uhr",
+                        $record->isOverdue() => 'überfällig',
+                        default => null,
+                    })
+                    ->color(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'danger' : null)
+                    ->weight(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'bold' : null),
                 IconColumn::make('cross_selling_due')
                     ->label('JB')
                     ->state(fn (Lead $record) => $record->cross_selling && $record->cross_selling_follow_up_at?->lte(today()))

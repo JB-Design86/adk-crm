@@ -19,7 +19,8 @@ use Illuminate\Validation\ValidationException;
  *
  * $data kann enthalten:
  *  - note: string                     Freitext zur Aktivität
- *  - next_action_at: date             Wiedervorlage (Pflicht bei follow_up = required)
+ *  - next_action_at: date             Wiedervorlage (Pflicht bei follow_up = required, sonst leer = berechnetes Datum)
+ *  - next_action_time: H:i            Uhrzeit für einen Rückruf (optional, nur mit Wiedervorlage, nicht beim Termin)
  *  - appointment: [date, time, type, user_id]   bei follow_up = appointment
  *  - close_reason: string             bei requires_reason (Datensatz falsch)
  *  - confirmed: bool                  Sicherheitsabfrage bei Werbewiderspruch
@@ -27,6 +28,26 @@ use Illuminate\Validation\ValidationException;
  */
 class LeadStatusService
 {
+    /** Wiedervorlageregeln mit Datum, das sich beim Setzen des Status wählen lässt (samt Uhrzeit). */
+    public const DATE_FOLLOW_UPS = ['today', 'working_days', 'required'];
+
+    public static function hasFollowUpDate(?string $status): bool
+    {
+        return in_array(config("adk.statuses.{$status}.follow_up"), self::DATE_FOLLOW_UPS, true);
+    }
+
+    /** Vorschlag für die Wiedervorlage: heute bzw. nach Arbeitstagen. Null bei Pflichtdatum oder ohne Wiedervorlage. */
+    public static function suggestedDate(?string $status): ?CarbonImmutable
+    {
+        $definition = config("adk.statuses.{$status}") ?? [];
+
+        return match ($definition['follow_up'] ?? null) {
+            'today' => CarbonImmutable::today(),
+            'working_days' => WorkingDays::add(CarbonImmutable::today(), $definition['days']),
+            default => null,
+        };
+    }
+
     public function apply(Lead $lead, string $status, array $data = [], ?User $user = null, bool $asCall = false): StatusResult
     {
         $definition = Adk::status($status);
@@ -53,12 +74,14 @@ class LeadStatusService
         }
 
         $nextActionAt = match ($definition['follow_up']) {
-            'today' => $today,
-            'working_days' => WorkingDays::add($today, $definition['days']),
+            'today', 'working_days' => $this->optionalDate($data['next_action_at'] ?? null, $today) ?? self::suggestedDate($status),
             'required' => $this->requiredDate($data['next_action_at'] ?? null, $today),
             'appointment' => $this->appointmentStart($data['appointment'] ?? [])->startOfDay(),
             default => null,
         };
+
+        // Rückruf zu einer festen Uhrzeit. Ein Termin hat seine eigene Uhrzeit.
+        $nextActionTime = self::hasFollowUpDate($status) ? $this->optionalTime($data['next_action_time'] ?? null) : null;
 
         if ($status === 'documents_sent' && $lead->contact === null) {
             $this->validateRecipient($data['contact'] ?? []);
@@ -71,7 +94,7 @@ class LeadStatusService
 
         $from = $lead->status;
 
-        DB::transaction(function () use ($lead, $status, $definition, $data, $user, $asCall, $today, $nextActionAt, $closeReason, $from, $result) {
+        DB::transaction(function () use ($lead, $status, $definition, $data, $user, $asCall, $today, $nextActionAt, $nextActionTime, $closeReason, $from, $result) {
             if ($status === 'not_reached') {
                 $lead->call_attempts++;
                 $result->suggestRest = $lead->call_attempts >= config('adk.not_reached_rest_after');
@@ -96,6 +119,7 @@ class LeadStatusService
 
             $lead->status = $status;
             $lead->next_action_at = $nextActionAt;
+            $lead->next_action_time = $nextActionTime;
             $lead->close_reason = $closeReason;
             $lead->closed_at = $definition['closes'] ? now() : null;
             $lead->save();
@@ -111,7 +135,7 @@ class LeadStatusService
                 'outcome' => $status,
                 'status_from' => $from,
                 'status_to' => $status,
-                'body' => $this->activityBody($data, $closeReason),
+                'body' => $this->activityBody($data, $closeReason, $nextActionTime ? 'Rückruf am '.$lead->nextActionLabel() : null),
             ]);
 
             if ($status === 'handed_over') {
@@ -170,6 +194,16 @@ class LeadStatusService
             throw ValidationException::withMessages(['next_action_at' => 'Bitte geben Sie ein Wiedervorlagedatum an.']);
         }
 
+        return $this->optionalDate($value, $today);
+    }
+
+    /** Geändertes Wiedervorlagedatum oder null (leer = Vorschlag des Status). */
+    private function optionalDate(mixed $value, CarbonImmutable $today): ?CarbonImmutable
+    {
+        if (blank($value)) {
+            return null;
+        }
+
         $date = CarbonImmutable::parse($value)->startOfDay();
 
         if ($date->lt($today)) {
@@ -177,6 +211,20 @@ class LeadStatusService
         }
 
         return $date;
+    }
+
+    /** Uhrzeit für den Rückruf als „H:i“ oder null. */
+    private function optionalTime(mixed $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        if (! is_string($value) || ! preg_match('/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', trim($value))) {
+            throw ValidationException::withMessages(['next_action_time' => 'Bitte geben Sie die Uhrzeit als Stunde und Minute an, z. B. 07:00.']);
+        }
+
+        return substr(trim($value), 0, 5);
     }
 
     private function appointmentStart(array $appointment): CarbonImmutable
@@ -274,10 +322,11 @@ class LeadStatusService
         return $entries;
     }
 
-    private function activityBody(array $data, ?string $closeReason): ?string
+    private function activityBody(array $data, ?string $closeReason, ?string $callback = null): ?string
     {
         $parts = array_filter([
             $closeReason ? 'Grund: '.config("adk.wrong_data_reasons.{$closeReason}") : null,
+            $callback,
             filled($data['note'] ?? null) ? trim($data['note']) : null,
         ]);
 

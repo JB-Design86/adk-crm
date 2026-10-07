@@ -35,7 +35,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="text-sm text-gray-600 dark:text-gray-400">
                 Noch <strong>{{ $this->remaining }}</strong> Vorgänge in der Liste.
-                Reihenfolge: Priorität A, B, C, dann älteste Wiedervorlage.
+                Reihenfolge: fällige Rückrufe mit Uhrzeit, dann Priorität A, B, C, dann älteste Wiedervorlage.
             </div>
             <div class="flex items-center gap-4">
                 <label class="flex items-center gap-2 text-sm">
@@ -72,6 +72,9 @@
                     </x-slot>
                     <x-slot name="afterHeader">
                         <div class="flex items-center gap-2">
+                            @if ($lead->isCallbackDue())
+                                <x-filament::badge color="danger" icon="heroicon-o-clock">Rückruf {{ $lead->next_action_time }} Uhr</x-filament::badge>
+                            @endif
                             @if ($organization?->priority)
                                 <x-filament::badge color="gray">Priorität {{ $organization->priority }}</x-filament::badge>
                             @endif
@@ -122,7 +125,7 @@
                             <div><dt class="text-gray-500">Kontakt</dt><dd>{{ $contact->phone_display ?? '' }} {{ $contact->email ?? '' }}</dd></div>
                         @endif
                         <div><dt class="text-gray-500">Zielgruppe / Kanal</dt><dd>{{ \App\Support\Adk::targetGroupLabel($lead->target_group) }} · {{ \App\Support\Adk::channelLabel($lead->channel) }}</dd></div>
-                        <div><dt class="text-gray-500">Versuche / Wiedervorlage</dt><dd>{{ $lead->call_attempts }} · {{ $lead->next_action_at?->format('d.m.Y') ?? 'noch keine' }}</dd></div>
+                        <div><dt class="text-gray-500">Versuche / Wiedervorlage</dt><dd>{{ $lead->call_attempts }} · {{ $lead->nextActionLabel() ?? 'noch keine' }}</dd></div>
                     </dl>
 
                     <div class="mt-4 text-sm">
@@ -179,11 +182,26 @@
                         </div>
                     @endif
 
-                    @if ($follow === 'required')
-                        <div>
-                            <label class="text-sm font-medium">Wiedervorlage am (Pflicht)</label>
-                            <input type="date" wire:model="nextActionAt" min="{{ today()->toDateString() }}" x-init="$el.focus()" class="mt-1 block rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5" />
-                            @error('next_action_at') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+                    @if (\App\Services\LeadStatusService::hasFollowUpDate($status))
+                        <div wire:key="follow-up-{{ $status }}">
+                            <div class="flex flex-wrap gap-3">
+                                <div>
+                                    <label for="call-next-action-at" class="text-sm font-medium">Wiedervorlage am{{ $follow === 'required' ? ' (Pflicht)' : '' }}</label>
+                                    <input id="call-next-action-at" type="date" wire:model="nextActionAt" min="{{ today()->toDateString() }}" @if ($follow === 'required') x-init="$el.focus()" @endif class="mt-1 block rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5" />
+                                    @error('next_action_at') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label for="call-next-action-time" class="text-sm font-medium">Uhrzeit (optional)</label>
+                                    <input id="call-next-action-time" type="time" wire:model="nextActionTime" class="mt-1 block rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5" />
+                                    @error('next_action_time') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                @if ($follow === 'working_days')
+                                    Vorschlag: in {{ config("adk.statuses.{$status}.days") }} Arbeitstagen. Bei Bedarf ändern.
+                                @endif
+                                Uhrzeit für einen Rückruf zu einer festen Zeit: Das CRM erinnert Sie zur Uhrzeit.
+                            </p>
                         </div>
                     @endif
 
@@ -240,13 +258,6 @@
                                 <input type="email" wire:model="recipient.email" class="mt-1 block w-full rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5" />
                             </div>
                         </div>
-                    @endif
-
-                    @if ($status && config("adk.statuses.{$status}.follow_up") === 'working_days')
-                        <p class="text-sm text-gray-600 dark:text-gray-400">
-                            Wiedervorlage automatisch in {{ config("adk.statuses.{$status}.days") }} Arbeitstagen:
-                            <strong>{{ \App\Support\WorkingDays::add(today(), config("adk.statuses.{$status}.days"))->format('d.m.Y') }}</strong>
-                        </p>
                     @endif
 
                     @if ($confirmingObjection)

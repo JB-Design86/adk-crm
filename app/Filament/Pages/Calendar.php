@@ -122,6 +122,9 @@ class Calendar extends Page
             ->whereDate('next_action_at', '<=', $until->toDateString())
             ->where('status', '!=', 'appointment')
             ->orderBy('next_action_at')
+            // Rückrufe mit Uhrzeit zuerst, nach Uhrzeit.
+            ->orderByRaw('next_action_time IS NULL')
+            ->orderBy('next_action_time')
             ->get()
             ->groupBy(fn (Lead $lead) => $lead->next_action_at->toDateString());
 

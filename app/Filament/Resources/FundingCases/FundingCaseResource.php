@@ -104,7 +104,7 @@ class FundingCaseResource extends Resource
                     ->wrap(),
                 TextColumn::make('lead.next_action_at')
                     ->label('Wiedervorlage')
-                    ->date('d.m.Y')
+                    ->formatStateUsing(fn (FundingCase $record) => $record->lead->nextActionLabel())
                     ->color(fn (FundingCase $record) => $record->isOpen() && $record->lead->next_action_at?->lt(today()) ? 'danger' : null)
                     ->placeholder('–'),
                 TextColumn::make('voucher_valid_until')

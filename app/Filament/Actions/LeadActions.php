@@ -21,6 +21,7 @@ use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -74,18 +75,30 @@ class LeadActions
                 ->options($statusOptions)
                 ->required()
                 ->helperText(fn (Get $get) => Hilfe::status($get('status')))
-                ->live(),
+                ->live()
+                // Wiedervorlage vorschlagen (z. B. in 2 Arbeitstagen), bei Pflichtdatum leer lassen.
+                ->afterStateUpdated(fn (Set $set, ?string $state) => $set('next_action_at', LeadStatusService::suggestedDate($state)?->toDateString())),
             Select::make('target_group')
                 ->label('Zielgruppe für den Förderweg')
                 ->options(collect(Adk::targetGroupOptions())->except(['company_open', 'open'])->all())
                 ->default($lead->fundingPathway() ? $lead->target_group : null)
                 ->visible(fn (Get $get) => $get('status') === 'handed_over')
                 ->required(fn (Get $get) => $get('status') === 'handed_over'),
-            DatePicker::make('next_action_at')
-                ->label('Wiedervorlage am')
-                ->minDate(today())
-                ->visible(fn (Get $get) => $follow($get) === 'required')
-                ->required(fn (Get $get) => $follow($get) === 'required'),
+            Grid::make(2)
+                ->visible(fn (Get $get) => LeadStatusService::hasFollowUpDate($get('status')))
+                ->schema([
+                    DatePicker::make('next_action_at')
+                        ->label('Wiedervorlage am')
+                        ->minDate(today())
+                        ->helperText(fn (Get $get) => $follow($get) === 'working_days'
+                            ? 'Vorschlag: in '.config('adk.statuses.'.$get('status').'.days').' Arbeitstagen. Bei Bedarf ändern.'
+                            : null)
+                        ->required(fn (Get $get) => $follow($get) === 'required'),
+                    TimePicker::make('next_action_time')
+                        ->label('Uhrzeit (optional)')
+                        ->seconds(false)
+                        ->helperText('Für einen Rückruf zu einer festen Zeit. Das CRM erinnert Sie zur Uhrzeit.'),
+                ]),
             Grid::make(3)
                 ->visible(fn (Get $get) => $follow($get) === 'appointment')
                 ->schema([

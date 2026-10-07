@@ -83,7 +83,7 @@ class LeadExportService
             $contact?->phone_display,
             $contact?->email,
             $lead->call_attempts,
-            $lead->next_action_at?->format('d.m.Y'),
+            $lead->next_action_at ? trim($lead->next_action_at->format('d.m.Y').' '.$lead->next_action_time) : null,
             $lead->assignee?->name,
             $lead->cross_selling ? 'ja' : 'nein',
             $lead->cross_selling_follow_up_at?->format('d.m.Y'),
