@@ -194,11 +194,50 @@ it('zeigt auf der Seite E-Mail-Konto den Stand und speichert die Signatur', func
     Livewire::test(EmailAccount::class)
         ->assertSee('Verbunden')
         ->assertSee('max.muster@adk-akademie.test')
-        ->set('signature', "  Max Muster\nVertrieb · ADK  ")
+        ->set('data.signature_html', '<p><strong>Max Muster</strong><br>Vertrieb · ADK</p><script>alert(1)</script>')
+        ->set('data.signature_logo_width', 180)
         ->call('saveSignature')
         ->assertNotified('Signatur gespeichert');
 
-    expect($connection->fresh()->signature)->toBe("Max Muster\nVertrieb · ADK");
+    $connection->refresh();
+    expect($connection->signature_html)->toContain('<strong>Max Muster</strong>')->not->toContain('script')
+        ->and($connection->signature)->toBeNull()
+        ->and($connection->signature_logo_width)->toBe(180);
+});
+
+it('übernimmt die bisherige Text-Signatur beim Öffnen in den Editor', function () {
+    mailConnection($this->user, ['signature' => "Max Muster\nVertrieb ADK"]);
+
+    Livewire::test(EmailAccount::class)->assertSee('Max Muster');
+});
+
+it('sendet die HTML-Signatur bereinigt und das Logo als eingebettetes Bild', function () {
+    Storage::fake(MailConnection::LOGO_DISK);
+    Storage::disk(MailConnection::LOGO_DISK)->put('signaturen/logo.png', 'PNGDATEN');
+    mailConnection($this->user, [
+        'signature' => null,
+        'signature_html' => '<p><strong>Max Muster</strong></p><p></p><p>ADK</p><script>alert(1)</script>',
+        'signature_logo_path' => 'signaturen/logo.png',
+        'signature_logo_width' => 220,
+    ]);
+    $lead = mailLead();
+    graphAccepts();
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->callAction('sendEmail', emailData(['email_text' => 'Hallo']))
+        ->assertHasNoActionErrors();
+
+    Http::assertSent(function (Request $request) {
+        $body = $request['message']['body']['content'] ?? '';
+        $logo = collect($request['message']['attachments'] ?? [])->firstWhere('isInline', true);
+
+        return str_contains($body, 'Hallo<br>')
+            && str_contains($body, '<p style="margin:0"><strong>Max Muster</strong></p><p style="margin:0">&nbsp;</p><p style="margin:0">ADK</p>')
+            && ! str_contains($body, 'script')
+            && str_contains($body, '<img src="cid:adk-signatur-logo" alt="Logo" width="220"')
+            && ($logo['contentId'] ?? null) === 'adk-signatur-logo'
+            && ($logo['contentBytes'] ?? null) === base64_encode('PNGDATEN');
+    });
 });
 
 it('trennt das Postfach auf Wunsch und protokolliert das', function () {

@@ -438,7 +438,7 @@ Client-ID, Secret und Mandanten-ID stehen nur in der `.env`, nie im Repository, 
 ### 15.3 Je Person und Verwaltung
 
 1. **Akquise → E-Mail-Konto → Mit Microsoft 365 verbinden**, bei Microsoft das richtige Konto wählen und die Freigabe bestätigen. Das CRM sieht das Kennwort nicht.
-2. Auf derselben Seite die **Signatur** eintragen (nur Text, z. B. Name, Funktion, Telefon, Anschrift). Sie steht unter jeder E-Mail aus dem CRM. Outlook-Signaturen übernimmt das CRM nicht.
+2. Auf derselben Seite die **Signatur** eintragen: Editor mit fett, kursiv und Links, die Outlook-Signatur lässt sich hineinkopieren. Dazu optional ein **Logo** (PNG/JPG, höchstens 300 KB, Breite in Pixel). Das CRM bereinigt das HTML beim Speichern und Senden und bettet das Logo als Inline-Anhang (cid) ein, so erscheint es ohne „Bilder herunterladen“. Das Logo liegt privat unter `storage/app/private/signaturen`.
 3. Verwaltung: unter **Verwaltung → E-Mail-Vorlagen** die Startvorlagen prüfen und anpassen, z. B. das Kursheft als PDF an „Unterlagen nach Telefonat“ hängen (eine Datei je Vorlage, höchstens 3 MB). Platzhalter: `{anrede}`, `{vorname}`, `{nachname}`, `{firma}`, `{absender}`.
 
 ### 15.4 Was passiert

@@ -20,6 +20,9 @@ class GraphMailer
     /** Eigene Kopfzeile mit Kennung, damit sich die Mail später (Antworten ins CRM) in „Gesendete Elemente“ wiederfinden lässt. */
     public const REFERENCE_HEADER = 'x-adk-crm-ref';
 
+    /** Content-ID des Logos in der Signatur (<img src="cid:…">). */
+    public const LOGO_CID = 'adk-signatur-logo';
+
     public function __construct(private MicrosoftClient $client) {}
 
     /**
@@ -32,7 +35,11 @@ class GraphMailer
      */
     public function sendMail(MailConnection $connection, string $to, string $subject, string $text, array $attachments = []): string
     {
-        $size = array_sum(array_map(fn (array $file) => strlen($file['contents']), $attachments));
+        // Logo der Signatur als eingebettetes Bild (cid:), so erscheint es ohne „Bilder herunterladen“.
+        $logo = $connection->logo();
+        $logoTag = $logo ? '<img src="cid:'.self::LOGO_CID.'" alt="Logo" width="'.$connection->logoWidth().'" style="display:block;border:0;margin-top:12px">' : null;
+
+        $size = array_sum(array_map(fn (array $file) => strlen($file['contents']), $attachments)) + strlen($logo['contents'] ?? '');
 
         if ($size > self::MAX_ATTACHMENT_BYTES) {
             throw new RuntimeException('Der Anhang ist zu groß ('.number_format($size / 1048576, 1, ',', '.').' MB, höchstens 3 MB). Microsoft 365 nimmt beim direkten Versand keine größeren Anhänge an. Bitte die Datei verkleinern oder als Link senden.');
@@ -42,18 +49,31 @@ class GraphMailer
 
         $message = [
             'subject' => $subject,
-            'body' => ['contentType' => 'HTML', 'content' => self::html($text, $connection->signature)],
+            'body' => ['contentType' => 'HTML', 'content' => self::html($text, $connection->signatureHtml(), $logoTag)],
             'toRecipients' => [['emailAddress' => ['address' => $to]]],
             'internetMessageHeaders' => [['name' => self::REFERENCE_HEADER, 'value' => $reference]],
         ];
 
-        if ($attachments !== []) {
-            $message['attachments'] = array_map(fn (array $file) => [
+        $files = array_map(fn (array $file) => [
+            '@odata.type' => '#microsoft.graph.fileAttachment',
+            'name' => $file['name'],
+            'contentType' => $file['content_type'],
+            'contentBytes' => base64_encode($file['contents']),
+        ], $attachments);
+
+        if ($logo) {
+            $files[] = [
                 '@odata.type' => '#microsoft.graph.fileAttachment',
-                'name' => $file['name'],
-                'contentType' => $file['content_type'],
-                'contentBytes' => base64_encode($file['contents']),
-            ], $attachments);
+                'name' => $logo['name'],
+                'contentType' => $logo['content_type'],
+                'contentBytes' => base64_encode($logo['contents']),
+                'isInline' => true,
+                'contentId' => self::LOGO_CID,
+            ];
+        }
+
+        if ($files !== []) {
+            $message['attachments'] = $files;
         }
 
         try {
@@ -72,13 +92,16 @@ class GraphMailer
         return $reference;
     }
 
-    /** HTML aus reinem Text: alles maskiert, nur Zeilenumbrüche werden zu <br>. */
-    public static function html(string $text, ?string $signature = null): string
+    /**
+     * HTML aus reinem Text: alles maskiert, nur Zeilenumbrüche werden zu <br>. Danach die Signatur,
+     * die schon als bereinigtes HTML kommt (MailConnection::signatureHtml()), und das Logo.
+     */
+    public static function html(string $text, ?string $signatureHtml = null, ?string $logoTag = null): string
     {
         $html = self::lines($text);
 
-        if (filled(trim((string) $signature))) {
-            $html .= "<br>\n<br>\n".self::lines((string) $signature);
+        if (filled(trim((string) $signatureHtml)) || filled($logoTag)) {
+            $html .= "<br>\n<br>\n".$signatureHtml.$logoTag;
         }
 
         return '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">'.$html.'</div>';

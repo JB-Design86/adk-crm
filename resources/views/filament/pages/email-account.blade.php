@@ -30,14 +30,10 @@
 
         <x-filament::section icon="heroicon-o-pencil-square">
             <x-slot name="heading">Signatur</x-slot>
-            <x-slot name="description">Steht nach einer Leerzeile unter jeder E-Mail aus dem CRM. Nur Text, z. B. Name, Funktion, Telefon und Anschrift der ADK. Outlook-Signaturen übernimmt das CRM nicht.</x-slot>
+            <x-slot name="description">Steht nach einer Leerzeile unter jeder E-Mail aus dem CRM, mit Formatierung (fett, kursiv, Links) und auf Wunsch mit Logo.</x-slot>
 
-            <form wire:submit="saveSignature" class="space-y-3">
-                <label for="email-signature" class="sr-only">Signatur</label>
-                <textarea id="email-signature" wire:model="signature" rows="6"
-                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5"
-                    placeholder="Max Muster&#10;Vertrieb&#10;ADK · Telefon 06131 …"></textarea>
-                @error('signature') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+            <form wire:submit="saveSignature" class="space-y-4">
+                {{ $this->form }}
                 <x-filament::button type="submit" icon="heroicon-o-check">Signatur speichern</x-filament::button>
             </form>
         </x-filament::section>
