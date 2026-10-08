@@ -78,8 +78,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         $this->forceFill(['is_blocked' => true, 'blocked_at' => now()])->save();
 
-        // Gesperrte Konten dürfen nicht weiter über sipgate telefonieren.
+        // Gesperrte Konten dürfen nicht weiter über sipgate telefonieren oder aus ihrem Postfach senden.
         $this->sipgateConnection()->delete();
+        $this->mailConnection()->delete();
     }
 
     public function unblock(): void
@@ -90,6 +91,11 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function sipgateConnection(): HasOne
     {
         return $this->hasOne(SipgateConnection::class);
+    }
+
+    public function mailConnection(): HasOne
+    {
+        return $this->hasOne(MailConnection::class);
     }
 
     public function assignedLeads(): HasMany

@@ -16,6 +16,8 @@
         x-on:call-list-next.window="focusNote()"
         x-on:keydown.window="
             if ($event.ctrlKey || $event.metaKey) return;
+            {{-- Im Formular „E-Mail schreiben“ gelten keine Tasten der Anrufliste. --}}
+            if ($event.target.closest?.('.fi-modal')) return;
             const digit = /^[0-9]$/.test($event.key) ? $event.key : ($event.code?.startsWith('Digit') ? $event.code.slice(5) : null);
             if (digit !== null && ($event.altKey || ! isTyping($event.target))) {
                 $event.preventDefault();
@@ -122,6 +124,7 @@
                         @elseif ($lead->phoneDisplay())
                             <span class="text-lg text-gray-500 line-through">{{ $lead->phoneDisplay() }}</span>
                         @endif
+                        <span class="ml-2 align-middle">{{ $this->sendEmailAction }}</span>
                     </div>
 
                     <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">

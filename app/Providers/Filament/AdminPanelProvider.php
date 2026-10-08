@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Today;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\MicrosoftController;
 use App\Http\Controllers\SipgateController;
 use App\Http\Middleware\EnsureUserIsNotBlocked;
 use App\Livewire\CallbackReminder;
@@ -82,10 +83,12 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
-            // Eigene Routen, nur angemeldet: sipgate-Verbindung (OAuth2) und Dokumentabruf.
+            // Eigene Routen, nur angemeldet: sipgate- und Microsoft-365-Verbindung (OAuth2) und Dokumentabruf.
             ->authenticatedRoutes(function (): void {
                 Route::get('sipgate/connect', [SipgateController::class, 'connect'])->name('sipgate.connect');
                 Route::get('sipgate/callback', [SipgateController::class, 'callback'])->name('sipgate.callback');
+                Route::get('microsoft/connect', [MicrosoftController::class, 'connect'])->name('microsoft.connect');
+                Route::get('microsoft/callback', [MicrosoftController::class, 'callback'])->name('microsoft.callback');
                 // Dokumente: entschlüsselt ausliefern, Rechte prüfen, protokollieren.
                 Route::get('dokumente/{document}', DocumentController::class)->name('documents.show');
             })

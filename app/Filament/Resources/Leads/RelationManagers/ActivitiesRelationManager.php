@@ -8,6 +8,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 /**
  * Aktivitäten eines Vorgangs. Nur lesen; erfasst wird über „Aktivität erfassen“ und „Status setzen“.
@@ -41,7 +42,9 @@ class ActivitiesRelationManager extends RelationManager
                         ? trim(($record->status_from && $record->status_from !== $record->status_to ? Adk::statusLabel($record->status_from).' → ' : '').Adk::statusLabel($record->status_to))
                         : null)
                     ->placeholder('–'),
-                TextColumn::make('body')->label('Text')->wrap()->placeholder('–'),
+                // Zeilenumbrüche erhalten, z. B. bei E-Mails aus dem CRM (Text maskiert).
+                TextColumn::make('body')->label('Text')->wrap()->placeholder('–')
+                    ->formatStateUsing(fn (?string $state) => $state === null ? null : new HtmlString(nl2br(e($state), false))),
                 TextColumn::make('user.name')->label('Benutzer')->placeholder('System'),
             ])
             ->paginated([10, 25, 50]);

@@ -2,13 +2,18 @@
 
 namespace App\Filament\Actions;
 
+use App\Filament\Pages\EmailAccount;
 use App\Models\Activity;
+use App\Models\EmailTemplate;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadStatusService;
+use App\Services\Microsoft\LeadEmail;
+use App\Services\Microsoft\MicrosoftClient;
 use App\Services\Sipgate\ClickToCall;
 use App\Support\Adk;
 use App\Support\Hilfe;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
@@ -22,6 +27,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -155,6 +161,117 @@ class LeadActions
 
                 Notification::make()->title('Ihr Telefon klingelt gleich')->body('Nach dem Abheben wählt sipgate '.$record->phoneDisplay().'.')->success()->send();
             });
+    }
+
+    /**
+     * E-Mail aus dem eigenen Microsoft-365-Postfach. Ohne verbundenes Postfach öffnet der Knopf
+     * kein Formular, sondern weist auf „E-Mail-Konto“ hin.
+     */
+    public static function sendEmail(): Action
+    {
+        $connected = fn () => LeadEmail::connectedFor(auth()->user());
+
+        return Action::make('sendEmail')
+            ->label('E-Mail schreiben')
+            ->icon(Heroicon::OutlinedEnvelope)
+            ->color('gray')
+            ->visible(fn (?Lead $record) => $record !== null && Gate::allows('leads.edit') && MicrosoftClient::isConfigured() && $record->isOpen())
+            ->disabled(fn (?Lead $record) => $record?->isBlocked() ?? false)
+            ->tooltip(fn (?Lead $record) => ($record ? LeadEmail::blockReason($record) : null) ?? Hilfe::feld('send_email'))
+            ->modalHidden(fn () => ! $connected())
+            ->modalHeading(fn (Lead $record) => 'E-Mail: '.$record->displayName())
+            ->modalDescription(fn () => 'Geht von '.auth()->user()->mailConnection?->mailbox.' und liegt danach in Outlook unter „Gesendete Elemente“.')
+            ->modalWidth(Width::ThreeExtraLarge)
+            ->modalSubmitActionLabel('Senden')
+            ->schema(fn (Lead $record) => $connected() ? static::emailSchema($record) : [])
+            ->action(function (Lead $record, array $data, Action $action) use ($connected) {
+                if (! $connected()) {
+                    Notification::make()
+                        ->title('Bitte verbinden Sie zuerst Ihr Postfach')
+                        ->body('Unter „E-Mail-Konto“ verbinden Sie einmal Ihr Microsoft-365-Postfach. Danach schreiben Sie hier E-Mails.')
+                        ->warning()
+                        ->actions([Action::make('emailAccount')->label('Zum E-Mail-Konto')->button()->url(EmailAccount::getUrl())])
+                        ->send();
+
+                    return;
+                }
+
+                try {
+                    app(LeadEmail::class)->send(auth()->user(), $record, $data);
+                } catch (RuntimeException $exception) {
+                    // Formular bleibt offen, damit der Text nicht verloren geht.
+                    Notification::make()->title('E-Mail nicht gesendet')->body($exception->getMessage())->danger()->send();
+                    $action->halt();
+
+                    return;
+                }
+
+                Notification::make()->title('E-Mail an '.$data['email_to'].' gesendet')->success()->send();
+            });
+    }
+
+    /** @return list<Component|Field> */
+    public static function emailSchema(Lead $lead): array
+    {
+        $template = fn (Get $get) => filled($get('email_template_id')) ? EmailTemplate::find($get('email_template_id')) : null;
+        $contact = $lead->contact;
+
+        return [
+            Select::make('email_template_id')
+                ->label('Vorlage')
+                ->options(fn () => EmailTemplate::active()->ordered()->pluck('name', 'id'))
+                ->placeholder('ohne Vorlage')
+                ->live()
+                ->afterStateUpdated(function (Set $set, ?string $state) use ($lead) {
+                    $chosen = filled($state) ? EmailTemplate::active()->find($state) : null;
+
+                    if ($chosen) {
+                        $set('email_subject', LeadEmail::render($chosen->subject, $lead, auth()->user()));
+                        $set('email_text', LeadEmail::render($chosen->body, $lead, auth()->user()));
+                        $set('attach_template_file', $chosen->hasAttachment());
+                    }
+                }),
+            TextInput::make('email_to')
+                ->label('An')
+                ->email()
+                ->required()
+                ->maxLength(255)
+                ->default(LeadEmail::defaultRecipient($lead))
+                ->rules([fn () => function (string $attribute, mixed $value, Closure $fail) use ($lead) {
+                    if ($reason = LeadEmail::blockReason($lead, (string) $value)) {
+                        $fail($reason);
+                    }
+                }]),
+            TextInput::make('email_subject')
+                ->label('Betreff')
+                ->required()
+                ->maxLength(255),
+            Textarea::make('email_text')
+                ->label('Text')
+                ->rows(12)
+                ->required()
+                ->helperText('Ihre Signatur aus „E-Mail-Konto“ hängt das CRM beim Senden an. Keine medizinischen Angaben.'),
+            Checkbox::make('attach_template_file')
+                ->label(fn (Get $get) => 'Anhang der Vorlage mitsenden: '.$template($get)?->attachmentName())
+                ->default(true)
+                ->visible(fn (Get $get) => (bool) $template($get)?->hasAttachment()),
+            Checkbox::make('consent_confirmed')
+                ->label('Die Person hat um diese E-Mail gebeten oder eingewilligt (z. B. im Telefonat)')
+                ->accepted()
+                ->validationMessages(['accepted' => 'Ohne Bitte oder Einwilligung der Person bitte keine E-Mail senden.'])
+                ->helperText('Werbung per E-Mail ist nur mit vorheriger Einwilligung erlaubt, auch gegenüber Betrieben (§ 7 UWG). Gemeint ist z. B. „Schicken Sie mir die Unterlagen“ im Telefonat oder eine Anfrage über die Website.'
+                    .($contact?->hasEmailConsent() ? ' Am Kontakt eingetragen: Einwilligung in E-Mails seit '.$contact->email_consent_at->format('d.m.Y').'.' : '')),
+            Grid::make(2)->schema([
+                DatePicker::make('next_action_at')
+                    ->label('Wiedervorlage am (optional)')
+                    ->minDate(today())
+                    ->requiredWith('next_action_time')
+                    ->helperText('Leer lassen: Wiedervorlage bleibt '.($lead->nextActionLabel() ?? 'leer').'.'),
+                TimePicker::make('next_action_time')
+                    ->label('Uhrzeit (optional)')
+                    ->seconds(false),
+            ]),
+        ];
     }
 
     public static function crossSelling(): Action

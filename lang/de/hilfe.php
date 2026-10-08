@@ -96,6 +96,14 @@ return [
         'step' => 'Welcher Schritt erledigt wurde. Vorausgewählt ist der nächste offene Schritt.',
         'document_category' => 'Welche Art Unterlage das ist. Pflichtunterlagen (z. B. Bildungsgutschein, Vertrag) zählen für „Einschreibung bestätigt“ nur mit der passenden Art.',
         'sipgate_call' => 'Zuerst klingelt Ihr unter „Telefonie“ gewähltes Gerät. Nach dem Abheben wählt sipgate die Nummer des Vorgangs.',
+
+        // E-Mail aus dem CRM (Microsoft 365)
+        'send_email' => 'E-Mail aus Ihrem eigenen Microsoft-365-Postfach. Sie liegt danach in Outlook unter „Gesendete Elemente“ und steht mit vollem Text im Verlauf. Antworten kommen in Outlook an.',
+        'email_template_id' => 'Füllt Betreff und Text aus der Vorlage, mit Anrede und Namen aus dem Vorgang. Bereits Geschriebenes wird dabei ersetzt. Vorlagen pflegt die Verwaltung.',
+        'email_to' => 'Vorschlag: E-Mail der Ansprechperson, sonst des Betriebs. Adressen auf der Sperrliste lehnt das CRM ab.',
+        'attach_template_file' => 'Die Datei aus der Vorlage (z. B. das Kursheft) geht als Anhang mit.',
+        'template_body' => 'Text mit Platzhaltern in geschweiften Klammern, z. B. {anrede}. Beim Schreiben setzt das CRM die Angaben aus dem Vorgang ein, danach bleibt der Text änderbar.',
+        'attachment_path' => 'Wird beim Senden mit dieser Vorlage vorausgewählt mitgeschickt. Die Datei liegt nicht öffentlich auf dem Server.',
     ],
 
     'seiten' => [
@@ -108,6 +116,8 @@ return [
         'kalender' => 'Termine und Wiedervorlagen nach Tag oder Woche. Ein Klick auf einen Tag zeigt alle Einträge.',
         'auswertung' => 'Anrufe, Erreichte, Termine und Unterlagen je Tag und Woche, Quoten je Branche, Kanal und Importquelle.',
         'telefonie' => 'Eigenes sipgate-Konto verbinden: Dann starten Sie Anrufe per Klick, und das CRM übernimmt Ihre Telefonate automatisch als Aktivität.',
+        'e_mail_konto' => 'Eigenes Microsoft-365-Postfach verbinden: Dann schreiben Sie E-Mails direkt aus dem Vorgang. Sie liegen in Outlook unter „Gesendete Elemente“, Antworten kommen wie gewohnt in Outlook an.',
+        'e_mail_vorlagen' => 'Vorlagen für „E-Mail schreiben“ im Vorgang: Betreff, Text mit Platzhaltern und auf Wunsch ein Anhang, z. B. das Kursheft. Reihenfolge per „Reihenfolge ändern“ und Ziehen.',
         'organisationen' => 'Betriebe und Einrichtungen. Quelle und Abrufdatum sind Pflicht.',
         'kontakte' => 'Personen mit Datenschutzhinweis und Einwilligungen.',
         'import' => 'Leadliste als Excel oder CSV einspielen. Quelle und Abrufdatum sind Pflicht, Dubletten und Sperrliste werden automatisch übersprungen.',

@@ -189,6 +189,7 @@ Laut Lastenheft über das IONOS-Backup, getrennt vom Server, täglich. Wiederher
 | **Datenbank** | MariaDB `adk_crm` | alle Daten. Zusätzlich nächtlicher Dump über **Plesk → Sicherungsverwaltung** (Datenbanken einschließen) |
 | **`.env`** | `httpdocs/.env` | `APP_KEY` wird zum Entschlüsseln gebraucht (Sitzungen, Zwei-Faktor-Geheimnisse). **Ohne den alten `APP_KEY` müssen alle Konten die Zwei-Faktor-Anmeldung neu einrichten, und die Dokumente sind nicht mehr lesbar.** Zusätzlich im Passwortmanager ablegen |
 | **`storage/app/documents`** | `httpdocs/storage/app/documents` | **alle Dokumente** (Vorgang, Förderfall, Teilnehmerakte), verschlüsselt. Nur mit dem passenden `APP_KEY` lesbar |
+| `storage/app/private/email-templates` | `httpdocs/storage/app/private/email-templates` | Anhänge der E-Mail-Vorlagen (z. B. Kursheft), keine personenbezogenen Daten. Fehlt die Datei, sendet „E-Mail schreiben“ mit dieser Vorlage nicht, bis sie neu hochgeladen ist |
 | `storage/logs` | `httpdocs/storage/logs` | Fehler- und Löschlaufprotokolle (optional) |
 
 Nicht gesichert werden müssen `vendor/` und der Code: Beides stellt die Bereitstellung aus GitHub wieder her.
@@ -394,3 +395,70 @@ Kontaktformular und Kursheft-Anforderung auf adk-akademie.de legen jede Anfrage 
 5. Probe mit eigenen Daten: Kontaktformular und Kursheft. Im CRM erscheinen zwei Vorgänge „Neu“, in info@ zwei Mails.
 
 **Voraussetzung:** Ab Schritt 5 kommen echte Anfragen ins CRM. Dafür gilt `LIVESCHALTUNG.md` Schritt 4 (Sicherung außerhalb des Servers).
+
+---
+
+## 15 E-Mail aus dem CRM (Microsoft 365, gebaut 08.10.2026)
+
+Jede Person schreibt E-Mails direkt aus dem Vorgang („E-Mail schreiben“ auf der Vorgangsseite und in der Anrufliste), und zwar aus ihrem **eigenen** Microsoft-365-Postfach. Das CRM nutzt dafür Microsoft Graph mit **delegierten** Rechten: Es kann nur im Namen der angemeldeten Person senden, nie aus fremden Postfächern, und es liest keine E-Mails (kein `Mail.Read`). Die Mail liegt danach in Outlook unter „Gesendete Elemente“, Antworten kommen wie gewohnt in Outlook an. Ohne Einträge in der `.env` bleibt die Funktion aus (Menüpunkt unsichtbar, Adressen `/microsoft/…` antworten 404), der Rest des CRM läuft unverändert.
+
+Abweichung vom Lastenheft Abschnitt 5 („Versand über info@“): Entscheidung des Vertriebs vom 08.10.2026, Versand aus dem eigenen Postfach, damit Antworten bei der Person landen, die geschrieben hat. Siehe `STUFE1_ABNAHME.md` Abweichung 14.
+
+### 15.1 Einmalig in Microsoft Entra (Verwaltung)
+
+1. [entra.microsoft.com](https://entra.microsoft.com) → **Identität → Anwendungen → App-Registrierungen → Neue Registrierung**
+   - Name: `ADK CRM` (für crm-test eine eigene Registrierung, z. B. `ADK CRM Test`)
+   - Unterstützte Kontotypen: **Nur Konten in diesem Organisationsverzeichnis** (Single Tenant)
+   - Umleitungs-URI: Plattform **Web**, `https://crm.adk-akademie.de/microsoft/callback` (Test: `https://crm-test.adk-akademie.de/microsoft/callback`)
+2. In der Übersicht der App **Anwendungs-ID (Client-ID)** und **Verzeichnis-ID (Mandanten-ID)** notieren.
+3. **API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen:** `offline_access`, `openid`, `profile`, `email`, `User.Read`, `Mail.Send`. **Keine Anwendungsberechtigungen** (die würden Senden aus jedem Postfach erlauben).
+4. **Administratorzustimmung für ADK erteilen** (Knopf auf derselben Seite). Ohne Zustimmung meldet das CRM beim Verbinden „Microsoft hat die Verbindung nicht freigegeben“ bzw. dass `Mail.Send` fehlt.
+5. **Zertifikate & Geheimnisse → Neuer geheimer Clientschlüssel**, Ablauf 24 Monate. Den **Wert** (nicht die ID) sofort kopieren, er wird nur einmal angezeigt. Direkt in die `.env`, nie in einen Chat oder auf einen Screenshot. **Ablaufdatum in den Kalender:** Vorher einen neuen Schlüssel erzeugen und eintragen, sonst schlagen Verbinden und Senden fehl.
+
+### 15.2 Einmalig auf dem Server (Janosch)
+
+Die Migration `2026_10_08_100000_create_mail_tables` läuft mit der Bereitstellung. Sie legt die Tabellen an und, nur in eine leere Tabelle, die Startvorlagen „Unterlagen nach Telefonat“ und „Nachfassen“.
+
+In der `.env` der Umgebung eintragen (Plesk → Dateien → `httpdocs/.env`, oder per SSH):
+
+```dotenv
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...
+MICROSOFT_TENANT_ID=...
+```
+
+Die Mandanten-ID ist bei einer Single-Tenant-App Pflicht. Die Weiterleitungsadresse ergibt sich aus `APP_URL` (`…/microsoft/callback`); nur wenn sie abweicht, zusätzlich `MICROSOFT_REDIRECT_URI` setzen. Danach im Anwendungsverzeichnis:
+
+```bash
+/opt/plesk/php/8.4/bin/php artisan optimize
+```
+
+Client-ID, Secret und Mandanten-ID stehen nur in der `.env`, nie im Repository, nie im Chat.
+
+### 15.3 Je Person und Verwaltung
+
+1. **Akquise → E-Mail-Konto → Mit Microsoft 365 verbinden**, bei Microsoft das richtige Konto wählen und die Freigabe bestätigen. Das CRM sieht das Kennwort nicht.
+2. Auf derselben Seite die **Signatur** eintragen (nur Text, z. B. Name, Funktion, Telefon, Anschrift). Sie steht unter jeder E-Mail aus dem CRM. Outlook-Signaturen übernimmt das CRM nicht.
+3. Verwaltung: unter **Verwaltung → E-Mail-Vorlagen** die Startvorlagen prüfen und anpassen, z. B. das Kursheft als PDF an „Unterlagen nach Telefonat“ hängen (eine Datei je Vorlage, höchstens 3 MB). Platzhalter: `{anrede}`, `{vorname}`, `{nachname}`, `{firma}`, `{absender}`.
+
+### 15.4 Was passiert
+
+- **Formular „E-Mail schreiben“:** Vorlage (füllt Betreff und Text), An (Vorschlag: Ansprechperson, sonst Betrieb), Betreff, Text, Anhang der Vorlage, Pflicht-Häkchen „Die Person hat um diese E-Mail gebeten oder eingewilligt“, optional Wiedervorlage mit Uhrzeit. Ohne verbundenes Postfach weist der Knopf auf „E-Mail-Konto“ hin. Sichtbar für offene Vorgänge mit Recht „Vorgänge bearbeiten“.
+- **Versand:** `POST https://graph.microsoft.com/v1.0/me/sendMail` mit `saveToSentItems`. Der Text geht als HTML (alles maskiert, Zeilenumbrüche erhalten), die Signatur nach einer Leerzeile. Anhänge zusammen höchstens 3 MB, größere lehnt das CRM vor dem Senden ab.
+- **Sperrliste:** Steht die Adresse oder der Vorgang (Telefon, E-Mail, Firma mit PLZ) auf der Sperrliste, sendet das CRM nicht.
+- **Verlauf:** Aktivität „E-Mail“ mit Empfänger, Betreff, Vorlage, Anhang, Bestätigung der Einwilligung, gegebenenfalls Wiedervorlage und dem vollen Text. Der letzte Kontakt wird gesetzt, **der Status bleibt**.
+- **Protokoll** (Bereich „Microsoft 365“): verbunden, getrennt, E-Mail gesendet (Empfänger, Vorlage, Anhang, Wiedervorlage), ohne Tokens und ohne Text der E-Mail. Änderungen an Vorlagen stehen unter „E-Mail-Vorlage“.
+- **Tokens** liegen verschlüsselt in der Datenbank (`APP_KEY`). Das Zugriffstoken gilt etwa eine Stunde und wird automatisch erneuert. Wird die Freigabe widerrufen, das Kennwort geändert oder 90 Tage nicht gesendet, meldet das CRM „Bitte verbinden Sie Ihr Postfach unter „E-Mail-Konto“ neu.“ Wird ein Konto gesperrt, löscht das CRM die Verbindung sofort.
+- **Kennung für später:** Graph liefert beim Senden keine Nachrichten-ID. Das CRM setzt deshalb die Kopfzeile `x-adk-crm-ref` mit einer zufälligen Kennung und speichert sie an der Aktivität (`m365:…`). Damit lässt sich die Mail später in „Gesendete Elemente“ wiederfinden.
+
+### 15.5 Datenschutz
+
+- Microsoft verarbeitet die E-Mails der ADK ohnehin als Auftragsverarbeiter (Exchange Online, Datenschutznachtrag in den Microsoft-Produktbedingungen). Neu ist nur, dass das CRM im Namen der Person sendet und den Text im Vorgang speichert. Verzeichnis der Verarbeitungstätigkeiten (A-11) und TOM (A-21) entsprechend ergänzen; gelöscht wird der Text mit dem Vorgang nach den Fristen in `config/adk.php`.
+- **§ 7 UWG:** Werbung per E-Mail nur mit vorheriger Einwilligung, auch gegenüber Betrieben. Das Häkchen ist Pflicht, die Bestätigung steht mit Datum und Person im Verlauf. Am Kontakt eingetragene E-Mail-Einwilligungen (Kursheft, Double-Opt-in) zeigt das Formular als Hinweis an.
+- **Vorlagen** enthalten keine personenbezogenen Daten, Anhänge nur allgemeine Unterlagen. Sie liegen nicht öffentlich unter `storage/app/private/email-templates` (unverschlüsselt, weil ohne Personenbezug).
+- **Kein Tracking:** keine Lesebestätigung, kein Zählpixel, keine Link-Verfolgung. Das CRM hat kein Leserecht auf Postfächer.
+- Testen auf `crm-test` nur an eigene Adressen, weil dort echte E-Mails hinausgehen.
+
+### 15.6 Später: Antworten ins CRM
+
+Noch nicht gebaut (Merkliste). Dafür käme das delegierte Recht `Mail.Read` hinzu (neue Administratorzustimmung, jede Person verbindet einmal neu). Zuordnung über die Kennung `x-adk-crm-ref` der gesendeten Mail (deren `conversationId` in „Gesendete Elemente“) bzw. über die Absenderadresse, Abgleich wie bei sipgate alle paar Minuten.

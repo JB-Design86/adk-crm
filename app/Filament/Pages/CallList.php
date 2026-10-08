@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Actions\LeadActions;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Models\ImportLog;
 use App\Models\Lead;
@@ -10,6 +11,7 @@ use App\Services\Sipgate\ClickToCall;
 use App\Support\Adk;
 use App\Support\Hilfe;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -281,6 +283,16 @@ class CallList extends Page
         }
 
         Notification::make()->title('Ihr Telefon klingelt gleich')->body('Nach dem Abheben wählt sipgate '.$lead->phoneDisplay().'.')->success()->send();
+    }
+
+    /** „E-Mail schreiben“ für den angezeigten Vorgang, dieselbe Aktion wie auf der Vorgangsseite. */
+    public function sendEmailAction(): Action
+    {
+        return LeadActions::sendEmail()
+            ->record(fn () => $this->lead)
+            ->after(function () {
+                unset($this->lead);
+            });
     }
 
     public function skip(): void

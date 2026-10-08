@@ -34,4 +34,6 @@ it('zeigt oben auf jeder Seite, wofür sie da ist', function (string $url, strin
     ['/sperrliste', 'sperrliste'],
     ['/import', 'import'],
     ['/pruefstufen', 'pruefstufen'],
+    ['/e-mail-konto', 'e_mail_konto'],
+    ['/e-mail-vorlagen', 'e_mail_vorlagen'],
 ]);

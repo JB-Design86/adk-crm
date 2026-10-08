@@ -51,6 +51,23 @@ return [
     ],
 
     /*
+    | Microsoft 365 (E-Mail aus dem Vorgang): Jede Person verbindet ihr eigenes Postfach
+    | (OAuth2, delegierte Rechte). Gesendet wird über Microsoft Graph, die Mail liegt danach
+    | in Outlook unter „Gesendete Elemente“. App-Registrierung in Microsoft Entra, Anleitung
+    | in docs/BETRIEB.md Abschnitt 15. Ohne client_id und Secret ist die Funktion aus.
+    */
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        // Mandanten-ID (Verzeichnis-ID) aus Entra. „organizations“ geht nur bei mehrinstanzfähigen Apps.
+        'tenant' => env('MICROSOFT_TENANT_ID') ?: 'organizations',
+        'redirect' => env('MICROSOFT_REDIRECT_URI') ?: rtrim((string) env('APP_URL'), '/').'/microsoft/callback',
+        'scopes' => 'offline_access openid profile email User.Read Mail.Send',
+        'login_url' => 'https://login.microsoftonline.com/',
+        'graph_url' => 'https://graph.microsoft.com/v1.0',
+    ],
+
+    /*
     | Website-Eingang (POST /api/eingang): Kontaktformular und Kursheft-Anforderung der Website.
     | Gemeinsamer HMAC-Schlüssel mit der Website (inc/konfig.php, crm_schluessel).
     | Ohne Schlüssel antwortet die Schnittstelle mit 503.

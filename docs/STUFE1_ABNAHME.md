@@ -106,7 +106,7 @@ Umgesetzt in `app/Services/LeadStatusService.php`, gesteuert über `config/adk.p
 Nicht gebaut, aber vorbereitet:
 
 - **Website-Formular (Stufe 2):** Vorgänge aus eingehenden Kanälen werden schon heute richtig behandelt (rot, Wiedervorlage heute, Anruf erlaubt). Eine Schnittstelle muss nur `Lead::create()` mit Kanal `website_form` aufrufen. Die Zuordnung Kostenträger → Zielgruppe gehört dann in `config/adk.php`.
-- **Postfach info@ und E-Mail-Versand (Stufe 2):** Aktivitätstyp „E-Mail“ existiert. `MAIL_*` in `.env` ist vorgesehen.
+- **Postfach info@ und E-Mail-Versand (Stufe 2):** Aktivitätstyp „E-Mail“ existiert. `MAIL_*` in `.env` ist vorgesehen. **Versand gebaut 08.10.2026**, aus dem eigenen Microsoft-365-Postfach statt über info@ (Abweichung 14, `BETRIEB.md` Abschnitt 15). Postfach info@ lesen ist weiter offen.
 - **Förderweg (Stufe 3):** Status „Übergeben an Förderweg“ ist setzbar, `leads.contracted_at` steuert bereits den Löschlauf.
 - **Teilnehmerakte (Stufe 4):** Recht `health.view` und die Rollenstruktur sind vorhanden. Hochgeladene Dateien laufen über die private Disk `local` (nicht über `public`).
 
@@ -129,6 +129,7 @@ Nicht gebaut, aber vorbereitet:
 | 11 | Beschriftung „Passwort“ | Die Anmeldeseite von Filament schreibt „Passwort“ statt „Kennwort“ | Übersetzung des Pakets. Eigene Texte verwenden „Kennwort“. Siehe offene Frage 9 |
 | 12 | Prüfstufen | Nicht fest „Prüfstufe 1 bis 5“ und nicht in `config/adk.php`, sondern von der Verwaltung unter **Verwaltung → Prüfstufen** anlegbar, umbenennbar, sortierbar, abschaltbar und löschbar. Import-Spalten und Mustervorlage folgen den aktiven Prüfstufen | Wunsch aus der Durchsicht vom 27.09.2026. Nachvollziehbarkeit über das Protokoll statt über Git |
 | 13 | Rückruf mit Uhrzeit | Wiedervorlage bei Taste 1 und 3 änderbar (Vorschlag 2 bzw. 5 Arbeitstage), Uhrzeit optional bei Taste 1, 2, 3 und 5. Fällige Rückrufe stehen in der Anrufliste vor Priorität A, noch nicht fällige erscheinen dort erst zur Uhrzeit | Wunsch des Vertriebs vom 07.10.2026: „morgen zwischen 7 und 8 nochmal anrufen“, ohne sich das für viele Vorgänge merken zu müssen |
+| 14 | E-Mail-Versand aus dem Vorgang (Lastenheft 5) | Versand aus dem **eigenen** Microsoft-365-Postfach der Person (Microsoft Graph, delegierte Rechte, nur `Mail.Send`) statt über info@. Startvorlagen „Unterlagen nach Telefonat“ und „Nachfassen“; „Terminbestätigung“ fehlt noch, weil es keinen Platzhalter für den Termin gibt. Pflicht-Häkchen zur Einwilligung (§ 7 UWG), Sperrliste wird geprüft, der Status bleibt beim Senden unverändert. Antworten bleiben vorerst in Outlook. Einrichtung `BETRIEB.md` Abschnitt 15 | Entscheidung des Vertriebs vom 08.10.2026: Die Mail soll in Outlook unter „Gesendete Elemente“ der Person liegen und Antworten bei ihr ankommen. Kein Leserecht und keine Anwendungsberechtigung für alle Postfächer nötig |
 
 ---
 

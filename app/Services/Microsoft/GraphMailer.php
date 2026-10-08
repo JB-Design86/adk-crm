@@ -1,0 +1,106 @@
+<?php
+
+namespace App\Services\Microsoft;
+
+use App\Models\MailConnection;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+/**
+ * Versand über Microsoft Graph (POST /me/sendMail) aus dem Postfach der verbundenen Person.
+ * Die Mail liegt danach in Outlook unter „Gesendete Elemente“, Antworten kommen dort an.
+ */
+class GraphMailer
+{
+    /** Anhänge zusammen: Graph nimmt in einem sendMail-Aufruf höchstens etwa 4 MB an, Base64 macht Dateien ein Drittel größer. */
+    public const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+
+    /** Eigene Kopfzeile mit Kennung, damit sich die Mail später (Antworten ins CRM) in „Gesendete Elemente“ wiederfinden lässt. */
+    public const REFERENCE_HEADER = 'x-adk-crm-ref';
+
+    public function __construct(private MicrosoftClient $client) {}
+
+    /**
+     * Text wird als HTML gesendet: maskiert, Zeilenumbrüche als <br>, Signatur nach einer Leerzeile.
+     *
+     * @param  list<array{name: string, content_type: string, contents: string}>  $attachments
+     * @return string Kennung aus der Kopfzeile x-adk-crm-ref (Graph liefert beim Senden keine Nachrichten-ID)
+     *
+     * @throws RuntimeException mit einer Meldung für die Oberfläche
+     */
+    public function sendMail(MailConnection $connection, string $to, string $subject, string $text, array $attachments = []): string
+    {
+        $size = array_sum(array_map(fn (array $file) => strlen($file['contents']), $attachments));
+
+        if ($size > self::MAX_ATTACHMENT_BYTES) {
+            throw new RuntimeException('Der Anhang ist zu groß ('.number_format($size / 1048576, 1, ',', '.').' MB, höchstens 3 MB). Microsoft 365 nimmt beim direkten Versand keine größeren Anhänge an. Bitte die Datei verkleinern oder als Link senden.');
+        }
+
+        $reference = (string) Str::uuid();
+
+        $message = [
+            'subject' => $subject,
+            'body' => ['contentType' => 'HTML', 'content' => self::html($text, $connection->signature)],
+            'toRecipients' => [['emailAddress' => ['address' => $to]]],
+            'internetMessageHeaders' => [['name' => self::REFERENCE_HEADER, 'value' => $reference]],
+        ];
+
+        if ($attachments !== []) {
+            $message['attachments'] = array_map(fn (array $file) => [
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'name' => $file['name'],
+                'contentType' => $file['content_type'],
+                'contentBytes' => base64_encode($file['contents']),
+            ], $attachments);
+        }
+
+        try {
+            $response = $this->client->request($connection)->post($this->client->graph('/me/sendMail'), [
+                'message' => $message,
+                'saveToSentItems' => true,
+            ]);
+        } catch (ConnectionException) {
+            throw new RuntimeException('Microsoft 365 ist gerade nicht erreichbar. Die E-Mail wurde nicht gesendet. Bitte versuchen Sie es in einigen Minuten erneut.');
+        }
+
+        if ($response->failed()) {
+            throw $this->rejected($response);
+        }
+
+        return $reference;
+    }
+
+    /** HTML aus reinem Text: alles maskiert, nur Zeilenumbrüche werden zu <br>. */
+    public static function html(string $text, ?string $signature = null): string
+    {
+        $html = self::lines($text);
+
+        if (filled(trim((string) $signature))) {
+            $html .= "<br>\n<br>\n".self::lines((string) $signature);
+        }
+
+        return '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">'.$html.'</div>';
+    }
+
+    private static function lines(string $text): string
+    {
+        return nl2br(e(trim(str_replace(["\r\n", "\r"], "\n", $text))), false);
+    }
+
+    /** Ablehnung mit Status und Begründung von Microsoft, damit sich der Fehler ohne Serverprotokoll eingrenzen lässt. */
+    private function rejected(Response $response): RuntimeException
+    {
+        $reason = $response->json('error.message') ?? $response->json('error_description') ?? trim(strip_tags($response->body()));
+        $reason = Str::limit((string) (is_scalar($reason) ? $reason : json_encode($reason)), 300);
+
+        return new RuntimeException(match ($response->status()) {
+            401 => 'Microsoft 365 hat die Anmeldung abgelehnt (401). '.MicrosoftClient::RECONNECT,
+            403 => trim('Microsoft 365 erlaubt den Versand aus Ihrem Postfach nicht (403). '.MicrosoftClient::RECONNECT.' '.$reason),
+            413 => 'Die E-Mail ist für Microsoft 365 zu groß (413). Bitte den Anhang verkleinern oder als Link senden.',
+            429 => 'Microsoft 365 meldet zu viele E-Mails in kurzer Zeit (429). Bitte versuchen Sie es in einigen Minuten erneut.',
+            default => trim('Microsoft 365 hat die E-Mail nicht angenommen ('.$response->status().'). '.$reason),
+        });
+    }
+}
