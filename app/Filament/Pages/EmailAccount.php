@@ -61,9 +61,9 @@ class EmailAccount extends Page
     private function fillSignatureForm(): void
     {
         $connection = $this->connection();
-        $plain = trim(str_replace(['
-', ''], '
-', (string) $connection?->signature));
+        $plain = trim(str_replace(["
+", ""], "
+", (string) $connection?->signature));
 
         $this->form->fill([
             'signature_html' => $connection?->signature_html ?? ($plain !== '' ? '<p>'.nl2br(e($plain), false).'</p>' : null),
