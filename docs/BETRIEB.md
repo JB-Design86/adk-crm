@@ -427,7 +427,7 @@ MICROSOFT_CLIENT_SECRET=...
 MICROSOFT_TENANT_ID=...
 ```
 
-Die Mandanten-ID ist bei einer Single-Tenant-App Pflicht. Die Weiterleitungsadresse ergibt sich aus `APP_URL` (`…/microsoft/callback`); nur wenn sie abweicht, zusätzlich `MICROSOFT_REDIRECT_URI` setzen. Danach im Anwendungsverzeichnis:
+Die Mandanten-ID ist bei einer Single-Tenant-App Pflicht. Die Weiterleitungsadresse ergibt sich aus `APP_URL` (`…/microsoft/callback`); nur wenn sie abweicht, zusätzlich `MICROSOFT_REDIRECT_URI` setzen. `/microsoft/callback` läuft bewusst ohne Sitzung und leitet über eine kleine Zwischenseite nach `/microsoft/weiter`. Grund: Das Sitzungscookie ist `SameSite=strict`. Hat man bei Microsoft etwas eingegeben, schickt der Browser es beim Rücksprung nicht mit, und das CRM schickt zur Anmeldung (Schleife, beobachtet am 08.10.2026). Danach im Anwendungsverzeichnis:
 
 ```bash
 /opt/plesk/php/8.4/bin/php artisan optimize

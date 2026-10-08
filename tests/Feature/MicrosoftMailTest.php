@@ -93,7 +93,8 @@ it('blendet E-Mail aus dem CRM aus, solange Microsoft 365 nicht eingerichtet ist
     Livewire::test(CallList::class)->assertDontSee('E-Mail schreiben');
 
     $this->get(route('filament.crm.microsoft.connect'))->assertNotFound();
-    $this->get(route('filament.crm.microsoft.callback'))->assertNotFound();
+    $this->get(route('microsoft.callback'))->assertNotFound();
+    $this->get(route('filament.crm.microsoft.complete'))->assertNotFound();
 
     expect(EmailAccount::shouldRegisterNavigation())->toBeFalse();
     config(['services.microsoft.client_id' => 'test-client']);
@@ -117,6 +118,21 @@ it('leitet zur Anmeldung bei Microsoft weiter und merkt sich den Prüfwert', fun
         ->toContain('scope='.rawurlencode('offline_access openid profile email User.Read Mail.Send'));
 });
 
+it('leitet die Rückkehr von Microsoft ohne Sitzung innerhalb des CRM weiter', function () {
+    auth()->logout();
+
+    $response = $this->get(route('microsoft.callback', ['code' => 'abc', 'state' => 'pruefwert', 'session_state' => 'x']));
+
+    $target = route('filament.crm.microsoft.complete', ['code' => 'abc', 'state' => 'pruefwert']);
+    $response->assertOk()
+        ->assertSee('url='.e($target), false)
+        ->assertSee('Weiter zum CRM')
+        ->assertHeader('Referrer-Policy', 'no-referrer');
+
+    // Kein neues Sitzungscookie, sonst wäre die Anmeldung im CRM überschrieben.
+    expect(collect($response->headers->getCookies())->map->getName()->all())->not->toContain(config('session.cookie'));
+});
+
 it('verbindet das Postfach nach dem Rückruf und speichert die Tokens verschlüsselt', function () {
     Http::fake([
         'login.microsoftonline.com/*' => Http::response(['access_token' => 'access-neu', 'refresh_token' => 'refresh-neu', 'expires_in' => 3599, 'scope' => 'openid profile email https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read']),
@@ -124,7 +140,7 @@ it('verbindet das Postfach nach dem Rückruf und speichert die Tokens verschlüs
     ]);
 
     $this->withSession(['microsoft_oauth_state' => 'pruefwert'])
-        ->get(route('filament.crm.microsoft.callback', ['code' => 'abc', 'state' => 'pruefwert']))
+        ->get(route('filament.crm.microsoft.complete', ['code' => 'abc', 'state' => 'pruefwert']))
         ->assertRedirect(EmailAccount::getUrl());
 
     $connection = $this->user->mailConnection;
@@ -151,7 +167,7 @@ it('lehnt einen Rückruf mit falschem Prüfwert ab', function () {
     Http::fake();
 
     $this->withSession(['microsoft_oauth_state' => 'pruefwert'])
-        ->get(route('filament.crm.microsoft.callback', ['code' => 'abc', 'state' => 'gefälscht']))
+        ->get(route('filament.crm.microsoft.complete', ['code' => 'abc', 'state' => 'gefälscht']))
         ->assertRedirect(EmailAccount::getUrl());
 
     expect(MailConnection::count())->toBe(0);
@@ -162,7 +178,7 @@ it('verbindet nicht, wenn Microsoft das Recht zum Senden nicht freigibt', functi
     Http::fake(['login.microsoftonline.com/*' => Http::response(['access_token' => 'a', 'refresh_token' => 'r', 'expires_in' => 3600, 'scope' => 'openid profile User.Read'])]);
 
     $this->withSession(['microsoft_oauth_state' => 'pruefwert'])
-        ->get(route('filament.crm.microsoft.callback', ['code' => 'abc', 'state' => 'pruefwert']))
+        ->get(route('filament.crm.microsoft.complete', ['code' => 'abc', 'state' => 'pruefwert']))
         ->assertRedirect(EmailAccount::getUrl());
 
     expect(MailConnection::count())->toBe(0)

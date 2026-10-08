@@ -7,6 +7,7 @@ use App\Services\Microsoft\MicrosoftClient;
 use Filament\Notifications\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -25,6 +26,25 @@ class MicrosoftController extends Controller
         $request->session()->put('microsoft_oauth_state', $state);
 
         return redirect()->away(app(MicrosoftClient::class)->authorizeUrl($state));
+    }
+
+    /**
+     * Rückkehr von Microsoft, erster Schritt. Das Sitzungscookie ist SameSite=strict. Hat die Person bei
+     * Microsoft etwas eingegeben (Kennwort, Code, Zustimmung), geht die Weiterleitung von
+     * login.microsoftonline.com aus, und der Browser schickt das Cookie nicht mit: Das CRM sähe eine
+     * abgemeldete Person. Diese Seite braucht deshalb keine Sitzung und leitet innerhalb des CRM
+     * weiter. Diese Navigation geht vom CRM selbst aus, also kommt das Cookie mit (callback()).
+     */
+    public function bounce(Request $request): Response
+    {
+        abort_unless(MicrosoftClient::isConfigured(), 404);
+
+        $target = route('filament.crm.microsoft.complete', $request->only(['code', 'state', 'error', 'error_description']));
+
+        return response()
+            ->view('microsoft.weiter', ['target' => $target])
+            ->header('Cache-Control', 'no-store')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function callback(Request $request, MicrosoftClient $client): RedirectResponse

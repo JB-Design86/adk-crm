@@ -88,7 +88,8 @@ class AdminPanelProvider extends PanelProvider
                 Route::get('sipgate/connect', [SipgateController::class, 'connect'])->name('sipgate.connect');
                 Route::get('sipgate/callback', [SipgateController::class, 'callback'])->name('sipgate.callback');
                 Route::get('microsoft/connect', [MicrosoftController::class, 'connect'])->name('microsoft.connect');
-                Route::get('microsoft/callback', [MicrosoftController::class, 'callback'])->name('microsoft.callback');
+                // Zweiter Schritt der Rückkehr von Microsoft, mit Sitzung (erster Schritt ohne Sitzung in routes/web.php).
+                Route::get('microsoft/weiter', [MicrosoftController::class, 'callback'])->name('microsoft.complete');
                 // Dokumente: entschlüsselt ausliefern, Rechte prüfen, protokollieren.
                 Route::get('dokumente/{document}', DocumentController::class)->name('documents.show');
             })
