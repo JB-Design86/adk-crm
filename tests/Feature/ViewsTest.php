@@ -2,7 +2,9 @@
 
 use App\Filament\Pages\Calendar;
 use App\Filament\Pages\Today;
+use App\Filament\Resources\Leads\Pages\ListLeads;
 use App\Models\Appointment;
+use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Services\LeadStatusService;
@@ -90,4 +92,21 @@ it('zählt Anrufe, Erreichte, Termine und Unterlagen und bildet Quoten', functio
     expect($report->wrongDataBySource())->toBe([['source' => 'Quelle Y', 'wrong' => 1, 'leads' => 1, 'rate' => 1]]);
 
     $this->get('/auswertung')->assertOk()->assertSee('Quoten je Branche');
+});
+
+it('zeigt in den Vorgängen, wann ein Vorgang eingespielt wurde, und filtert nach Leadliste', function () {
+    $older = ImportLog::create(['file_name' => 'liste-september.xlsx', 'source' => 'Recherche', 'retrieved_at' => '2026-09-20', 'rows_imported' => 1]);
+    $newer = ImportLog::create(['file_name' => 'premium-kunden.xlsx', 'source' => 'Recherche', 'retrieved_at' => '2026-09-24', 'rows_imported' => 2]);
+    $old = Lead::factory()->create(['import_log_id' => $older->id, 'created_at' => '2026-09-20 09:00']);
+    $premiumA = Lead::factory()->create(['import_log_id' => $newer->id, 'created_at' => '2026-09-24 08:15']);
+    $premiumB = Lead::factory()->create(['import_log_id' => $newer->id, 'created_at' => '2026-09-24 08:15']);
+
+    Livewire::test(ListLeads::class)
+        ->assertSee('Import: premium-kunden.xlsx')
+        ->assertSee('24.09.2026 08:15')
+        ->sortTable('created_at', 'desc')
+        ->assertCanSeeTableRecords([$premiumB, $premiumA, $old], inOrder: true)
+        ->filterTable('import_log_id', [$newer->id])
+        ->assertCanSeeTableRecords([$premiumA, $premiumB])
+        ->assertCanNotSeeTableRecords([$old]);
 });

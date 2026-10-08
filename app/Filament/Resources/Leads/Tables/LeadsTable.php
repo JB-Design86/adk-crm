@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Leads\Tables;
 
 use App\Filament\Resources\Leads\LeadResource;
+use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadExportService;
@@ -28,7 +29,7 @@ class LeadsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['organization', 'contact', 'assignee']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['organization', 'contact', 'assignee', 'importLog']))
             ->defaultSort(fn (Builder $query) => $query
                 ->orderByRaw('CASE WHEN status = ? AND channel IN ('.implode(',', array_fill(0, count(Adk::inboundChannels()), '?')).') THEN 0 ELSE 1 END', ['new', ...Adk::inboundChannels()])
                 ->orderByRaw('next_action_at IS NULL')
@@ -66,6 +67,13 @@ class LeadsTable
                 IconColumn::make('cross_selling')->label('JB')->boolean()->trueIcon(Heroicon::OutlinedSparkles)->falseIcon('')->tooltip('Cross-Selling JB Design'),
                 TextColumn::make('assignee.name')->label('zuständig')->toggleable(),
                 TextColumn::make('last_contact_at')->label('letzter Kontakt')->dateTime('d.m.Y')->sortable()->toggleable(isToggledHiddenByDefault: true),
+                // Wann der Vorgang ins CRM kam, bei Leadlisten mit Dateiname. Absteigend sortiert stehen die neuesten Listen oben.
+                TextColumn::make('created_at')
+                    ->label('angelegt')
+                    ->dateTime('d.m.Y H:i')
+                    ->description(fn (Lead $record) => $record->importLog ? 'Import: '.$record->importLog->file_name : null)
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('created_at', $direction)->orderBy('id', $direction))
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('status')->label('Status')->options(Adk::statusOptions())->multiple(),
@@ -81,6 +89,13 @@ class LeadsTable
                     ->options(Adk::industryOptions())
                     ->multiple()
                     ->query(fn (Builder $query, array $data) => $query->when($data['values'] ?? null, fn ($q, $values) => $q->whereHas('organization', fn ($o) => $o->whereIn('industry', $values)))),
+                SelectFilter::make('import_log_id')
+                    ->label('Import (Leadliste)')
+                    ->options(fn () => ImportLog::query()->latest('id')->limit(200)->get()
+                        ->mapWithKeys(fn (ImportLog $log) => [$log->id => $log->created_at->format('d.m.Y H:i').' · '.$log->file_name.' ('.$log->rows_imported.')'])
+                        ->all())
+                    ->multiple()
+                    ->searchable(),
                 SelectFilter::make('assigned_to')
                     ->label('zuständig')
                     ->options(fn () => User::orderBy('name')->pluck('name', 'id')),
