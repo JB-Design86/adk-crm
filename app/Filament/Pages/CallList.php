@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\Leads\LeadResource;
+use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Services\LeadStatusService;
 use App\Services\Sipgate\ClickToCall;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use RuntimeException;
 use UnitEnum;
 
@@ -42,6 +44,10 @@ class CallList extends Page
     public ?int $leadId = null;
 
     public bool $onlyMine = true;
+
+    /** Nur Vorgänge aus diesem Import (Leadliste), z. B. die neueste Premium-Liste zuerst abarbeiten. */
+    #[Url(as: 'liste')]
+    public ?string $importLogId = null;
 
     /** @var list<int> in dieser Sitzung übersprungen */
     public array $skipped = [];
@@ -119,6 +125,7 @@ class CallList extends Page
                 ->orWhereIn('leads.channel', $inbound)
                 ->orWhere(fn (Builder $p) => $p->whereNotNull('contacts.phone_consent_at')->whereNotNull('contacts.phone_consent_proof')))
             ->when($this->onlyMine, fn (Builder $q) => $q->where(fn ($m) => $m->whereNull('leads.assigned_to')->orWhere('leads.assigned_to', auth()->id())))
+            ->when(filled($this->importLogId), fn (Builder $q) => $q->where('leads.import_log_id', (int) $this->importLogId))
             ->when($this->skipped, fn (Builder $q) => $q->whereNotIn('leads.id', $this->skipped))
             // Fällige Rückrufe mit Uhrzeit zuerst, nach Zeitpunkt (bei allen anderen sind beide Ausdrücke leer).
             ->orderByCallbackDue()
@@ -289,6 +296,21 @@ class CallList extends Page
     {
         $this->skipped = [];
         $this->next();
+    }
+
+    public function updatedImportLogId(): void
+    {
+        $this->skipped = [];
+        $this->next();
+    }
+
+    /** Auswahl „Liste“: die letzten Importe, neueste zuerst. */
+    #[Computed]
+    public function importOptions(): array
+    {
+        return ImportLog::query()->latest('id')->limit(50)->get()
+            ->mapWithKeys(fn (ImportLog $log) => [$log->id => $log->created_at->format('d.m.Y H:i').' · '.$log->file_name.' ('.$log->rows_imported.')'])
+            ->all();
     }
 
     private function persist(bool $confirmed): void

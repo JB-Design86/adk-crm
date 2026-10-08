@@ -3,6 +3,7 @@
 use App\Filament\Pages\CallList;
 use App\Models\BlocklistEntry;
 use App\Models\Contact;
+use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
 use Livewire\Livewire;
@@ -147,4 +148,23 @@ it('setzt mit Taste 0 Cross-Selling, ohne den Status zu ändern', function () {
         ->assertHasNoErrors();
 
     expect($lead->fresh())->cross_selling->toBeTrue()->status->toBe('new');
+});
+
+it('arbeitet auf Wunsch nur eine Leadliste ab', function () {
+    $older = ImportLog::create(['file_name' => 'liste-september.xlsx', 'source' => 'Recherche', 'retrieved_at' => '2026-09-20', 'rows_imported' => 1]);
+    $premium = ImportLog::create(['file_name' => 'premium-kunden.xlsx', 'source' => 'Recherche', 'retrieved_at' => '2026-09-24', 'rows_imported' => 1]);
+    $fromOlder = leadWithPriority('A');
+    $fromOlder->update(['import_log_id' => $older->id]);
+    $fromPremium = leadWithPriority('B');
+    $fromPremium->update(['import_log_id' => $premium->id]);
+
+    Livewire::test(CallList::class)
+        ->assertSet('leadId', $fromOlder->id)
+        ->assertSee('premium-kunden.xlsx (1)')
+        ->set('importLogId', (string) $premium->id)
+        ->assertSet('leadId', $fromPremium->id)
+        ->call('skip')
+        ->assertSet('leadId', null)
+        ->set('importLogId', '')
+        ->assertSet('leadId', $fromOlder->id);
 });

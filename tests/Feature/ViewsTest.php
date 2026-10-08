@@ -102,7 +102,7 @@ it('zeigt in den Vorgängen, wann ein Vorgang eingespielt wurde, und filtert nac
     $premiumB = Lead::factory()->create(['import_log_id' => $newer->id, 'created_at' => '2026-09-24 08:15']);
 
     Livewire::test(ListLeads::class)
-        ->assertSee('Import: premium-kunden.xlsx')
+        ->assertSee('premium-kunden.xlsx')
         ->assertSee('24.09.2026 08:15')
         ->sortTable('created_at', 'desc')
         ->assertCanSeeTableRecords([$premiumB, $premiumA, $old], inOrder: true)

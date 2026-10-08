@@ -23,6 +23,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class LeadsTable
 {
@@ -53,6 +54,14 @@ class LeadsTable
                     ->color(fn (string $state) => Adk::statusColor($state))
                     ->sortable(),
                 TextColumn::make('organization.priority')->label('Prio')->badge()->color('gray'),
+                // Wann der Vorgang ins CRM kam, bei Leadlisten mit Dateiname. Absteigend sortiert stehen die neuesten Listen oben.
+                TextColumn::make('created_at')
+                    ->label('angelegt')
+                    ->dateTime('d.m.Y H:i')
+                    ->description(fn (Lead $record) => $record->importLog ? Str::limit($record->importLog->file_name, 28) : null)
+                    ->tooltip(fn (Lead $record) => $record->importLog ? 'Import: '.$record->importLog->file_name : null)
+                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('created_at', $direction)->orderBy('id', $direction))
+                    ->toggleable(),
                 TextColumn::make('target_group')->label('Zielgruppe')->formatStateUsing(fn ($state) => Adk::targetGroupLabel($state))->toggleable(),
                 TextColumn::make('channel')->label('Kanal')->formatStateUsing(fn ($state) => Adk::channelLabel($state))->toggleable(),
                 TextColumn::make('organization.industry')->label('Branche')->toggleable(isToggledHiddenByDefault: true),
@@ -67,13 +76,6 @@ class LeadsTable
                 IconColumn::make('cross_selling')->label('JB')->boolean()->trueIcon(Heroicon::OutlinedSparkles)->falseIcon('')->tooltip('Cross-Selling JB Design'),
                 TextColumn::make('assignee.name')->label('zuständig')->toggleable(),
                 TextColumn::make('last_contact_at')->label('letzter Kontakt')->dateTime('d.m.Y')->sortable()->toggleable(isToggledHiddenByDefault: true),
-                // Wann der Vorgang ins CRM kam, bei Leadlisten mit Dateiname. Absteigend sortiert stehen die neuesten Listen oben.
-                TextColumn::make('created_at')
-                    ->label('angelegt')
-                    ->dateTime('d.m.Y H:i')
-                    ->description(fn (Lead $record) => $record->importLog ? 'Import: '.$record->importLog->file_name : null)
-                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('created_at', $direction)->orderBy('id', $direction))
-                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('status')->label('Status')->options(Adk::statusOptions())->multiple(),

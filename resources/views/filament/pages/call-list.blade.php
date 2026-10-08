@@ -37,7 +37,20 @@
                 Noch <strong>{{ $this->remaining }}</strong> Vorgänge in der Liste.
                 Reihenfolge: fällige Rückrufe mit Uhrzeit, dann Priorität A, B, C, dann älteste Wiedervorlage.
             </div>
-            <div class="flex items-center gap-4">
+            <div class="flex flex-wrap items-center gap-4">
+                @if (count($this->importOptions) > 0)
+                    <label class="flex items-center gap-2 text-sm">
+                        <span>Liste</span>
+                        <x-filament::input.wrapper>
+                            <x-filament::input.select wire:model.live="importLogId">
+                                <option value="">alle Vorgänge</option>
+                                @foreach ($this->importOptions as $id => $label)
+                                    <option value="{{ $id }}">{{ $label }}</option>
+                                @endforeach
+                            </x-filament::input.select>
+                        </x-filament::input.wrapper>
+                    </label>
+                @endif
                 <label class="flex items-center gap-2 text-sm">
                     <x-filament::input.checkbox wire:model.live="onlyMine" />
                     nur meine und nicht zugewiesene

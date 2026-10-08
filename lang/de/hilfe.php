@@ -100,7 +100,7 @@ return [
 
     'seiten' => [
         'heute' => 'Alles, was heute zu tun ist: fällige und überfällige Wiedervorlagen, neue Anfragen (rot), Rückrufe mit Uhrzeit und die Termine des Tages.',
-        'anrufliste' => 'Ein Betrieb nach dem anderen: zuerst fällige Rückrufe mit Uhrzeit, dann Priorität A. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
+        'anrufliste' => 'Ein Betrieb nach dem anderen: zuerst fällige Rückrufe mit Uhrzeit, dann Priorität A. Unter „Liste“ lässt sich eine einzelne Leadliste wählen, z. B. die neueste. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
         'vorgaenge' => 'Vorgänge nach Phase: Akquise (Standard), Förderfall, Teilnehmer, geschlossen. Übergebene Vorgänge stehen nicht mehr in der Akquise, sondern unter Förderfall bzw. Teilnehmer.',
         'teilnehmer' => 'Teilnehmerakten: entstehen mit „Einschreibung bestätigt“ im Förderfall. Checkliste von Vertrag bis Verbleib, Dokumente, Ausgabe als ZIP.',
         'checkliste' => 'Punkte der Checkliste in der Teilnehmerakte, je Phase. Umbenennen, sortieren, ergänzen oder abschalten.',
