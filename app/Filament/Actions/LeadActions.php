@@ -206,6 +206,45 @@ class LeadActions
             });
     }
 
+    /** Wiedervorlage verschieben, ohne den Status zu ändern, z. B. nach einem Tippfehler beim Datum. */
+    public static function changeFollowUp(): Action
+    {
+        return Action::make('changeFollowUp')
+            ->label('Wiedervorlage ändern')
+            ->icon(Heroicon::OutlinedCalendarDays)
+            ->color('gray')
+            ->visible(fn (Lead $record) => Gate::allows('leads.edit') && $record->isOpen())
+            ->fillForm(fn (Lead $record) => [
+                'next_action_at' => $record->next_action_at?->toDateString(),
+                'next_action_time' => $record->next_action_time,
+            ])
+            ->schema([
+                Grid::make(2)->schema([
+                    DatePicker::make('next_action_at')->label('Wiedervorlage am')->minDate(today())->required(),
+                    TimePicker::make('next_action_time')->label('Uhrzeit (optional)')->seconds(false),
+                ]),
+                Textarea::make('note')->label('Notiz (optional)')->rows(2),
+            ])
+            ->action(function (Lead $record, array $data) {
+                $before = $record->nextActionLabel() ?? 'keine';
+                $record->next_action_at = $data['next_action_at'];
+                $record->next_action_time = $data['next_action_time'] ?? null;
+                $record->save();
+
+                Activity::create([
+                    'lead_id' => $record->id,
+                    'user_id' => auth()->id(),
+                    'type' => 'note',
+                    'body' => implode("\n", array_filter([
+                        'Wiedervorlage geändert: '.$before.' → '.$record->nextActionLabel(),
+                        filled($data['note'] ?? null) ? trim($data['note']) : null,
+                    ])),
+                ]);
+
+                Notification::make()->title('Wiedervorlage: '.$record->nextActionLabel())->success()->send();
+            });
+    }
+
     public static function notifyRest(Lead $lead): void
     {
         Notification::make()

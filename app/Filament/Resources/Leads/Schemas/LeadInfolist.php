@@ -38,7 +38,7 @@ class LeadInfolist
                             ->label('Website-Vorgang')
                             ->visible(fn (Lead $record) => $record->intake_ref !== null),
                         TextEntry::make('next_action_at')
-                            ->label('nächste Aktion am')
+                            ->label('Wiedervorlage')
                             ->formatStateUsing(fn (Lead $record) => $record->nextActionLabel())
                             ->placeholder('–')
                             ->color(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'danger' : null),

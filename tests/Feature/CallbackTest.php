@@ -268,3 +268,23 @@ describe('Erinnerung', function () {
         expect(sentNotifications())->toHaveCount(1);
     });
 });
+
+it('ändert die Wiedervorlage auf der Vorgangsseite, ohne den Status zu ändern, und protokolliert das', function () {
+    $lead = Lead::factory()->create(['status' => 'documents_sent']);
+    $lead->forceFill(['next_action_at' => now()->addDays(13)->toDateString(), 'next_action_time' => '09:00'])->save();
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->assertActionVisible('changeFollowUp')
+        ->callAction('changeFollowUp', ['next_action_at' => now()->addDays(6)->toDateString(), 'next_action_time' => '09:00', 'note' => 'Tippfehler'])
+        ->assertHasNoActionErrors();
+
+    $lead->refresh();
+    expect($lead->status)->toBe('documents_sent')
+        ->and($lead->next_action_at->toDateString())->toBe(now()->addDays(6)->toDateString())
+        ->and($lead->next_action_time)->toBe('09:00');
+
+    $activity = $lead->activities()->latest('id')->first();
+    expect($activity->type)->toBe('note')
+        ->and($activity->body)->toContain('Wiedervorlage geändert: '.now()->addDays(13)->format('d.m.Y').', 09:00 Uhr → '.now()->addDays(6)->format('d.m.Y').', 09:00 Uhr')
+        ->and($activity->body)->toContain('Tippfehler');
+});

@@ -73,7 +73,7 @@ class LeadForm
                         ->default(fn () => auth()->id()),
                     Grid::make(2)->schema([
                         DatePicker::make('next_action_at')
-                            ->label('nächste Aktion am')
+                            ->label('Wiedervorlage am')
                             ->helperText('Bei eingehenden Anfragen automatisch heute.'),
                         TimePicker::make('next_action_time')
                             ->label('Uhrzeit (optional)')
