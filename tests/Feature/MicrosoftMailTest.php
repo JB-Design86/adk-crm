@@ -232,7 +232,7 @@ it('sendet die HTML-Signatur bereinigt und das Logo als eingebettetes Bild', fun
         $logo = collect($request['message']['attachments'] ?? [])->firstWhere('isInline', true);
 
         return str_contains($body, 'Hallo<br>')
-            && str_contains($body, '<p style="margin:0"><strong>Max Muster</strong></p><p style="margin:0">&nbsp;</p><p style="margin:0">ADK</p>')
+            && str_contains($body, '<p style="margin:0 0 12px"><strong>Max Muster</strong></p><p style="margin:0">&nbsp;</p><p style="margin:0 0 12px">ADK</p>')
             && ! str_contains($body, 'script')
             && str_contains($body, '<img src="cid:adk-signatur-logo" alt="Logo" width="220"')
             && ($logo['contentId'] ?? null) === 'adk-signatur-logo'

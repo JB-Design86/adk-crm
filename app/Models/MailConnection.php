@@ -37,21 +37,28 @@ class MailConnection extends Model
     }
 
     /**
-     * Signatur für die E-Mail als HTML. Aus dem Editor bereinigt, Absätze ohne Abstand wie in Outlook,
-     * leere Absätze als Leerzeile. Ohne HTML-Signatur die bisherige Text-Signatur. Null, wenn keine da ist.
+     * Signatur für die E-Mail als HTML, bereinigt. Absätze mit kleinem Abstand darunter, wie sie auch
+     * im Editor erscheinen, leere Absätze als Leerzeile. Tabellen aus dem HTML-Code (z. B. für bündige
+     * Telefonnummern) bleiben erhalten. Ohne HTML-Signatur die bisherige Text-Signatur. Null, wenn keine da ist.
      */
     public function signatureHtml(): ?string
     {
         if (filled(trim(strip_tags((string) $this->signature_html)))) {
-            $html = Str::sanitizeHtml((string) $this->signature_html);
+            $html = self::cleanSignature((string) $this->signature_html);
             $html = preg_replace('#<p>\s*</p>#', '<p style="margin:0">&nbsp;</p>', $html);
 
-            return str_replace('<p>', '<p style="margin:0">', $html);
+            return str_replace('<p>', '<p style="margin:0 0 12px">', $html);
         }
 
         $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $this->signature));
 
         return $text !== '' ? nl2br(e($text), false) : null;
+    }
+
+    /** HTML der Signatur bereinigt, ohne Bilder (das Logo kommt aus dem eigenen Feld). */
+    public static function cleanSignature(string $html): string
+    {
+        return preg_replace('#<img\b[^>]*>#i', '', Str::sanitizeHtml($html));
     }
 
     public const LOGO_DISK = 'local';

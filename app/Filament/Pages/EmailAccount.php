@@ -9,14 +9,16 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use UnitEnum;
 
@@ -63,8 +65,13 @@ class EmailAccount extends Page
         $connection = $this->connection();
         $plain = trim(str_replace(["\r\n", "\r"], "\n", (string) $connection?->signature));
 
+        $html = $connection?->signature_html ?? ($plain !== '' ? '<p>'.nl2br(e($plain), false).'</p>' : null);
+
         $this->form->fill([
-            'signature_html' => $connection?->signature_html ?? ($plain !== '' ? '<p>'.nl2br(e($plain), false).'</p>' : null),
+            'signature_html' => $html,
+            // Eine Tabelle kann der Editor nicht darstellen und würde sie beim Speichern verlieren: dann im HTML-Code öffnen.
+            'signature_as_code' => str_contains((string) $html, '<table'),
+            'signature_code' => $html,
             'signature_logo_path' => $connection?->signature_logo_path,
             'signature_logo_width' => $connection?->signature_logo_width ?? 200,
         ]);
@@ -74,10 +81,21 @@ class EmailAccount extends Page
     {
         return $schema
             ->components([
+                Toggle::make('signature_as_code')
+                    ->label('Als HTML-Code bearbeiten')
+                    ->helperText('Für Fortgeschrittene, z. B. für Telefonnummern, die bündig untereinander stehen (Tabelle).')
+                    ->live(),
                 RichEditor::make('signature_html')
                     ->label('Signatur')
                     ->toolbarButtons([['bold', 'italic', 'underline', 'link'], ['undo', 'redo']])
+                    ->visible(fn (Get $get) => ! $get('signature_as_code'))
                     ->helperText('Tipp: Ihre Signatur in Outlook markieren, kopieren und hier einfügen. Enter beginnt einen neuen Absatz, Umschalt + Enter eine neue Zeile.'),
+                Textarea::make('signature_code')
+                    ->label('Signatur als HTML-Code')
+                    ->rows(14)
+                    ->extraInputAttributes(['class' => 'font-mono text-sm', 'spellcheck' => 'false'])
+                    ->visible(fn (Get $get) => (bool) $get('signature_as_code'))
+                    ->helperText('Erlaubt sind übliche Auszeichnungen wie <p>, <strong>, <a>, <br> und Tabellen mit style-Angaben. Skripte und eingebettete Bilder entfernt das CRM beim Speichern. Das Logo kommt aus dem Feld darunter.'),
                 FileUpload::make('signature_logo_path')
                     ->label('Logo (optional)')
                     ->image()
@@ -118,7 +136,9 @@ class EmailAccount extends Page
         }
 
         $data = $this->form->getState();
-        $html = filled(trim(strip_tags((string) ($data['signature_html'] ?? '')))) ? Str::sanitizeHtml((string) $data['signature_html']) : null;
+        $source = (string) (! empty($data['signature_as_code']) ? ($data['signature_code'] ?? '') : ($data['signature_html'] ?? ''));
+        // Bilder kommen nur über das Logo-Feld (eingebettet per cid), eingefügte Bilder würden die Mail aufblähen.
+        $html = filled(trim(strip_tags($source))) ? MailConnection::cleanSignature($source) : null;
 
         if (mb_strlen((string) $html) > 20000) {
             Notification::make()->title('Die Signatur ist zu lang')->body('Bitte kürzen Sie sie, z. B. ohne eingefügte Bilder.')->danger()->send();
@@ -141,6 +161,7 @@ class EmailAccount extends Page
             'signature_logo_width' => filled($data['signature_logo_width'] ?? null) ? (int) $data['signature_logo_width'] : null,
         ]);
         unset($this->connection);
+        $this->fillSignatureForm();
 
         Notification::make()->title('Signatur gespeichert')->success()->send();
     }
