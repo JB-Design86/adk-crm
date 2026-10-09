@@ -298,12 +298,23 @@ class LeadActions
                 ->validationMessages(['accepted' => 'Ohne Bitte oder Einwilligung der Person bitte keine E-Mail senden.'])
                 ->helperText('Werbung per E-Mail ist nur mit vorheriger Einwilligung erlaubt, auch gegenüber Betrieben (§ 7 UWG). Gemeint ist z. B. „Schicken Sie mir die Unterlagen“ im Telefonat oder eine Anfrage über die Website.'
                     .($contact?->hasEmailConsent() ? ' Am Kontakt eingetragen: Einwilligung in E-Mails seit '.$contact->email_consent_at->format('d.m.Y').'.' : '')),
+            Select::make('status_after')
+                ->label('Status danach (optional)')
+                ->options(LeadEmail::statusOptions($lead))
+                ->placeholder('unverändert lassen')
+                ->live()
+                ->helperText(fn (Get $get) => match (config('adk.statuses.'.$get('status_after').'.follow_up')) {
+                    'working_days' => 'Wiedervorlage automatisch in '.config('adk.statuses.'.$get('status_after').'.days').' Arbeitstagen, außer Sie tragen unten ein Datum ein.',
+                    'required' => 'Bitte unten ein Wiedervorlagedatum eintragen.',
+                    default => $lead->contact ? null : '„Unterlagen versendet“ braucht eine Ansprechperson am Vorgang, dafür bitte „Status setzen“ verwenden.',
+                }),
             Grid::make(2)->schema([
                 DatePicker::make('next_action_at')
-                    ->label('Wiedervorlage am (optional)')
+                    ->label(fn (Get $get) => config('adk.statuses.'.$get('status_after').'.follow_up') === 'required' ? 'Wiedervorlage am' : 'Wiedervorlage am (optional)')
                     ->minDate(today())
                     ->requiredWith('next_action_time')
-                    ->helperText('Leer lassen: Wiedervorlage bleibt '.($lead->nextActionLabel() ?? 'leer').'.'),
+                    ->required(fn (Get $get) => config('adk.statuses.'.$get('status_after').'.follow_up') === 'required')
+                    ->helperText('Leer lassen: Wiedervorlage bleibt '.($lead->nextActionLabel() ?? 'leer').' bzw. folgt dem Status.'),
                 TimePicker::make('next_action_time')
                     ->label('Uhrzeit (optional)')
                     ->seconds(false),

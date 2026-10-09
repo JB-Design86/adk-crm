@@ -8,6 +8,8 @@ use App\Models\Contact;
 use App\Models\EmailTemplate;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\LeadStatusService;
+use App\Support\Adk;
 use App\Support\MailHtml;
 use App\Support\Normalizer;
 use Illuminate\Support\Carbon;
@@ -35,6 +37,18 @@ class LeadEmail
     public static function connectedFor(?User $user): bool
     {
         return $user !== null && MicrosoftClient::isConfigured() && $user->mailConnection()->exists();
+    }
+
+    /** Status, die sich beim Senden gleich mit setzen lassen (ohne weitere Angaben außer der Wiedervorlage). */
+    public const STATUS_AFTER = ['documents_sent', 'interested', 'later'];
+
+    /** @return array<string, string> „Unterlagen versendet“ nur mit Ansprechperson (Datenschutzhinweis am Kontakt). */
+    public static function statusOptions(Lead $lead): array
+    {
+        return collect(self::STATUS_AFTER)
+            ->reject(fn (string $status) => $status === 'documents_sent' && $lead->contact === null)
+            ->mapWithKeys(fn (string $status) => [$status => Adk::statusLabel($status)])
+            ->all();
     }
 
     /** Vorschlag für „An“: Ansprechperson vor Betrieb. */
@@ -163,16 +177,28 @@ class LeadEmail
             throw new RuntimeException('Die Wiedervorlage darf nicht in der Vergangenheit liegen.');
         }
 
+        // Status gleich mit setzen: vor dem Versand prüfen, damit nach dem Senden nichts mehr scheitert.
+        $status = filled($data['status_after'] ?? null) ? (string) $data['status_after'] : null;
+
+        if ($status !== null && ! array_key_exists($status, self::statusOptions($lead))) {
+            throw new RuntimeException('Dieser Status lässt sich hier nicht setzen. Bitte „Status setzen“ verwenden.');
+        }
+
+        if ($status !== null && config("adk.statuses.{$status}.follow_up") === 'required' && $followUp === null) {
+            throw new RuntimeException('Für „'.Adk::statusLabel($status).'“ bitte ein Wiedervorlagedatum angeben.');
+        }
+
         $template = filled($data['email_template_id'] ?? null) ? EmailTemplate::find($data['email_template_id']) : null;
         $attachments = [...$this->templateAttachments($data, $template), ...$this->uploadedAttachments($data)];
         $names = array_column($attachments, 'name');
 
         $reference = $this->mailer->sendMail($connection, $to, $subject, $html, $attachments);
 
-        return DB::transaction(function () use ($user, $lead, $data, $to, $subject, $text, $followUp, $template, $names, $reference) {
+        return DB::transaction(function () use ($user, $lead, $data, $to, $subject, $text, $followUp, $status, $template, $names, $reference) {
             $followUpLine = null;
 
-            if ($followUp) {
+            // Mit Status übernimmt der Statuswechsel die Wiedervorlage (eigener Eintrag im Verlauf).
+            if ($followUp && $status === null) {
                 $before = $lead->nextActionLabel() ?? 'keine';
                 $lead->next_action_at = $followUp->toDateString();
                 $lead->next_action_time = $data['next_action_time'] ?? null;
@@ -207,9 +233,18 @@ class LeadEmail
                     'to' => $to,
                     'template' => $template?->name,
                     'attachments' => $names ? implode(', ', $names) : null,
-                    'follow_up' => $followUp ? $lead->nextActionLabel() : null,
+                    'follow_up' => $followUp && $status === null ? $lead->nextActionLabel() : null,
+                    'status' => $status ? Adk::statusLabel($status) : null,
                 ]))
                 ->log('E-Mail über Microsoft 365 gesendet');
+
+            if ($status !== null) {
+                app(LeadStatusService::class)->apply($lead, $status, [
+                    'next_action_at' => $followUp?->toDateString(),
+                    'next_action_time' => $data['next_action_time'] ?? null,
+                    'note' => 'Mit der E-Mail „'.$subject.'“ gesetzt.',
+                ], $user);
+            }
 
             return $activity;
         });

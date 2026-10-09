@@ -16,6 +16,7 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Microsoft\GraphMailer;
 use App\Services\Microsoft\LeadEmail;
+use App\Support\WorkingDays;
 use Filament\Forms\Components\RichEditor\RichContentRenderer;
 use Filament\Notifications\Notification;
 use Illuminate\Http\Client\Request;
@@ -410,6 +411,47 @@ it('sendet ohne Anhang, wenn keine Datei angehakt ist, und ohne Signatur, wenn k
     Http::assertSent(fn (Request $request) => ! isset($request['message']['attachments'])
         && $request['message']['body']['content'] === '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;"><p style="margin:0 0 12px">Kurz und knapp</p></div>');
     expect($lead->activities()->sole()->body)->not->toContain('Anhang:');
+});
+
+it('setzt mit der E-Mail auf Wunsch gleich den Status „Unterlagen versendet“', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    $lead->forceFill(['status' => 'new'])->saveQuietly();
+    graphAccepts();
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->callAction('sendEmail', emailData(['status_after' => 'documents_sent']))
+        ->assertHasNoActionErrors();
+
+    $lead->refresh();
+    expect($lead->status)->toBe('documents_sent')
+        ->and($lead->next_action_at->toDateString())->toBe(WorkingDays::add(today(), 5)->toDateString())
+        ->and($lead->activities()->where('type', 'status_change')->sole()->body)->toContain('Mit der E-Mail „Ihre Unterlagen“ gesetzt.')
+        ->and($lead->activities()->where('type', 'email')->sole()->body)->not->toContain('Wiedervorlage:');
+});
+
+it('verlangt für „Interesse“ eine Wiedervorlage und sendet ohne sie nicht', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    Http::fake();
+
+    expect(fn () => app(LeadEmail::class)->send($this->user, $lead, emailData(['email_to' => 'erika.muster@example.org', 'status_after' => 'interested'])))
+        ->toThrow(RuntimeException::class, 'bitte ein Wiedervorlagedatum angeben');
+    Http::assertNothingSent();
+
+    graphAccepts();
+    app(LeadEmail::class)->send($this->user, $lead, emailData(['email_to' => 'erika.muster@example.org', 'status_after' => 'interested', 'next_action_at' => today()->addDays(3)->toDateString(), 'next_action_time' => '10:00']));
+
+    $lead->refresh();
+    expect($lead->status)->toBe('interested')
+        ->and($lead->nextActionLabel())->toBe(today()->addDays(3)->format('d.m.Y').', 10:00 Uhr');
+});
+
+it('bietet „Unterlagen versendet“ ohne Ansprechperson nicht an', function () {
+    $lead = mailLead();
+    $lead->forceFill(['contact_id' => null])->saveQuietly();
+
+    expect(LeadEmail::statusOptions($lead->fresh()))->not->toHaveKey('documents_sent')->toHaveKey('interested');
 });
 
 it('sendet nur mit bestätigter Einwilligung', function () {
