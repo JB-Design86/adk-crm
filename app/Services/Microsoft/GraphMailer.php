@@ -26,14 +26,15 @@ class GraphMailer
     public function __construct(private MicrosoftClient $client) {}
 
     /**
-     * Text wird als HTML gesendet: maskiert, Zeilenumbrüche als <br>, Signatur nach einer Leerzeile.
+     * Sendet den Text als HTML, darunter die Signatur und das Logo.
      *
+     * @param  string  $html  bereits bereinigtes HTML (MailHtml::sanitize)
      * @param  list<array{name: string, content_type: string, contents: string}>  $attachments
      * @return string Kennung aus der Kopfzeile x-adk-crm-ref (Graph liefert beim Senden keine Nachrichten-ID)
      *
      * @throws RuntimeException mit einer Meldung für die Oberfläche
      */
-    public function sendMail(MailConnection $connection, string $to, string $subject, string $text, array $attachments = []): string
+    public function sendMail(MailConnection $connection, string $to, string $subject, string $html, array $attachments = []): string
     {
         // Logo der Signatur als eingebettetes Bild (cid:), so erscheint es ohne „Bilder herunterladen“.
         $logo = $connection->logo();
@@ -41,15 +42,20 @@ class GraphMailer
 
         $size = array_sum(array_map(fn (array $file) => strlen($file['contents']), $attachments)) + strlen($logo['contents'] ?? '');
 
+        // Grenze für alle Anhänge zusammen, das Logo der Signatur eingeschlossen.
         if ($size > self::MAX_ATTACHMENT_BYTES) {
-            throw new RuntimeException('Der Anhang ist zu groß ('.number_format($size / 1048576, 1, ',', '.').' MB, höchstens 3 MB). Microsoft 365 nimmt beim direkten Versand keine größeren Anhänge an. Bitte die Datei verkleinern oder als Link senden.');
+            $megabytes = number_format($size / 1048576, 1, ',', '.').' MB, höchstens 3 MB';
+
+            throw new RuntimeException(count($attachments) > 1
+                ? 'Die Anhänge sind zusammen zu groß ('.$megabytes.'). Microsoft 365 nimmt beim direkten Versand keine größeren Anhänge an. Bitte Dateien weglassen, verkleinern oder als Link senden.'
+                : 'Der Anhang ist zu groß ('.$megabytes.'). Microsoft 365 nimmt beim direkten Versand keine größeren Anhänge an. Bitte die Datei verkleinern oder als Link senden.');
         }
 
         $reference = (string) Str::uuid();
 
         $message = [
             'subject' => $subject,
-            'body' => ['contentType' => 'HTML', 'content' => self::html($text, $connection->signatureHtml(), $logoTag)],
+            'body' => ['contentType' => 'HTML', 'content' => self::html($html, $connection->signatureHtml(), $logoTag)],
             'toRecipients' => [['emailAddress' => ['address' => $to]]],
             'internetMessageHeaders' => [['name' => self::REFERENCE_HEADER, 'value' => $reference]],
         ];
@@ -93,23 +99,18 @@ class GraphMailer
     }
 
     /**
-     * HTML aus reinem Text: alles maskiert, nur Zeilenumbrüche werden zu <br>. Danach die Signatur,
-     * die schon als bereinigtes HTML kommt (MailConnection::signatureHtml()), und das Logo.
+     * Ganze E-Mail: Text (bereinigtes HTML aus MailHtml::sanitize, Absätze mit Abstand darunter),
+     * danach die Signatur, die ebenfalls bereinigt kommt (MailConnection::signatureHtml()), und das Logo.
      */
-    public static function html(string $text, ?string $signatureHtml = null, ?string $logoTag = null): string
+    public static function html(string $body, ?string $signatureHtml = null, ?string $logoTag = null): string
     {
-        $html = self::lines($text);
+        $html = trim($body);
 
         if (filled(trim((string) $signatureHtml)) || filled($logoTag)) {
-            $html .= "<br>\n<br>\n".$signatureHtml.$logoTag;
+            $html .= "\n".$signatureHtml.$logoTag;
         }
 
         return '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">'.$html.'</div>';
-    }
-
-    private static function lines(string $text): string
-    {
-        return nl2br(e(trim(str_replace(["\r\n", "\r"], "\n", $text))), false);
     }
 
     /** Ablehnung mit Status und Begründung von Microsoft, damit sich der Fehler ohne Serverprotokoll eingrenzen lässt. */

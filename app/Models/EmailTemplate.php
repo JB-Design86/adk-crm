@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MailHtml;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -9,7 +10,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 /**
- * Vorlage für „E-Mail schreiben“ im Vorgang: Betreff und Text mit Platzhaltern,
+ * Vorlage für „E-Mail schreiben“ im Vorgang: Betreff und Text (HTML aus dem Editor) mit Platzhaltern,
  * auf Wunsch eine Datei als Anhang (private Ablage, nie öffentlich erreichbar).
  * Nur die Verwaltung pflegt Vorlagen, Änderungen stehen im Protokoll.
  */
@@ -20,6 +21,16 @@ class EmailTemplate extends Model
     public const DISK = 'local';
 
     public const DIRECTORY = 'email-templates';
+
+    /** Dateiarten für Anhänge, an Vorlagen und beim Schreiben: PDF, JPG, PNG, Word, Excel, ODT. */
+    public const ATTACHMENT_TYPES = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.oasis.opendocument.text',
+    ];
 
     /** Platzhalter mit Erklärung für die Hilfe im Formular. */
     public const PLACEHOLDERS = [
@@ -96,6 +107,12 @@ class EmailTemplate extends Model
     public function attachmentName(): ?string
     {
         return $this->hasAttachment() ? ($this->attachment_name ?: basename($this->attachment_path)) : null;
+    }
+
+    /** Text als HTML. Ältere Vorlagen ohne Tags gelten als reiner Text: Leerzeile = Absatz, Zeilenumbruch = <br>. */
+    public function bodyHtml(): string
+    {
+        return MailHtml::normalize($this->body);
     }
 
     public static function placeholderHelp(): string

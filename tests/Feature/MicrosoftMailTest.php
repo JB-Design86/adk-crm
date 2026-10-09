@@ -3,6 +3,7 @@
 use App\Filament\Pages\CallList;
 use App\Filament\Pages\EmailAccount;
 use App\Filament\Resources\EmailTemplates\Pages\CreateEmailTemplate;
+use App\Filament\Resources\EmailTemplates\Pages\EditEmailTemplate;
 use App\Filament\Resources\Leads\Pages\ViewLead;
 use App\Models\Activity;
 use App\Models\AuditLog;
@@ -15,6 +16,8 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Microsoft\GraphMailer;
 use App\Services\Microsoft\LeadEmail;
+use Filament\Forms\Components\RichEditor\RichContentRenderer;
+use Filament\Notifications\Notification;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -231,7 +234,7 @@ it('sendet die HTML-Signatur bereinigt und das Logo als eingebettetes Bild', fun
         $body = $request['message']['body']['content'] ?? '';
         $logo = collect($request['message']['attachments'] ?? [])->firstWhere('isInline', true);
 
-        return str_contains($body, 'Hallo<br>')
+        return str_contains($body, '<p style="margin:0 0 12px">Hallo</p>'."\n".'<p style="margin:0 0 12px"><strong>Max Muster</strong></p>')
             && str_contains($body, '<p style="margin:0 0 12px"><strong>Max Muster</strong></p><p style="margin:0">&nbsp;</p><p style="margin:0 0 12px">ADK</p>')
             && ! str_contains($body, 'script')
             && str_contains($body, '<img src="cid:adk-signatur-logo" alt="Logo" width="220"')
@@ -288,18 +291,26 @@ it('füllt Betreff und Text aus der Vorlage und schlägt die Adresse der Ansprec
         ->assertActionVisible('sendEmail')
         ->mountAction('sendEmail');
 
-    // Das Formular kommt als Livewire-Partial: Absender, Vorlagen und Hinweis zu § 7 UWG.
+    // Das Formular kommt als Livewire-Partial: Absender, Vorlagen, Editor, Anhänge und Hinweis zu § 7 UWG.
     expect(json_encode($component->effects['partials'] ?? [], JSON_UNESCAPED_UNICODE))
         ->toContain('Geht von max.muster@adk-akademie.test')
         ->toContain('Unterlagen nach Telefonat')
+        ->toContain('Umschalt + Enter')
+        ->toContain('Anhänge (optional)')
         ->toContain('§ 7 UWG');
 
     $component
         ->assertActionDataSet(['email_to' => 'erika.muster@example.org'])
         ->setActionData(['email_template_id' => $template->id])
         ->assertActionDataSet(function (array $state) {
+            // Im Editor als Absätze, die Adresse zum Datenschutz als Link (aus der umgewandelten Startvorlage).
+            $html = RichContentRenderer::make($state['email_text'])->toUnsafeHtml();
+
             expect($state['email_subject'])->toBe('Ihre Unterlagen zur Weiterbildung bei der ADK')
-                ->and($state['email_text'])->toStartWith("Sehr geehrte Frau Muster,\n\nvielen Dank")->toEndWith("Mit freundlichen Grüßen\nMax Muster");
+                ->and($state['email_template_files'])->toBe([])
+                ->and($html)->toStartWith('<p>Sehr geehrte Frau Muster,</p><p>vielen Dank')
+                ->toContain('href="https://adk-akademie.de/datenschutz.html"')
+                ->toEndWith('<p>Mit freundlichen Grüßen<br>Max Muster</p>');
 
             return [];
         });
@@ -320,8 +331,11 @@ it('sendet die E-Mail mit Anhang über Microsoft Graph und dokumentiert sie im V
     Livewire::test(ViewLead::class, ['record' => $lead->id])
         ->mountAction('sendEmail')
         ->setActionData(['email_template_id' => $template->id])
-        ->assertActionDataSet(['attach_template_file' => true, 'email_subject' => 'Kursheft für Muster & Söhne GmbH'])
-        ->setActionData(['email_text' => "Sehr geehrte Frau Muster,\n\n<b>Preise</b> & Termine anbei.", 'consent_confirmed' => true])
+        ->assertActionDataSet(['email_template_files' => [$template->id], 'email_subject' => 'Kursheft für Muster & Söhne GmbH'])
+        ->setActionData([
+            'email_text' => '<p>{anrede},</p><p><strong>Preise</strong> &amp; Termine für {firma} finden Sie <a href="https://adk-akademie.de/kurse" target="_blank" rel="noopener noreferrer nofollow">auf unserer Website</a>.</p>',
+            'consent_confirmed' => true,
+        ])
         ->callMountedAction()
         ->assertHasNoActionErrors()
         ->assertNotified('E-Mail an erika.muster@example.org gesendet');
@@ -338,8 +352,10 @@ it('sendet die E-Mail mit Anhang über Microsoft Graph und dokumentiert sie im V
             && $message['subject'] === 'Kursheft für Muster & Söhne GmbH'
             && $message['toRecipients'] === [['emailAddress' => ['address' => 'erika.muster@example.org']]]
             && $message['body']['contentType'] === 'HTML'
-            && str_contains($message['body']['content'], "Sehr geehrte Frau Muster,<br>\n<br>\n&lt;b&gt;Preise&lt;/b&gt; &amp; Termine anbei.<br>\n<br>\nMax Muster<br>\nVertrieb ADK</div>")
-            && ! str_contains($message['body']['content'], '<b>')
+            // Absätze mit Abstand, Link schlicht, Platzhalter im HTML maskiert, danach die Signatur.
+            && str_ends_with($message['body']['content'], '<p style="margin:0 0 12px">Sehr geehrte Frau Muster,</p>'
+                .'<p style="margin:0 0 12px"><strong>Preise</strong> &amp; Termine für Muster &amp; Söhne GmbH finden Sie <a href="https://adk-akademie.de/kurse">auf unserer Website</a>.</p>'
+                ."\nMax Muster<br>\nVertrieb ADK</div>")
             && $attachment['@odata.type'] === '#microsoft.graph.fileAttachment'
             && $attachment['name'] === 'ADK_Kursheft.pdf'
             && $attachment['contentType'] === 'application/pdf'
@@ -361,7 +377,7 @@ it('sendet die E-Mail mit Anhang über Microsoft Graph und dokumentiert sie im V
             '',
             'Sehr geehrte Frau Muster,',
             '',
-            '<b>Preise</b> & Termine anbei.',
+            'Preise & Termine für Muster & Söhne GmbH finden Sie auf unserer Website (https://adk-akademie.de/kurse).',
         ]))
         ->and($lead->status)->toBe('interested')
         ->and($lead->next_action_at->toDateString())->toBe('2026-10-09')
@@ -372,12 +388,12 @@ it('sendet die E-Mail mit Anhang über Microsoft Graph und dokumentiert sie im V
     expect($log->subject_id)->toBe($lead->id)
         ->and($log->causer_id)->toBe($this->user->id)
         ->and($log->properties['to'])->toBe('erika.muster@example.org')
-        ->and($log->properties['attachment'])->toBe('ADK_Kursheft.pdf')
+        ->and($log->properties['attachments'])->toBe('ADK_Kursheft.pdf')
         ->and(json_encode($log->properties, JSON_UNESCAPED_UNICODE))->not->toContain('Preise')
         ->and(AuditLog::where('subject_type', Activity::class)->where('subject_id', $activity->id)->exists())->toBeFalse();
 });
 
-it('sendet ohne Anhang, wenn das Häkchen fehlt, und ohne Signatur, wenn keine eingetragen ist', function () {
+it('sendet ohne Anhang, wenn keine Datei angehakt ist, und ohne Signatur, wenn keine eingetragen ist', function () {
     mailConnection($this->user, ['signature' => null]);
     $lead = mailLead();
     $template = templateWithAttachment();
@@ -387,12 +403,12 @@ it('sendet ohne Anhang, wenn das Häkchen fehlt, und ohne Signatur, wenn keine e
     Livewire::test(ViewLead::class, ['record' => $lead->id])
         ->mountAction('sendEmail')
         ->setActionData(['email_template_id' => $template->id])
-        ->setActionData(['attach_template_file' => false, 'email_text' => 'Kurz und knapp', 'consent_confirmed' => true])
+        ->setActionData(['email_template_files' => [], 'email_text' => 'Kurz und knapp', 'consent_confirmed' => true])
         ->callMountedAction()
         ->assertHasNoActionErrors();
 
     Http::assertSent(fn (Request $request) => ! isset($request['message']['attachments'])
-        && $request['message']['body']['content'] === '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">Kurz und knapp</div>');
+        && $request['message']['body']['content'] === '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;"><p style="margin:0 0 12px">Kurz und knapp</p></div>');
     expect($lead->activities()->sole()->body)->not->toContain('Anhang:');
 });
 
@@ -521,14 +537,196 @@ it('lehnt Anhänge über 3 MB ab, bevor etwas gesendet wird', function () {
     Http::fake();
 
     Livewire::test(ViewLead::class, ['record' => $lead->id])
-        ->callAction('sendEmail', emailData(['email_template_id' => $template->id, 'attach_template_file' => true]))
+        ->callAction('sendEmail', emailData(['email_template_files' => [$template->id]]))
         ->assertNotified('E-Mail nicht gesendet');
 
+    // Früherer Aufruf mit dem Häkchen „Anhang der Vorlage mitsenden“ gilt weiter.
     expect(fn () => app(LeadEmail::class)->send($this->user, $lead, emailData(['email_to' => 'erika.muster@example.org', 'email_template_id' => $template->id, 'attach_template_file' => true])))
         ->toThrow(RuntimeException::class, 'Der Anhang ist zu groß (3,0 MB, höchstens 3 MB).');
 
     Http::assertNothingSent();
     expect($lead->activities()->count())->toBe(0);
+});
+
+it('rechnet die 3 MB über alle Anhänge samt Logo und löscht hochgeladene Dateien auch dann', function () {
+    Storage::disk(MailConnection::LOGO_DISK)->put('signaturen/logo.png', str_repeat('p', 1024));
+    mailConnection($this->user, ['signature_logo_path' => 'signaturen/logo.png']);
+    $lead = mailLead();
+    $third = intdiv(GraphMailer::MAX_ATTACHMENT_BYTES, 3);
+    $template = templateWithAttachment(str_repeat('x', $third));
+    Storage::disk(LeadEmail::UPLOAD_DISK)->put('mail-anhaenge/angebot.pdf', str_repeat('y', $third));
+    Storage::disk(LeadEmail::UPLOAD_DISK)->put('mail-anhaenge/preise.pdf', str_repeat('z', $third));
+    Http::fake();
+
+    // Drei Dateien zu je einem Drittel passen genau, erst das Logo der Signatur ist zu viel.
+    expect(fn () => app(LeadEmail::class)->send($this->user, $lead, emailData([
+        'email_to' => 'erika.muster@example.org',
+        'email_template_files' => [$template->id],
+        'email_attachments' => ['mail-anhaenge/angebot.pdf', 'mail-anhaenge/preise.pdf'],
+        'email_attachment_names' => ['mail-anhaenge/angebot.pdf' => 'Angebot.pdf', 'mail-anhaenge/preise.pdf' => 'Preise.pdf'],
+    ])))->toThrow(RuntimeException::class, 'Die Anhänge sind zusammen zu groß (3,0 MB, höchstens 3 MB).');
+
+    Http::assertNothingSent();
+    expect(Storage::disk(LeadEmail::UPLOAD_DISK)->allFiles(LeadEmail::UPLOAD_DIRECTORY))->toBe([])
+        ->and(Storage::disk(EmailTemplate::DISK)->exists('email-templates/kursheft.pdf'))->toBeTrue()
+        ->and($lead->activities()->count())->toBe(0);
+});
+
+it('sendet hochgeladene Anhänge mit ihrem Namen und löscht sie danach vom Server', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    $template = templateWithAttachment();
+    graphAccepts();
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->mountAction('sendEmail')
+        ->setActionData(emailData([
+            'email_template_files' => [$template->id],
+            'email_attachments' => [fakePdfUpload('Angebot Muster.pdf'), fakePdfUpload('Anfahrt.pdf')],
+        ]))
+        ->callMountedAction()
+        ->assertHasNoActionErrors()
+        ->assertNotified('E-Mail an erika.muster@example.org gesendet');
+
+    Http::assertSent(fn (Request $request) => collect($request['message']['attachments'])->pluck('name')->all() === ['ADK_Kursheft.pdf', 'Angebot Muster.pdf', 'Anfahrt.pdf']
+        && collect($request['message']['attachments'])->pluck('contentType')->unique()->all() === ['application/pdf']
+        && base64_decode($request['message']['attachments'][1]['contentBytes']) === fakePdfUpload()->getContent());
+
+    expect(Storage::disk(LeadEmail::UPLOAD_DISK)->allFiles(LeadEmail::UPLOAD_DIRECTORY))->toBe([])
+        ->and($lead->activities()->sole()->body)->toContain("\nAnhänge: ADK_Kursheft.pdf, Angebot Muster.pdf, Anfahrt.pdf\n")
+        ->and(AuditLog::where('event', 'email_sent')->sole()->properties['attachments'])->toBe('ADK_Kursheft.pdf, Angebot Muster.pdf, Anfahrt.pdf');
+});
+
+it('löscht hochgeladene Anhänge auch, wenn das Senden scheitert, und leert das Feld', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    Http::fake(['graph.microsoft.com/v1.0/me/sendMail' => Http::response(['error' => ['message' => 'Server busy']], 503)]);
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->mountAction('sendEmail')
+        ->setActionData(emailData(['email_attachments' => [fakePdfUpload('Angebot.pdf')]]))
+        ->callMountedAction()
+        ->assertNotified(Notification::make()
+            ->title('E-Mail nicht gesendet')
+            ->body('Microsoft 365 hat die E-Mail nicht angenommen (503). Server busy. Die hochgeladenen Anhänge sind gelöscht, bitte fügen Sie sie erneut hinzu.')
+            ->danger())
+        ->assertActionMounted('sendEmail')
+        ->assertSet('mountedActions.0.data.email_attachments', [])
+        ->assertSet('mountedActions.0.data.email_text', fn ($text) => filled($text));
+
+    expect(Storage::disk(LeadEmail::UPLOAD_DISK)->allFiles(LeadEmail::UPLOAD_DIRECTORY))->toBe([])
+        ->and($lead->activities()->count())->toBe(0);
+    Http::assertSent(fn (Request $request) => count($request['message']['attachments'] ?? []) === 1);
+});
+
+it('nimmt als hochgeladenen Anhang nur neue Dateien aus dem Ordner dafür', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    templateWithAttachment();
+    graphAccepts();
+
+    // Im Formular: Pfade statt hochgeladener Dateien lehnt das Feld ab.
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->mountAction('sendEmail')
+        ->setActionData(emailData(['email_attachments' => ['a' => 'email-templates/kursheft.pdf']]))
+        ->callMountedAction()
+        ->assertHasActionErrors(['email_attachments']);
+
+    // Direkt: Pfade außerhalb von mail-anhaenge werden weder gesendet noch gelöscht.
+    app(LeadEmail::class)->send($this->user, $lead, emailData([
+        'email_to' => 'erika.muster@example.org',
+        'email_attachments' => ['email-templates/kursheft.pdf', 'mail-anhaenge/../email-templates/kursheft.pdf'],
+    ]));
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn (Request $request) => ! isset($request['message']['attachments']));
+    expect(Storage::disk(EmailTemplate::DISK)->exists('email-templates/kursheft.pdf'))->toBeTrue();
+});
+
+it('bietet die Dateien aller aktiven Vorlagen zum Anhaken an', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    $kursheft = templateWithAttachment();
+    Storage::disk(EmailTemplate::DISK)->put('email-templates/alt.pdf', '%PDF-1.4');
+    EmailTemplate::create(['name' => 'Alt', 'subject' => 'Alt', 'body' => 'Alt', 'attachment_path' => 'email-templates/alt.pdf', 'attachment_name' => 'Alt.pdf', 'is_active' => false]);
+    $telefonat = EmailTemplate::where('name', 'Unterlagen nach Telefonat')->sole();
+    graphAccepts();
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->mountAction('sendEmail')
+        ->assertFormFieldExists('email_template_files', fn ($field) => $field->getOptions() === [$kursheft->id => 'ADK_Kursheft.pdf (Vorlage „Kursheft“)'])
+        // Vorlage ohne eigene Datei: nichts angehakt, das Kursheft lässt sich trotzdem mitsenden.
+        ->setActionData(['email_template_id' => $telefonat->id])
+        ->assertActionDataSet(['email_template_files' => []])
+        ->setActionData(['email_template_files' => [$kursheft->id], 'consent_confirmed' => true])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    Http::assertSent(fn (Request $request) => collect($request['message']['attachments'])->pluck('name')->all() === ['ADK_Kursheft.pdf']
+        && $request['message']['subject'] === 'Ihre Unterlagen zur Weiterbildung bei der ADK');
+    expect($lead->activities()->sole()->body)->toContain("Vorlage: Unterlagen nach Telefonat\nAnhang: ADK_Kursheft.pdf\n");
+});
+
+it('bereinigt den Text vor dem Senden und behält nur sichere Links', function () {
+    mailConnection($this->user, ['signature' => null]);
+    $lead = mailLead(organization: ['name' => 'Muster & <Söhne>']);
+    graphAccepts();
+
+    app(LeadEmail::class)->send($this->user, $lead, emailData([
+        'email_to' => 'erika.muster@example.org',
+        'email_text' => '<p onclick="alert(1)">Hallo {firma},</p><script>alert(1)</script>'
+            .'<p><a href="javascript:alert(1)">Klick</a> <a href="tel:+49611">Telefon</a> <a href="mailto:info@adk.test">Mail</a> <a href="https://adk-akademie.de/kurse" target="_blank" style="color:red">Kurse</a></p>'
+            .'<ol><li><p>Eins</p></li><li><p>Zwei</p></li></ol><p></p><p>Ende<img src="https://tracker.example/pixel.gif"></p>',
+    ]));
+
+    Http::assertSent(fn (Request $request) => $request['message']['body']['content'] === '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">'
+        .'<p style="margin:0 0 12px">Hallo Muster &amp; &lt;Söhne&gt;,</p>'
+        .'<p style="margin:0 0 12px">Klick Telefon <a href="mailto:info&#64;adk.test">Mail</a> <a href="https://adk-akademie.de/kurse">Kurse</a></p>'
+        .'<ol style="margin:0 0 12px"><li>Eins</li><li>Zwei</li></ol><p style="margin:0">&nbsp;</p><p style="margin:0 0 12px">Ende</p></div>');
+
+    // Im Verlauf lesbarer Text statt HTML, Links mit Adresse.
+    expect($lead->activities()->sole()->body)->toEndWith("\n\n".implode("\n", [
+        'Hallo Muster & <Söhne>,',
+        '',
+        'Klick Telefon Mail (info@adk.test) Kurse (https://adk-akademie.de/kurse)',
+        '',
+        '1. Eins',
+        '2. Zwei',
+        '',
+        'Ende',
+    ]));
+});
+
+it('wandelt Vorlagen aus reinem Text in Absätze um, auch beim Bearbeiten', function () {
+    $id = DB::table('email_templates')->insertGetId([
+        'name' => 'Alt',
+        'subject' => 'Alt',
+        'body' => "{anrede},\r\n\r\nPreise & Termine:\nhttps://adk-akademie.de/kurse.\n\n\nGruß",
+        'is_active' => true,
+        'sort_order' => 9,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $html = '<p>{anrede},</p><p>Preise &amp; Termine:<br><a href="https://adk-akademie.de/kurse">https://adk-akademie.de/kurse</a>.</p><p>Gruß</p>';
+
+    // Ohne Umwandlung gilt Text ohne Tags beim Lesen als reiner Text.
+    expect(EmailTemplate::find($id)->bodyHtml())->toBe($html);
+
+    loginAs('admin');
+    Livewire::test(EditEmailTemplate::class, ['record' => $id])
+        ->assertFormSet(function (array $state) {
+            expect(RichContentRenderer::make($state['body'])->toUnsafeHtml())->toStartWith('<p>{anrede},</p><p>Preise &amp; Termine:<br><a ')->toEndWith('.</p><p>Gruß</p>');
+
+            return [];
+        });
+
+    // Die Migration wandelt bestehende Vorlagen einmal um, HTML bleibt unverändert.
+    $migration = require database_path('migrations/2026_10_09_100000_convert_email_template_bodies_to_html.php');
+    $migration->up();
+    $migration->up();
+
+    expect(DB::table('email_templates')->where('id', $id)->value('body'))->toBe($html)
+        ->and(EmailTemplate::where('name', 'Nachfassen')->value('body'))->toStartWith('<p>{anrede},</p><p>vor einigen Tagen');
 });
 
 it('zeigt „E-Mail schreiben“ ohne verbundenes Postfach mit Hinweis auf „E-Mail-Konto“', function () {
@@ -571,7 +769,7 @@ it('schreibt die E-Mail auch aus der Anrufliste', function () {
 
 it('legt zwei Startvorlagen an', function () {
     expect(EmailTemplate::ordered()->pluck('name')->all())->toBe(['Unterlagen nach Telefonat', 'Nachfassen'])
-        ->and(EmailTemplate::where('name', 'Nachfassen')->value('body'))->toStartWith('{anrede},')->toContain('ADK');
+        ->and(EmailTemplate::where('name', 'Nachfassen')->value('body'))->toStartWith('<p>{anrede},</p>')->toContain('ADK');
 });
 
 it('lässt nur die Verwaltung E-Mail-Vorlagen pflegen, Anhänge liegen privat', function () {

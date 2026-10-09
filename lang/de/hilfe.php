@@ -99,11 +99,13 @@ return [
 
         // E-Mail aus dem CRM (Microsoft 365)
         'send_email' => 'E-Mail aus Ihrem eigenen Microsoft-365-Postfach. Sie liegt danach in Outlook unter „Gesendete Elemente“ und steht mit vollem Text im Verlauf. Antworten kommen in Outlook an.',
-        'email_template_id' => 'Füllt Betreff und Text aus der Vorlage, mit Anrede und Namen aus dem Vorgang. Bereits Geschriebenes wird dabei ersetzt. Vorlagen pflegt die Verwaltung.',
+        'email_template_id' => 'Füllt Betreff und Text aus der Vorlage, mit Anrede und Namen aus dem Vorgang, und hakt die Datei der Vorlage an. Bereits Geschriebenes wird dabei ersetzt. Vorlagen pflegt die Verwaltung.',
         'email_to' => 'Vorschlag: E-Mail der Ansprechperson, sonst des Betriebs. Adressen auf der Sperrliste lehnt das CRM ab.',
-        'attach_template_file' => 'Die Datei aus der Vorlage (z. B. das Kursheft) geht als Anhang mit.',
-        'template_body' => 'Text mit Platzhaltern in geschweiften Klammern, z. B. {anrede}. Beim Schreiben setzt das CRM die Angaben aus dem Vorgang ein, danach bleibt der Text änderbar.',
-        'attachment_path' => 'Wird beim Senden mit dieser Vorlage vorausgewählt mitgeschickt. Die Datei liegt nicht öffentlich auf dem Server.',
+        'email_text' => 'Fett, kursiv, unterstrichen, Listen und Links. Für einen Link den Text markieren und auf das Kettensymbol klicken. Links nur mit https://, http:// oder mailto:.',
+        'email_template_files' => 'Dateien aller aktiven Vorlagen, z. B. das Kursheft. Sie lassen sich zu jeder E-Mail anhaken, auch ohne die Vorlage zu nutzen.',
+        'email_attachments' => 'Eigene Dateien nur für diese E-Mail. Sie liegen bis zum Senden privat auf dem Server und werden direkt danach gelöscht, auch wenn das Senden scheitert.',
+        'template_body' => 'Text mit Platzhaltern in geschweiften Klammern, z. B. {anrede}, und Formatierung wie in „E-Mail schreiben“. Beim Schreiben setzt das CRM die Angaben aus dem Vorgang ein, danach bleibt der Text änderbar.',
+        'attachment_path' => 'Wird beim Senden mit dieser Vorlage vorausgewählt mitgeschickt und lässt sich in „E-Mail schreiben“ auch zu anderen E-Mails anhaken. Die Datei liegt nicht öffentlich auf dem Server.',
     ],
 
     'seiten' => [

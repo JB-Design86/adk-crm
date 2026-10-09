@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\EmailTemplate;
 use App\Models\Lead;
 use App\Models\User;
+use App\Support\MailHtml;
 use App\Support\Normalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -19,9 +20,15 @@ use RuntimeException;
  * „E-Mail schreiben“ am Vorgang: Versand aus dem eigenen Microsoft-365-Postfach, danach
  * Aktivität „E-Mail“ mit vollem Text im Verlauf, auf Wunsch Wiedervorlage, Eintrag im Protokoll
  * (ohne Text). Sperrliste und Bestätigung der Einwilligung werden vorher geprüft. Der Status bleibt.
+ * Der Text kommt als HTML aus dem Editor, reiner Text (alte Aufrufe) wird in Absätze umgewandelt.
  */
 class LeadEmail
 {
+    /** Hochgeladene Anhänge liegen nur für den einen Sendeversuch privat in diesem Ordner. */
+    public const UPLOAD_DISK = 'local';
+
+    public const UPLOAD_DIRECTORY = 'mail-anhaenge';
+
     public function __construct(private GraphMailer $mailer) {}
 
     /** Knopf „E-Mail schreiben“ mit Formular statt Hinweis auf „E-Mail-Konto“? */
@@ -64,9 +71,16 @@ class LeadEmail
         ];
     }
 
+    /** Platzhalter in reinem Text, z. B. im Betreff. */
     public static function render(?string $text, Lead $lead, ?User $sender): string
     {
         return strtr((string) $text, self::replacements($lead, $sender));
+    }
+
+    /** Platzhalter in HTML: Werte maskiert, aus „Muster & Söhne“ wird „Muster &amp; Söhne“. */
+    public static function renderHtml(?string $html, Lead $lead, ?User $sender): string
+    {
+        return strtr((string) $html, array_map(fn (string $value) => e($value), self::replacements($lead, $sender)));
     }
 
     /** Briefanrede: „Sehr geehrte Frau Muster“, neutral „Guten Tag Alex Muster“ (z. B. „divers“), ohne Namen „Sehr geehrte Damen und Herren“. */
@@ -86,11 +100,24 @@ class LeadEmail
     }
 
     /**
-     * @param  array{email_template_id?: mixed, email_to?: ?string, email_subject?: ?string, email_text?: ?string, attach_template_file?: mixed, consent_confirmed?: mixed, next_action_at?: ?string, next_action_time?: ?string}  $data
+     * Anhänge: Dateien aus Vorlagen (email_template_files, früher attach_template_file mit email_template_id)
+     * und hochgeladene Dateien (email_attachments). Hochgeladene Dateien werden nach dem Versuch immer gelöscht.
+     *
+     * @param  array{email_template_id?: mixed, email_to?: ?string, email_subject?: ?string, email_text?: ?string, email_template_files?: mixed, email_attachments?: mixed, email_attachment_names?: mixed, attach_template_file?: mixed, consent_confirmed?: mixed, next_action_at?: ?string, next_action_time?: ?string}  $data
      *
      * @throws RuntimeException mit einer Meldung für die Oberfläche; dann ist nichts gesendet
      */
     public function send(User $user, Lead $lead, array $data): Activity
+    {
+        try {
+            return $this->deliver($user, $lead, $data);
+        } finally {
+            // Hochgeladene Anhänge bleiben nicht auf dem Server, ob gesendet oder nicht.
+            Storage::disk(self::UPLOAD_DISK)->delete(self::uploadPaths($data));
+        }
+    }
+
+    private function deliver(User $user, Lead $lead, array $data): Activity
     {
         if (! MicrosoftClient::isConfigured()) {
             throw new RuntimeException('E-Mail aus dem CRM ist noch nicht eingerichtet.');
@@ -121,9 +148,10 @@ class LeadEmail
             throw new RuntimeException($reason);
         }
 
-        // Platzhalter auch hier ersetzen, falls sie von Hand in Betreff oder Text stehen.
+        // Platzhalter auch hier ersetzen, falls sie von Hand in Betreff oder Text stehen. Der Betreff bleibt reiner Text.
         $subject = trim(self::render($data['email_subject'] ?? '', $lead, $user));
-        $text = trim(self::render($data['email_text'] ?? '', $lead, $user));
+        $html = MailHtml::sanitize(self::renderHtml(MailHtml::normalize($data['email_text'] ?? ''), $lead, $user));
+        $text = MailHtml::toText($html);
 
         if ($subject === '' || $text === '') {
             throw new RuntimeException('Betreff und Text dürfen nicht leer sein.');
@@ -136,11 +164,12 @@ class LeadEmail
         }
 
         $template = filled($data['email_template_id'] ?? null) ? EmailTemplate::find($data['email_template_id']) : null;
-        $attachments = ! empty($data['attach_template_file']) && $template?->hasAttachment() ? [$this->templateAttachment($template)] : [];
+        $attachments = [...$this->templateAttachments($data, $template), ...$this->uploadedAttachments($data)];
+        $names = array_column($attachments, 'name');
 
-        $reference = $this->mailer->sendMail($connection, $to, $subject, $text, $attachments);
+        $reference = $this->mailer->sendMail($connection, $to, $subject, $html, $attachments);
 
-        return DB::transaction(function () use ($user, $lead, $data, $to, $subject, $text, $followUp, $template, $attachments, $reference) {
+        return DB::transaction(function () use ($user, $lead, $data, $to, $subject, $text, $followUp, $template, $names, $reference) {
             $followUpLine = null;
 
             if ($followUp) {
@@ -157,7 +186,7 @@ class LeadEmail
                 $consent .= ', am Kontakt eingetragen seit '.$lead->contact->email_consent_at->format('d.m.Y');
             }
 
-            // Der volle Text steht im Verlauf. Das Protokoll bekommt nur den Eintrag „E-Mail gesendet“ ohne Text.
+            // Der volle Text steht im Verlauf, als lesbarer Text statt HTML. Das Protokoll bekommt nur den Eintrag „E-Mail gesendet“ ohne Text.
             $activity = (new Activity([
                 'lead_id' => $lead->id,
                 'user_id' => $user->id,
@@ -166,7 +195,7 @@ class LeadEmail
                 'body' => implode("\n", array_filter([
                     'An: '.$to.' · Betreff: '.$subject,
                     $template ? 'Vorlage: '.$template->name : null,
-                    $attachments ? 'Anhang: '.$attachments[0]['name'] : null,
+                    $names ? (count($names) === 1 ? 'Anhang: ' : 'Anhänge: ').implode(', ', $names) : null,
                     $consent,
                     $followUpLine,
                 ]))."\n\n".$text,
@@ -177,13 +206,38 @@ class LeadEmail
                 ->withProperties(array_filter([
                     'to' => $to,
                     'template' => $template?->name,
-                    'attachment' => $attachments[0]['name'] ?? null,
+                    'attachments' => $names ? implode(', ', $names) : null,
                     'follow_up' => $followUp ? $lead->nextActionLabel() : null,
                 ]))
                 ->log('E-Mail über Microsoft 365 gesendet');
 
             return $activity;
         });
+    }
+
+    /**
+     * Dateien aus den Vorlagen, in der Reihenfolge der Vorlagen. Das frühere Häkchen „Anhang der Vorlage
+     * mitsenden“ (attach_template_file) gilt weiter für die gewählte Vorlage.
+     *
+     * @return list<array{name: string, content_type: string, contents: string}>
+     */
+    private function templateAttachments(array $data, ?EmailTemplate $template): array
+    {
+        $ids = array_filter((array) ($data['email_template_files'] ?? []), 'filled');
+
+        if (! empty($data['attach_template_file']) && $template) {
+            $ids[] = $template->id;
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return EmailTemplate::query()->whereKey($ids)->ordered()->get()
+            ->filter(fn (EmailTemplate $chosen) => $chosen->hasAttachment())
+            ->map(fn (EmailTemplate $chosen) => $this->templateAttachment($chosen))
+            ->values()
+            ->all();
     }
 
     /** @return array{name: string, content_type: string, contents: string} */
@@ -200,5 +254,42 @@ class LeadEmail
             'content_type' => $disk->mimeType($template->attachment_path) ?: 'application/octet-stream',
             'contents' => $disk->get($template->attachment_path),
         ];
+    }
+
+    /**
+     * Hochgeladene Dateien mit ihrem ursprünglichen Namen (email_attachment_names).
+     *
+     * @return list<array{name: string, content_type: string, contents: string}>
+     */
+    private function uploadedAttachments(array $data): array
+    {
+        $disk = Storage::disk(self::UPLOAD_DISK);
+        $names = (array) ($data['email_attachment_names'] ?? []);
+
+        return array_map(function (string $path) use ($disk, $names) {
+            if (! $disk->exists($path)) {
+                throw new RuntimeException('Ein Anhang ist nicht mehr auf dem Server. Bitte fügen Sie die Anhänge erneut hinzu.');
+            }
+
+            return [
+                'name' => (string) ($names[$path] ?? basename($path)),
+                'content_type' => $disk->mimeType($path) ?: 'application/octet-stream',
+                'contents' => $disk->get($path),
+            ];
+        }, self::uploadPaths($data));
+    }
+
+    /**
+     * Pfade der hochgeladenen Anhänge, nur aus dem Ordner dafür. Der Wert kommt aus dem Formular;
+     * andere Pfade (z. B. Dateien der Vorlagen) werden weder gesendet noch gelöscht.
+     *
+     * @return list<string>
+     */
+    private static function uploadPaths(array $data): array
+    {
+        return array_values(array_filter(
+            (array) ($data['email_attachments'] ?? []),
+            fn (mixed $path) => is_string($path) && str_starts_with($path, self::UPLOAD_DIRECTORY.'/') && ! str_contains($path, '..'),
+        ));
     }
 }

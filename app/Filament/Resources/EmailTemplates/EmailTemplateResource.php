@@ -8,11 +8,12 @@ use App\Filament\Resources\EmailTemplates\Pages\ListEmailTemplates;
 use App\Models\EmailTemplate;
 use App\Services\Microsoft\GraphMailer;
 use App\Support\Hilfe;
+use App\Support\MailHtml;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -83,9 +84,11 @@ class EmailTemplateResource extends Resource
                         ->label('Betreff')
                         ->required()
                         ->maxLength(255),
-                    Textarea::make('body')
+                    RichEditor::make('body')
                         ->label('Text')
-                        ->rows(14)
+                        ->toolbarButtons(MailHtml::TOOLBAR)
+                        ->fileAttachments(false)
+                        ->minHeight('16rem')
                         ->required()
                         ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: Hilfe::feld('template_body'))
                         ->helperText(EmailTemplate::placeholderHelp().' Die Signatur der sendenden Person hängt das CRM an.'),
@@ -96,14 +99,7 @@ class EmailTemplateResource extends Resource
                         ->visibility('private')
                         ->storeFileNamesIn('attachment_name')
                         ->maxSize((int) (GraphMailer::MAX_ATTACHMENT_BYTES / 1024))
-                        ->acceptedFileTypes([
-                            'application/pdf',
-                            'image/jpeg',
-                            'image/png',
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            'application/vnd.oasis.opendocument.text',
-                        ])
+                        ->acceptedFileTypes(EmailTemplate::ATTACHMENT_TYPES)
                         ->helperText('Eine Datei, z. B. das Kursheft als PDF, höchstens 3 MB (Grenze von Microsoft 365 beim direkten Versand). Keine personenbezogenen Unterlagen.'),
                     Toggle::make('is_active')
                         ->label('aktiv')

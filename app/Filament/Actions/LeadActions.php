@@ -8,16 +8,22 @@ use App\Models\EmailTemplate;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadStatusService;
+use App\Services\Microsoft\GraphMailer;
 use App\Services\Microsoft\LeadEmail;
 use App\Services\Microsoft\MicrosoftClient;
 use App\Services\Sipgate\ClickToCall;
 use App\Support\Adk;
 use App\Support\Hilfe;
+use App\Support\MailHtml;
 use Closure;
 use Filament\Actions\Action;
+use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -30,6 +36,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -184,7 +191,7 @@ class LeadActions
             ->modalWidth(Width::ThreeExtraLarge)
             ->modalSubmitActionLabel('Senden')
             ->schema(fn (Lead $record) => $connected() ? static::emailSchema($record) : [])
-            ->action(function (Lead $record, array $data, Action $action) use ($connected) {
+            ->action(function (Lead $record, array $data, Action $action, HasActions $livewire) use ($connected) {
                 if (! $connected()) {
                     Notification::make()
                         ->title('Bitte verbinden Sie zuerst Ihr Postfach')
@@ -199,8 +206,20 @@ class LeadActions
                 try {
                     app(LeadEmail::class)->send(auth()->user(), $record, $data);
                 } catch (RuntimeException $exception) {
-                    // Formular bleibt offen, damit der Text nicht verloren geht.
-                    Notification::make()->title('E-Mail nicht gesendet')->body($exception->getMessage())->danger()->send();
+                    // Formular bleibt offen, damit der Text nicht verloren geht. Hochgeladene Anhänge sind
+                    // schon vom Server gelöscht, das Feld wird geleert und sie werden neu gewählt.
+                    $uploads = filled($data['email_attachments'] ?? null);
+
+                    if ($uploads) {
+                        $livewire->mountedActions[$action->getNestingIndex()]['data']['email_attachments'] = [];
+                        $livewire->mountedActions[$action->getNestingIndex()]['data']['email_attachment_names'] = [];
+                    }
+
+                    Notification::make()
+                        ->title('E-Mail nicht gesendet')
+                        ->body($uploads ? Str::finish($exception->getMessage(), '.').' Die hochgeladenen Anhänge sind gelöscht, bitte fügen Sie sie erneut hinzu.' : $exception->getMessage())
+                        ->danger()
+                        ->send();
                     $action->halt();
 
                     return;
@@ -213,8 +232,11 @@ class LeadActions
     /** @return list<Component|Field> */
     public static function emailSchema(Lead $lead): array
     {
-        $template = fn (Get $get) => filled($get('email_template_id')) ? EmailTemplate::find($get('email_template_id')) : null;
         $contact = $lead->contact;
+        // Dateien aller aktiven Vorlagen, damit z. B. das Kursheft mit jeder E-Mail mitgehen kann.
+        $templateFiles = EmailTemplate::active()->ordered()->whereNotNull('attachment_path')->get()
+            ->mapWithKeys(fn (EmailTemplate $template) => [$template->id => $template->attachmentName().' (Vorlage „'.$template->name.'“)'])
+            ->all();
 
         return [
             Select::make('email_template_id')
@@ -227,8 +249,8 @@ class LeadActions
 
                     if ($chosen) {
                         $set('email_subject', LeadEmail::render($chosen->subject, $lead, auth()->user()));
-                        $set('email_text', LeadEmail::render($chosen->body, $lead, auth()->user()));
-                        $set('attach_template_file', $chosen->hasAttachment());
+                        $set('email_text', LeadEmail::renderHtml($chosen->bodyHtml(), $lead, auth()->user()));
+                        $set('email_template_files', $chosen->hasAttachment() ? [$chosen->id] : []);
                     }
                 }),
             TextInput::make('email_to')
@@ -246,15 +268,30 @@ class LeadActions
                 ->label('Betreff')
                 ->required()
                 ->maxLength(255),
-            Textarea::make('email_text')
+            RichEditor::make('email_text')
                 ->label('Text')
-                ->rows(12)
+                ->toolbarButtons(MailHtml::TOOLBAR)
+                ->fileAttachments(false)
+                ->minHeight('16rem')
                 ->required()
-                ->helperText('Ihre Signatur aus „E-Mail-Konto“ hängt das CRM beim Senden an. Keine medizinischen Angaben.'),
-            Checkbox::make('attach_template_file')
-                ->label(fn (Get $get) => 'Anhang der Vorlage mitsenden: '.$template($get)?->attachmentName())
-                ->default(true)
-                ->visible(fn (Get $get) => (bool) $template($get)?->hasAttachment()),
+                ->helperText('Enter beginnt einen neuen Absatz, Umschalt + Enter eine neue Zeile. Ihre Signatur aus „E-Mail-Konto“ hängt das CRM beim Senden an. Keine medizinischen Angaben.'),
+            CheckboxList::make('email_template_files')
+                ->label('Dateien aus den Vorlagen')
+                ->options($templateFiles)
+                ->visible($templateFiles !== []),
+            FileUpload::make('email_attachments')
+                ->label('Anhänge (optional)')
+                ->multiple()
+                ->maxFiles(5)
+                ->disk(LeadEmail::UPLOAD_DISK)
+                ->directory(LeadEmail::UPLOAD_DIRECTORY)
+                ->visibility('private')
+                ->storeFileNamesIn('email_attachment_names')
+                // Nur neu hochgeladene Dateien, keine Pfade aus dem Browser (die Dateien werden nach dem Senden gelöscht).
+                ->preventFilePathTampering()
+                ->maxSize((int) (GraphMailer::MAX_ATTACHMENT_BYTES / 1024))
+                ->acceptedFileTypes(EmailTemplate::ATTACHMENT_TYPES)
+                ->helperText('Bis zu 5 Dateien (PDF, JPG, PNG, Word, Excel, ODT). Alle Anhänge zusammen höchstens 3 MB. Die Dateien werden direkt nach dem Senden vom Server gelöscht.'),
             Checkbox::make('consent_confirmed')
                 ->label('Die Person hat um diese E-Mail gebeten oder eingewilligt (z. B. im Telefonat)')
                 ->accepted()
