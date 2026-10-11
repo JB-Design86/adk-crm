@@ -464,3 +464,19 @@ Client-ID, Secret und Mandanten-ID stehen nur in der `.env`, nie im Repository, 
 ### 15.6 Später: Antworten ins CRM
 
 Noch nicht gebaut (Merkliste). Dafür käme das delegierte Recht `Mail.Read` hinzu (neue Administratorzustimmung, jede Person verbindet einmal neu). Zuordnung über die Kennung `x-adk-crm-ref` der gesendeten Mail (deren `conversationId` in „Gesendete Elemente“) bzw. über die Absenderadresse, Abgleich wie bei sipgate alle paar Minuten.
+
+---
+
+## 16 Wartung: Wochenbericht und Sicherheitsupdates (eingerichtet 11.10.2026)
+
+Auftrag von Janosch (11.10.2026): Server regelmäßig prüfen (Updates, Fehler, Sicherungen).
+
+| Punkt | Stand |
+|---|---|
+| Wochenbericht | `/usr/local/sbin/adk-wochenbericht` (Quelle im Repository: `deploy/server/adk-wochenbericht.sh`), Cron `/etc/cron.d/adk-wochenbericht`, montags 06:30 als root, Mail an j.baum@adk-akademie.de, Absender noreply@ über Microsoft 365. Erster Bericht am 11.10.2026 gesendet |
+| Inhalt | Offene Updates und Neustartbedarf, letzte Plesk-Sicherung (`/var/lib/psa/dumps/backup_info_*.xml`), Festplatte, Arbeitsspeicher, ausgefallene Dienste, Zertifikate (Website, CRM, crm-test), Mailwarteschlange (nur Anzahl), `transport_maps` (Abschnitt 13), Anzahl der CRM-Fehler im Protokoll der letzten 7 Tage (Betrieb und Test, keine Inhalte), Löschläufe CRM und Website, CRM-Nachlauf der Website, Fail2Ban-Sperren. Bei Auffälligkeiten steht „BITTE ANSEHEN“ mit Liste oben, im Betreff die Zahl der Hinweise |
+| Grenzen für Hinweise | Sicherheitsupdates offen; Neustart seit mehr als 48 h nötig; Sicherung älter als 30 h; Festplatte ab 85 %; ausgefallene Dienste; Zertifikat unter 14 Tagen oder nicht abrufbar; Mails in der Warteschlange; `transport_maps` falsch; CRM-Fehler im Protokoll; CRM-Löschlauf älter als 30 h |
+| Sicherheitsupdates | Ubuntu `unattended-upgrades` war schon aktiv (`20auto-upgrades`). Neu: `/etc/apt/apt.conf.d/52adk-neustart`, Neustart bei Bedarf automatisch um 04:30 (nach Löschläufen 02:30/02:40 und Sicherung 03:00). Website und CRM sind dabei 1 bis 2 Minuten nicht erreichbar |
+| Von Hand | Bericht sofort: `/usr/local/sbin/adk-wochenbericht` (optional andere Adresse als Argument). Nach Änderungen am Skript im Repository: neu auf den Server übertragen (Prüfsumme vergleichen) |
+
+Claude prüft zusätzlich in jeder Sitzung mit Plesk-Zugang kurz den Zustand und meldet Auffälligkeiten.
