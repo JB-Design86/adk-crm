@@ -884,6 +884,35 @@ it('schreibt eine E-Mail auch ohne Vorlage als HTML-Code', function () {
         ->and(MailCode::previewHtml('<p style="color:red">Hallo</p>'))->toContain('<p style="color:red">Hallo</p>');
 });
 
+it('nimmt Änderungen tief in Tabellen mit Aufzählung im Editor an (Vorlage und „E-Mail schreiben“)', function () {
+    // Der Browser schickt Änderungen im Editor als Pfad ins Dokument. Livewire lehnte vorher alles über 10 Ebenen ab.
+    $table = '<p>{anrede},</p><table><tbody><tr><td><p><strong>Für Sie heißt das</strong></p><ul><li><p>Alt</p></li></ul></td></tr></tbody></table>';
+    $text = 'content.1.content.0.content.0.content.1.content.0.content.0.content.0.text';
+
+    mailConnection($this->user, ['signature' => null]);
+    $lead = mailLead();
+    graphAccepts();
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->mountAction('sendEmail')
+        ->setActionData(['email_subject' => 'Tabelle', 'email_text' => $table, 'consent_confirmed' => true])
+        ->set('mountedActions.0.data.email_text.'.$text, 'Neu im Fenster')
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    Http::assertSent(fn (Request $request) => str_contains($request['message']['body']['content'], '<li>Neu im Fenster</li>'));
+
+    loginAs('admin');
+    $template = EmailTemplate::create(['name' => 'Tabelle', 'subject' => 'Tabelle', 'body' => $table]);
+
+    Livewire::test(EditEmailTemplate::class, ['record' => $template->id])
+        ->set('data.body.'.$text, 'Neu in der Vorlage')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($template->fresh()->body)->toContain('<ul><li><p>Neu in der Vorlage</p></li></ul>');
+});
+
 it('zeigt „E-Mail schreiben“ ohne verbundenes Postfach mit Hinweis auf „E-Mail-Konto“', function () {
     $lead = mailLead();
     Http::fake();
