@@ -7,6 +7,8 @@ use DOMElement;
 use DOMNode;
 use DOMText;
 use Illuminate\Support\Str;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 
 /**
  * Text von E-Mails aus dem CRM: HTML aus dem Editor für den Versand bereinigen, reinen Text
@@ -52,28 +54,63 @@ class MailHtml
     /**
      * HTML für den Versand: bereinigt (Str::sanitizeHtml), ohne Bilder, Links nur als schlichtes <a href>
      * mit http, https oder mailto, Abstände als Inline-Stil, leere Absätze als Leerzeile.
+     *
+     * $code: HTML-Code statt Editor (Vorlagen und E-Mails „als HTML-Code“). Dann bleiben eigene Stile an Absätzen,
+     * Listen und Links sowie Tabellenattribute wie width und bgcolor; ein ganzes HTML-Dokument wird auf den Inhalt
+     * von <body> gekürzt (<head> mit <style> und <title> fällt weg, wirksam sind nur Inline-Stile).
      */
-    public static function sanitize(string $html): string
+    public static function sanitize(string $html, bool $code = false): string
     {
-        $html = Str::sanitizeHtml($html);
+        $html = $code ? self::codeSanitizer()->sanitize(self::bodyOf($html)) : Str::sanitizeHtml($html);
 
         // Eingefügte Bilder wären groß oder würden nachgeladen. Dateien gehören in die Anhänge.
         $html = preg_replace('#<img\b[^>]*>#i', '', $html);
 
-        $html = preg_replace_callback('#<a\b([^>]*)>(.*?)</a>#is', function (array $match) {
+        $html = preg_replace_callback('#<a\b([^>]*)>(.*?)</a>#is', function (array $match) use ($code) {
             $href = preg_match('#\shref="([^"]*)"#i', $match[1], $found) ? $found[1] : '';
             $scheme = Str::lower(Str::before($href, ':'));
+            $style = $code && preg_match('#\sstyle="([^"]*)"#i', $match[1], $found) ? ' style="'.$found[1].'"' : '';
 
-            return str_contains($href, ':') && in_array($scheme, self::LINK_SCHEMES, true) ? '<a href="'.$href.'">'.$match[2].'</a>' : $match[2];
+            return str_contains($href, ':') && in_array($scheme, self::LINK_SCHEMES, true) ? '<a href="'.$href.'"'.$style.'>'.$match[2].'</a>' : $match[2];
         }, $html);
 
         // Der Editor schreibt Listenpunkte als <li><p>…</p>; ohne den Absatz stehen die Punkte ohne Lücke untereinander.
         $html = preg_replace('#<li\b([^>]*)>\s*<p\b[^>]*>((?:(?!</p>).)*)</p>#is', '<li$1>$2', $html);
 
-        $html = preg_replace_callback('#<(p|ul|ol)\b([^>]*)>#i', fn (array $match) => '<'.Str::lower($match[1]).preg_replace('#\sstyle="[^"]*"#i', '', $match[2]).' style="'.self::BLOCK_STYLE.'">', $html);
+        $html = preg_replace_callback('#<(p|ul|ol)\b([^>]*)>#i', function (array $match) use ($code) {
+            // Im HTML-Code gilt ein eigener Stil, sonst der einheitliche Abstand.
+            if ($code && preg_match('#\sstyle="[^"]*\S[^"]*"#i', $match[2])) {
+                return '<'.Str::lower($match[1]).$match[2].'>';
+            }
+
+            return '<'.Str::lower($match[1]).preg_replace('#\sstyle="[^"]*"#i', '', $match[2]).' style="'.self::BLOCK_STYLE.'">';
+        }, $html);
         $html = preg_replace('#<p style="'.preg_quote(self::BLOCK_STYLE, '#').'">(?:\s|&nbsp;|\x{00A0}|<br\s*/?>)*</p>#iu', '<p style="margin:0">&nbsp;</p>', $html);
 
         return trim($html);
+    }
+
+    /** Aus einem ganzen HTML-Dokument (<!DOCTYPE>, <html>, <head>) nur den Inhalt von <body>; Ausschnitte bleiben, wie sie sind. */
+    public static function bodyOf(string $html): string
+    {
+        if (preg_match('#<body\b[^>]*>(.*?)(?:</body>|$)#is', $html, $match)) {
+            return trim($match[1]);
+        }
+
+        return trim(preg_replace(['#<!DOCTYPE[^>]*>#i', '#<head\b[^>]*>.*?</head>#is', '#</?html\b[^>]*>#i'], '', $html));
+    }
+
+    /** Bereinigung für HTML-Code: wie Str::sanitizeHtml, dazu die Tabellenattribute, mit denen E-Mails üblicherweise gebaut sind. */
+    private static function codeSanitizer(): HtmlSanitizer
+    {
+        $config = app(HtmlSanitizerConfig::class);
+        $tables = ['table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'col', 'colgroup'];
+
+        foreach (['width', 'height', 'bgcolor', 'border'] as $attribute) {
+            $config = $config->allowAttribute($attribute, $tables);
+        }
+
+        return new HtmlSanitizer($config);
     }
 
     /** Lesbarer Text für den Verlauf: Absätze und Zeilenumbrüche bleiben, Links als „Linktext (Adresse)“, Listen mit • bzw. 1. */

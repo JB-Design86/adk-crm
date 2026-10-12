@@ -10,7 +10,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 /**
- * Vorlage für „E-Mail schreiben“ im Vorgang: Betreff und Text (HTML aus dem Editor) mit Platzhaltern,
+ * Vorlage für „E-Mail schreiben“ im Vorgang: Betreff und Text (HTML aus dem Editor oder als HTML-Code, body_is_code) mit Platzhaltern,
  * auf Wunsch eine Datei als Anhang (private Ablage, nie öffentlich erreichbar).
  * Nur die Verwaltung pflegt Vorlagen, Änderungen stehen im Protokoll.
  */
@@ -52,6 +52,7 @@ class EmailTemplate extends Model
     {
         return [
             'is_active' => 'boolean',
+            'body_is_code' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
@@ -84,7 +85,7 @@ class EmailTemplate extends Model
     {
         return LogOptions::defaults()
             ->useLogName('email_templates')
-            ->logOnly(['name', 'subject', 'body', 'attachment_name', 'is_active', 'sort_order'])
+            ->logOnly(['name', 'subject', 'body', 'body_is_code', 'attachment_name', 'is_active', 'sort_order'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }

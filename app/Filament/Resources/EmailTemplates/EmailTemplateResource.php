@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\EmailTemplates;
 
+use App\Filament\Forms\MailCode;
 use App\Filament\Resources\EmailTemplates\Pages\CreateEmailTemplate;
 use App\Filament\Resources\EmailTemplates\Pages\EditEmailTemplate;
 use App\Filament\Resources\EmailTemplates\Pages\ListEmailTemplates;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -25,6 +27,7 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 /**
@@ -84,14 +87,18 @@ class EmailTemplateResource extends Resource
                         ->label('Betreff')
                         ->required()
                         ->maxLength(255),
+                    MailCode::toggle('body_is_code', editor: 'body', code: 'body_code'),
                     RichEditor::make('body')
                         ->label('Text')
                         ->toolbarButtons(MailHtml::TOOLBAR)
                         ->fileAttachments(false)
                         ->minHeight('16rem')
                         ->required()
+                        ->visible(fn (Get $get) => ! $get('body_is_code'))
                         ->hintIcon(Heroicon::OutlinedQuestionMarkCircle, tooltip: Hilfe::feld('template_body'))
                         ->helperText(EmailTemplate::placeholderHelp().' Die Signatur der sendenden Person hängt das CRM an.'),
+                    MailCode::field('body_code', toggle: 'body_is_code', helperText: EmailTemplate::placeholderHelp().' Die Signatur der sendenden Person hängt das CRM an. Beim Speichern wird der Code bereinigt.'),
+                    MailCode::preview('body_code', toggle: 'body_is_code'),
                     FileUpload::make('attachment_path')
                         ->label('Anhang (optional)')
                         ->disk(EmailTemplate::DISK)
@@ -137,5 +144,26 @@ class EmailTemplateResource extends Resource
             'create' => CreateEmailTemplate::route('/create'),
             'edit' => EditEmailTemplate::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Text aus dem Formular: als HTML-Code bereinigt (MailHtml::sanitize mit code), sonst das HTML des Editors.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function bodyFromForm(array $data): array
+    {
+        if (! empty($data['body_is_code'])) {
+            $data['body'] = MailHtml::sanitize(MailHtml::normalize($data['body_code'] ?? null), code: true);
+
+            if (MailHtml::toText($data['body']) === '') {
+                throw ValidationException::withMessages(['data.body_code' => 'Nach dem Bereinigen bleibt kein Text übrig. Bitte den Inhalt der E-Mail einfügen, nicht nur Stile oder Bilder.']);
+            }
+        }
+
+        unset($data['body_code']);
+
+        return $data;
     }
 }

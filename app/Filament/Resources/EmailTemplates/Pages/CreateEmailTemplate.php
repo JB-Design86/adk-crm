@@ -9,6 +9,11 @@ class CreateEmailTemplate extends CreateRecord
 {
     protected static string $resource = EmailTemplateResource::class;
 
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        return EmailTemplateResource::bodyFromForm($data);
+    }
+
     protected function getRedirectUrl(): string
     {
         return static::getResource()::getUrl('index');

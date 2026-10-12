@@ -117,7 +117,7 @@ class LeadEmail
      * Anhänge: Dateien aus Vorlagen (email_template_files, früher attach_template_file mit email_template_id)
      * und hochgeladene Dateien (email_attachments). Hochgeladene Dateien werden nach dem Versuch immer gelöscht.
      *
-     * @param  array{email_template_id?: mixed, email_to?: ?string, email_subject?: ?string, email_text?: ?string, email_template_files?: mixed, email_attachments?: mixed, email_attachment_names?: mixed, attach_template_file?: mixed, consent_confirmed?: mixed, next_action_at?: ?string, next_action_time?: ?string}  $data
+     * @param  array{email_template_id?: mixed, email_to?: ?string, email_subject?: ?string, email_text?: ?string, email_as_code?: mixed, email_code?: ?string, email_template_files?: mixed, email_attachments?: mixed, email_attachment_names?: mixed, attach_template_file?: mixed, consent_confirmed?: mixed, next_action_at?: ?string, next_action_time?: ?string}  $data
      *
      * @throws RuntimeException mit einer Meldung für die Oberfläche; dann ist nichts gesendet
      */
@@ -164,7 +164,10 @@ class LeadEmail
 
         // Platzhalter auch hier ersetzen, falls sie von Hand in Betreff oder Text stehen. Der Betreff bleibt reiner Text.
         $subject = trim(self::render($data['email_subject'] ?? '', $lead, $user));
-        $html = MailHtml::sanitize(self::renderHtml(MailHtml::normalize($data['email_text'] ?? ''), $lead, $user));
+        // Als HTML-Code (gestaltete Vorlagen) mit eigenen Stilen und Tabellen, sonst das HTML des Editors.
+        $asCode = ! empty($data['email_as_code']);
+        $source = $asCode ? ($data['email_code'] ?? '') : ($data['email_text'] ?? '');
+        $html = MailHtml::sanitize(self::renderHtml(MailHtml::normalize($source), $lead, $user), code: $asCode);
         $text = MailHtml::toText($html);
 
         if ($subject === '' || $text === '') {

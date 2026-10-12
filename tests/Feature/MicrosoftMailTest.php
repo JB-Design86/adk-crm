@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Forms\MailCode;
 use App\Filament\Pages\CallList;
 use App\Filament\Pages\EmailAccount;
 use App\Filament\Resources\EmailTemplates\Pages\CreateEmailTemplate;
@@ -16,6 +17,7 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Microsoft\GraphMailer;
 use App\Services\Microsoft\LeadEmail;
+use App\Support\MailHtml;
 use App\Support\WorkingDays;
 use Filament\Forms\Components\RichEditor\RichContentRenderer;
 use Filament\Notifications\Notification;
@@ -769,6 +771,117 @@ it('wandelt Vorlagen aus reinem Text in Absätze um, auch beim Bearbeiten', func
 
     expect(DB::table('email_templates')->where('id', $id)->value('body'))->toBe($html)
         ->and(EmailTemplate::where('name', 'Nachfassen')->value('body'))->toStartWith('<p>{anrede},</p><p>vor einigen Tagen');
+});
+
+/** Gestaltete Mail als ganzes HTML-Dokument, wie es ein HTML-Baukasten liefert. */
+function designedMail(): string
+{
+    return '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>ADK</title><style>p { color: red; }</style></head>'
+        .'<body style="margin:0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4"><tr>'
+        .'<td style="padding:16px;font-family:Arial,sans-serif"><p style="font-size:15px;color:#222">{anrede},</p>'
+        .'<p>Weiterbildung für {firma}: <a href="https://adk-akademie.de/kurse" style="color:#0b4f8a" target="_blank">Kurse</a></p>'
+        .'<img src="https://adk-akademie.de/bild.png" width="600"></td></tr></table><script>alert(1)</script></body></html>';
+}
+
+it('speichert Vorlagen als HTML-Code bereinigt und behält Tabellen, Stile und Platzhalter', function () {
+    loginAs('admin');
+
+    Livewire::test(CreateEmailTemplate::class)
+        ->assertSee('Als HTML-Code bearbeiten')
+        ->fillForm(['name' => 'Newsletter', 'subject' => 'Neu bei der ADK', 'body_is_code' => true, 'body_code' => designedMail()])
+        ->assertSee('Vorschau')
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $template = EmailTemplate::where('name', 'Newsletter')->sole();
+
+    expect($template->body_is_code)->toBeTrue()
+        ->and($template->body)->toStartWith('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">')
+        ->toContain('<p style="font-size:15px;color:#222">{anrede},</p>')
+        ->toContain('<p style="margin:0 0 12px">Weiterbildung für {firma}: <a href="https://adk-akademie.de/kurse" style="color:#0b4f8a">Kurse</a></p>')
+        ->not->toContain('DOCTYPE')->not->toContain('<style')->not->toContain('color: red')->not->toContain('<script')->not->toContain('<img')
+        ->and($template->bodyHtml())->toBe($template->body);
+
+    // Beim Bearbeiten wieder im Code-Feld, der Code bleibt beim Speichern gleich.
+    Livewire::test(EditEmailTemplate::class, ['record' => $template->id])
+        ->assertFormSet(['body_is_code' => true, 'body_code' => $template->body])
+        ->call('save')
+        ->assertHasNoFormErrors();
+    expect($template->fresh()->body)->toBe($template->body);
+
+    // Bleibt nach dem Bereinigen nichts übrig, speichert das CRM nicht.
+    Livewire::test(CreateEmailTemplate::class)
+        ->fillForm(['name' => 'Leer', 'subject' => 'Leer', 'body_is_code' => true, 'body_code' => '<style>p { color: red; }</style><img src="https://x.test/a.png">'])
+        ->call('create')
+        ->assertHasFormErrors(['body_code']);
+    expect(EmailTemplate::where('name', 'Leer')->exists())->toBeFalse();
+});
+
+it('nimmt in den Editor eingefügten HTML-Code beim Umschalten als Code', function () {
+    loginAs('admin');
+    $template = EmailTemplate::create(['name' => 'Eingefügt', 'subject' => 'Test', 'body' => '<p>&lt;table width="100%"&gt;&lt;tr&gt;&lt;td&gt;{anrede}&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;</p>']);
+
+    Livewire::test(EditEmailTemplate::class, ['record' => $template->id])
+        ->assertFormSet(['body_is_code' => false])
+        ->fillForm(['body_is_code' => true])
+        ->assertFormSet(['body_code' => '<table width="100%"><tr><td>{anrede}</td></tr></table>'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($template->fresh())
+        ->body_is_code->toBeTrue()
+        ->body->toBe('<table width="100%"><tbody><tr><td>{anrede}</td></tr></tbody></table>');
+});
+
+it('sendet Vorlagen als HTML-Code mit Tabellen und Stilen, ohne den Editor', function () {
+    mailConnection($this->user, ['signature' => null]);
+    $lead = mailLead();
+    graphAccepts();
+    $template = EmailTemplate::create([
+        'name' => 'Gestaltet',
+        'subject' => 'Weiterbildung für {firma}',
+        'body' => MailHtml::sanitize(designedMail(), code: true),
+        'body_is_code' => true,
+    ]);
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->mountAction('sendEmail')
+        ->setActionData(['email_template_id' => $template->id])
+        ->assertActionDataSet(function (array $state) {
+            expect($state['email_as_code'])->toBeTrue()
+                ->and($state['email_code'])->toContain('<p style="font-size:15px;color:#222">Sehr geehrte Frau Muster,</p>')
+                ->toContain('Weiterbildung für Muster &amp; Söhne GmbH');
+
+            return [];
+        })
+        ->setActionData(['consent_confirmed' => true])
+        ->callMountedAction()
+        ->assertHasNoActionErrors()
+        ->assertNotified('E-Mail an erika.muster@example.org gesendet');
+
+    Http::assertSent(fn (Request $request) => str_starts_with($request['message']['body']['content'], '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">'
+        .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">')
+        && str_contains($request['message']['body']['content'], '<a href="https://adk-akademie.de/kurse" style="color:#0b4f8a">Kurse</a>'));
+
+    expect($lead->activities()->sole()->body)->toEndWith("Sehr geehrte Frau Muster,\n\nWeiterbildung für Muster & Söhne GmbH: Kurse (https://adk-akademie.de/kurse)");
+});
+
+it('schreibt eine E-Mail auch ohne Vorlage als HTML-Code', function () {
+    mailConnection($this->user, ['signature' => null]);
+    $lead = mailLead();
+    graphAccepts();
+
+    app(LeadEmail::class)->send($this->user, $lead, emailData([
+        'email_to' => 'erika.muster@example.org',
+        'email_as_code' => true,
+        'email_text' => 'wird nicht verwendet',
+        'email_code' => '<div style="color:#0b4f8a">{anrede}</div><p style="font-weight:bold">Hallo</p>',
+    ]));
+
+    Http::assertSent(fn (Request $request) => $request['message']['body']['content'] === '<div style="font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt;">'
+        .'<div style="color:#0b4f8a">Sehr geehrte Frau Muster</div><p style="font-weight:bold">Hallo</p></div>');
+    expect(MailCode::previewHtml(null))->toBeNull()
+        ->and(MailCode::previewHtml('<p style="color:red">Hallo</p>'))->toContain('<p style="color:red">Hallo</p>');
 });
 
 it('zeigt „E-Mail schreiben“ ohne verbundenes Postfach mit Hinweis auf „E-Mail-Konto“', function () {

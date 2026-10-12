@@ -2,6 +2,7 @@
 
 namespace App\Filament\Actions;
 
+use App\Filament\Forms\MailCode;
 use App\Filament\Pages\EmailAccount;
 use App\Models\Activity;
 use App\Models\EmailTemplate;
@@ -249,7 +250,9 @@ class LeadActions
 
                     if ($chosen) {
                         $set('email_subject', LeadEmail::render($chosen->subject, $lead, auth()->user()));
-                        $set('email_text', LeadEmail::renderHtml($chosen->bodyHtml(), $lead, auth()->user()));
+                        // Vorlagen als HTML-Code bleiben Code, der Editor würde Tabellen und Farben verlieren.
+                        $set('email_as_code', $chosen->body_is_code);
+                        $set($chosen->body_is_code ? 'email_code' : 'email_text', LeadEmail::renderHtml($chosen->bodyHtml(), $lead, auth()->user()));
                         $set('email_template_files', $chosen->hasAttachment() ? [$chosen->id] : []);
                     }
                 }),
@@ -268,13 +271,17 @@ class LeadActions
                 ->label('Betreff')
                 ->required()
                 ->maxLength(255),
+            MailCode::toggle('email_as_code', editor: 'email_text', code: 'email_code'),
             RichEditor::make('email_text')
                 ->label('Text')
                 ->toolbarButtons(MailHtml::TOOLBAR)
                 ->fileAttachments(false)
                 ->minHeight('16rem')
                 ->required()
+                ->visible(fn (Get $get) => ! $get('email_as_code'))
                 ->helperText('Enter beginnt einen neuen Absatz, Umschalt + Enter eine neue Zeile. Ihre Signatur aus „E-Mail-Konto“ hängt das CRM beim Senden an. Keine medizinischen Angaben.'),
+            MailCode::field('email_code', toggle: 'email_as_code', helperText: 'Ihre Signatur aus „E-Mail-Konto“ hängt das CRM beim Senden an. Keine medizinischen Angaben.'),
+            MailCode::preview('email_code', toggle: 'email_as_code'),
             CheckboxList::make('email_template_files')
                 ->label('Dateien aus den Vorlagen')
                 ->options($templateFiles)
