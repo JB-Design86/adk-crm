@@ -1,6 +1,6 @@
 #!/bin/bash
 # ADK · Wochenbericht des Servers (Plesk-VPS). Läuft als root per /etc/cron.d/adk-wochenbericht,
-# jeden Montag 06:30, und schickt eine Mail an EMPFAENGER. Nur Zahlen und Zustände, keine Inhalte
+# jeden Montag 07:30, und schickt eine Mail an EMPFAENGER. Nur Zahlen und Zustände, keine Inhalte
 # aus CRM oder Website (keine personenbezogenen Daten). Doku: docs/BETRIEB.md, Abschnitt Wartung.
 set -u
 export LC_ALL=C.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
