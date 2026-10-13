@@ -480,3 +480,18 @@ Auftrag von Janosch (11.10.2026): Server regelmäßig prüfen (Updates, Fehler, 
 | Von Hand | Bericht sofort: `/usr/local/sbin/adk-wochenbericht` (optional andere Adresse als Argument). Nach Änderungen am Skript im Repository: neu auf den Server übertragen (Prüfsumme vergleichen) |
 
 Claude prüft zusätzlich in jeder Sitzung mit Plesk-Zugang kurz den Zustand und meldet Auffälligkeiten.
+
+## 17 Gesundheitswesen aus den Leadlisten aussortieren (13.10.2026)
+
+Arzt- und Zahnarztpraxen, Therapeuten und Kliniken dürfen kaum werben (Berufsordnung, Heilmittelwerbegesetz) und passen nicht zum Projekt. Auftrag Janosch: diese Einträge aus den Leadlisten löschen.
+
+Befehl im SSH-Terminal der Domain (Websites & Domains → crm.adk-akademie.de → SSH Terminal, läuft als `crmadk`), im Verzeichnis `httpdocs`:
+
+```bash
+/opt/plesk/php/8.4/bin/php artisan adk:gesundheit-aussortieren
+```
+
+- Ohne Zusatz nur **Probelauf**: Treffer nach Stichwort mit Beispielen, Grenzfälle und schon bearbeitete Vorgänge. `--liste` zeigt alle Betriebe einzeln.
+- `--loeschen` löscht endgültig (RecordPurger wie beim Löschersuchen): Vorgänge, Betriebe ohne weiteren Vorgang samt Ansprechpersonen. Im Protokoll (Bereich „Aussortieren“) nur Anzahlen.
+- `--ohne=12,345` nimmt einzelne Vorgänge aus, `--grenzfaelle` löscht auch Tierärzte, Apotheken, Pflege, Optiker, Sanitätshäuser und Medizintechnik (die dürfen werben, bleiben sonst).
+- Erfasst nur Vorgänge mit Status „Neu“ aus einem Import, offen, ohne Anrufversuch, Aktivität, Termin, Dokument, Teilnehmerakte oder Förderfall. Erkennung über Name und Branche des Betriebs sowie WZ-Code 86 (Grenzfälle 87, 75, 47.73, 47.74, 47.78.1). Logik: `App\Services\HealthSectorCleanup`.

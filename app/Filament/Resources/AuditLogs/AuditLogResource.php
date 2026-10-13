@@ -65,6 +65,7 @@ class AuditLogResource extends Resource
         'checklist_items' => 'Checklisten-Punkt',
         'duplicates' => 'Dublettenprüfung',
         'erasure' => 'Löschersuchen',
+        'cleanup' => 'Aussortieren',
         'intake' => 'Website-Eingang',
     ];
 
@@ -79,6 +80,7 @@ class AuditLogResource extends Resource
         'import' => 'Import',
         'export' => 'Export',
         'retention' => 'Löschlauf',
+        'sorted_out' => 'aussortiert',
         '2fa_reset' => '2FA zurückgesetzt',
         'connected' => 'verbunden',
         'disconnected' => 'getrennt',
