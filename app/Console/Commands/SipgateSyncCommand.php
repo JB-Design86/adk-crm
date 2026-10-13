@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\SipgateConnection;
 use App\Services\Sipgate\SipgateClient;
 use App\Services\Sipgate\SipgateSync;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -14,7 +15,8 @@ use Throwable;
  */
 class SipgateSyncCommand extends Command
 {
-    protected $signature = 'adk:sipgate-abgleich';
+    protected $signature = 'adk:sipgate-abgleich
+        {--seit= : Anrufe ab diesem Datum nachholen, z. B. --seit=2026-10-01 (sonst seit dem letzten Abgleich)}';
 
     protected $description = 'Übernimmt neue Anrufe aus sipgate als Aktivität an den passenden Vorgang';
 
@@ -27,13 +29,14 @@ class SipgateSyncCommand extends Command
         }
 
         $failed = 0;
+        $since = filled($this->option('seit')) ? CarbonImmutable::parse($this->option('seit'))->startOfDay() : null;
 
         SipgateConnection::query()
             ->whereHas('user', fn ($q) => $q->where('is_blocked', false))
             ->with('user')
-            ->each(function (SipgateConnection $connection) use ($sync, &$failed) {
+            ->each(function (SipgateConnection $connection) use ($sync, $since, &$failed) {
                 try {
-                    $count = $sync->sync($connection);
+                    $count = $sync->sync($connection, $since);
                     $this->line("{$connection->user->name}: {$count} Anrufe übernommen");
                 } catch (Throwable $exception) {
                     $failed++;

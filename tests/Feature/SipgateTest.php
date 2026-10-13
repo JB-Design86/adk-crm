@@ -472,3 +472,72 @@ it('liest Nummern aus sipgate in allen Schreibweisen', function () {
         ->and(SipgateSync::number('e0'))->toBeNull()
         ->and(SipgateSync::number(null))->toBeNull();
 });
+
+it('sendet beim Anruf die Zentralnummer als angezeigte Nummer mit, nie „private Nummer“', function () {
+    sipgateConnection($this->user, ['access_token' => neoToken()]);
+    $lead = leadWithPhone('06131 123456');
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/calls' => Http::response(['callSid' => 'c1']),
+    ]);
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])->callAction('sipgateCall');
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/calls') && $request['callerId'] === '4961318888910');
+});
+
+it('übernimmt bei Neo die Anrufe aus den Channels, jeden nur einmal und erst nach dem Auflegen', function () {
+    $connection = sipgateConnection($this->user, ['access_token' => neoToken(), 'last_synced_at' => '2026-09-28 09:00:00']);
+    $lead = leadWithPhone('06131 123456');
+    $call = fn (string $sid, array $call) => ['type' => 'CALL', 'eventId' => 'ev-'.$sid, 'createdAt' => '2026-09-28T07:40:00Z', 'call' => ['callSid' => $sid, 'channelId' => 'x', ...$call]];
+
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/channels/ch-zentrale/events*' => Http::response(['position' => null, 'events' => [
+            // Ausgehend aus dem CRM, angenommen, 3:12 Min.
+            $call('S1', ['direction' => 'OUTGOING', 'from' => '+4961318888910', 'to' => '+496131123456', 'state' => 'FINISHED',
+                'startedAt' => '2026-09-28T07:40:00Z', 'establishedAt' => '2026-09-28T07:40:10Z', 'terminatedAt' => '2026-09-28T07:43:22Z']),
+            // Läuft noch: erst beim nächsten Abgleich
+            $call('S2', ['direction' => 'OUTGOING', 'from' => '+4961318888910', 'to' => '+496131123456', 'state' => 'ESTABLISHED', 'startedAt' => '2026-09-28T07:50:00Z']),
+            // Unbekannte Nummer: nicht übernommen
+            $call('S3', ['direction' => 'OUTGOING', 'from' => '+4961318888910', 'to' => '+4930111111', 'state' => 'FINISHED', 'startedAt' => '2026-09-28T07:45:00Z', 'terminatedAt' => '2026-09-28T07:46:00Z']),
+        ]]),
+        'api.sipgate.com/v2/channels/ch-janosch/events*' => Http::response(['position' => null, 'events' => [
+            // Derselbe Anruf auch im persönlichen Channel
+            $call('S1', ['direction' => 'OUTGOING', 'from' => '+4961318888910', 'to' => '+496131123456', 'state' => 'FINISHED',
+                'startedAt' => '2026-09-28T07:40:00Z', 'establishedAt' => '2026-09-28T07:40:10Z', 'terminatedAt' => '2026-09-28T07:43:22Z']),
+            // Verpasster Rückruf des Kunden
+            $call('S4', ['direction' => 'INCOMING', 'from' => '+496131123456', 'to' => '+4961318888910', 'state' => 'MISSED', 'startedAt' => '2026-09-28T07:55:00Z', 'terminatedAt' => '2026-09-28T07:55:30Z']),
+        ]]),
+    ]);
+
+    expect(app(SipgateSync::class)->sync($connection))->toBe(2);
+
+    $activities = Activity::where('type', 'phone_log')->orderBy('occurred_at')->get();
+
+    expect($activities)->toHaveCount(2)
+        ->and($activities[0])->lead_id->toBe($lead->id)->external_id->toBe('sipgate:S1')->duration_seconds->toBe(192)->outcome->toBe('PICKUP')
+        ->and($activities[0]->body)->toBe('Ausgehender Anruf, angenommen, 3:12 Min.')
+        ->and($activities[1]->body)->toBe('Verpasster Anruf, nicht angenommen');
+
+    Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/history'));
+});
+
+it('holt per Befehl mit --seit auch ältere Anrufe nach', function () {
+    sipgateConnection($this->user, ['access_token' => neoToken(), 'last_synced_at' => now()]);
+    leadWithPhone('06131 123456');
+
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/channels/*/events*' => Http::response(['position' => null, 'events' => [
+            ['type' => 'CALL', 'call' => ['callSid' => 'OLD', 'direction' => 'OUTGOING', 'to' => '+496131123456', 'state' => 'FINISHED',
+                'startedAt' => '2026-09-21T08:00:00Z', 'establishedAt' => '2026-09-21T08:00:05Z', 'terminatedAt' => '2026-09-21T08:01:05Z']],
+        ]]),
+    ]);
+
+    $this->artisan('adk:sipgate-abgleich')->assertSuccessful();
+    expect(Activity::where('type', 'phone_log')->count())->toBe(0);
+
+    $this->artisan('adk:sipgate-abgleich', ['--seit' => '2026-09-20'])->assertSuccessful();
+    expect(Activity::where('type', 'phone_log')->sole()->duration_seconds)->toBe(60);
+});

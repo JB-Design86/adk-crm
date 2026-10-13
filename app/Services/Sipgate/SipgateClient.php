@@ -4,6 +4,7 @@ namespace App\Services\Sipgate;
 
 use App\Models\SipgateConnection;
 use App\Models\User;
+use App\Support\Phone;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -18,6 +19,9 @@ use Throwable;
  */
 class SipgateClient
 {
+    /** Höchstens so viele Seiten Channel-Events je Channel und Abgleich (je 100 Anrufe). */
+    private const MAX_EVENT_PAGES = 20;
+
     public static function isConfigured(): bool
     {
         return filled(config('services.sipgate.client_id')) && filled(config('services.sipgate.client_secret'));
@@ -89,11 +93,12 @@ class SipgateClient
             return $this->callNeo($request, $connection, $e164, $claims);
         }
 
-        $response = $request->post($this->api('/sessions/calls'), [
+        $response = $request->post($this->api('/sessions/calls'), array_filter([
             'deviceId' => $connection->device_id,
             'caller' => $connection->device_id,
             'callee' => $e164,
-        ]);
+            'callerId' => self::callerId(),
+        ]));
 
         if ($response->status() === 403) {
             throw new RuntimeException('sipgate erlaubt mit dem gewählten Gerät keinen Anruf (403). Bitte wählen Sie unter „Telefonie“ ein anderes Gerät oder verbinden Sie sipgate neu.');
@@ -104,6 +109,14 @@ class SipgateClient
         }
 
         return (string) $response->json('sessionId');
+    }
+
+    /** Angezeigte Nummer (config services.sipgate.caller_id) wie im Beispiel der API ohne „+“, z. B. „4961318888910“. */
+    public static function callerId(): ?string
+    {
+        $number = Phone::normalize((string) config('services.sipgate.caller_id'));
+
+        return $number === null ? null : ltrim($number, '+');
     }
 
     /** Ablehnung mit Weg und Begründung von sipgate, damit sich der Fehler ohne Serverprotokoll eingrenzen lässt. */
@@ -136,6 +149,8 @@ class SipgateClient
                 'deviceId' => $connection->device_id,
                 'targetNumber' => $target,
                 'channelId' => $channelId,
+                // Ohne callerId zeigte sipgate Neo beim Angerufenen „private Nummer“.
+                'callerId' => self::callerId(),
             ]));
 
             if ($response->status() !== 400) {
@@ -218,6 +233,91 @@ class SipgateClient
         ])->throw();
 
         return $response->json('items') ?? [];
+    }
+
+    /**
+     * Anrufe bei sipgate Neo: Sie stehen nicht in /history, sondern je Channel unter /channels/{id}/events
+     * (nur Channels, in denen die Person Mitglied ist). Als Einträge im Format von callHistory(), jeder Anruf
+     * einmal (callSid), nur beendete Anrufe, die seit $from geendet haben. Die Reihenfolge der Seiten ist
+     * nicht dokumentiert: Bei „neueste zuerst“ endet das Blättern, sobald eine Seite nur Älteres enthält.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function channelCallHistory(SipgateConnection $connection, CarbonImmutable $from): array
+    {
+        $entries = [];
+
+        foreach ($this->channels($connection) as $channel) {
+            if ($channel['deviceIds'] === null) {
+                continue;
+            }
+
+            $position = null;
+
+            for ($page = 0; $page < self::MAX_EVENT_PAGES; $page++) {
+                $response = $this->request($connection)
+                    ->get($this->api('/channels/'.rawurlencode($channel['id']).'/events'), array_filter(['limit' => 100, 'position' => $position]))
+                    ->throw();
+                $events = $response->json('events') ?? [];
+                $ended = [];
+
+                foreach ($events as $event) {
+                    $call = $event['call'] ?? null;
+
+                    if (($event['type'] ?? 'CALL') !== 'CALL' || ! is_array($call) || blank($call['callSid'] ?? null) || blank($call['terminatedAt'] ?? null)) {
+                        continue;
+                    }
+
+                    $ended[] = $end = CarbonImmutable::parse($call['terminatedAt']);
+
+                    if ($end->gte($from)) {
+                        $entries[$call['callSid']] ??= self::channelEntry($call);
+                    }
+                }
+
+                $next = $response->json('position');
+                $newestFirst = count($ended) > 1 && $ended[0]->gte(end($ended));
+
+                if ($events === [] || blank($next) || $next === $position || ($newestFirst && end($ended)->lt($from))) {
+                    break;
+                }
+
+                $position = $next;
+            }
+        }
+
+        return array_values($entries);
+    }
+
+    /**
+     * Ein Anruf aus den Channel-Events (Neo) im Format der klassischen Anrufliste:
+     * angenommen = establishedAt gesetzt, Dauer = Ende minus Annahme.
+     *
+     * @param  array<string, mixed>  $call
+     * @return array{id: string, type: string, direction: string, source: ?string, target: ?string, status: string, duration: ?int, created: ?string}
+     */
+    public static function channelEntry(array $call): array
+    {
+        $established = filled($call['establishedAt'] ?? null);
+        $incoming = ($call['direction'] ?? 'OUTGOING') === 'INCOMING';
+
+        return [
+            'id' => (string) $call['callSid'],
+            'type' => 'CALL',
+            'direction' => ($established ? '' : 'MISSED_').($incoming ? 'INCOMING' : 'OUTGOING'),
+            'source' => $call['from'] ?? null,
+            'target' => $call['to'] ?? null,
+            'status' => match (true) {
+                $established => 'PICKUP',
+                ($call['state'] ?? null) === 'BUSY' => 'BUSY',
+                filled($call['forwarding']['target'] ?? null) => 'FORWARD',
+                default => 'NOPICKUP',
+            },
+            'duration' => $established && filled($call['terminatedAt'] ?? null)
+                ? (int) abs(CarbonImmutable::parse($call['terminatedAt'])->diffInSeconds(CarbonImmutable::parse($call['establishedAt'])))
+                : null,
+            'created' => $call['startedAt'] ?? $call['establishedAt'] ?? null,
+        ];
     }
 
     /** Anfrage mit gültigem Token; läuft das Token ab, wird es vorher erneuert. */

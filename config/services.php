@@ -48,6 +48,9 @@ return [
         'scopes' => 'sessions:calls:write rtcm:write channels:read history:read devices:read',
         'login_url' => 'https://login.sipgate.com/auth/realms/',
         'api_url' => 'https://api.sipgate.com/v2',
+        // Angezeigte Nummer bei Anrufen aus dem CRM (Pflicht bei Werbeanrufen, keine Rufnummernunterdrückung).
+        // Ohne Angabe zeigte sipgate Neo „private Nummer“. Muss eine Nummer des sipgate-Kontos sein.
+        'caller_id' => env('SIPGATE_CALLER_ID', '+4961318888910'),
     ],
 
     /*

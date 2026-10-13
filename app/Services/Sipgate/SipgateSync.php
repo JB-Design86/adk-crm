@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Übernimmt Anrufe aus der sipgate-Anrufliste als Aktivität „Telefonat (sipgate)“
+ * Übernimmt Anrufe aus der sipgate-Anrufliste (klassisch /history, bei Neo die Channel-Events) als Aktivität „Telefonat (sipgate)“
  * an den Vorgang mit der passenden Telefonnummer. Anrufe mit unbekannten Nummern
  * werden nicht übernommen. Jeder Anruf nur einmal (external_id).
  */
@@ -32,14 +32,21 @@ class SipgateSync
 
     public function __construct(private SipgateClient $client) {}
 
-    /** @return int Anzahl neu übernommener Anrufe */
-    public function sync(SipgateConnection $connection): int
+    /**
+     * @param  CarbonImmutable|null  $since  Anrufe ab diesem Zeitpunkt nachholen, sonst seit dem letzten Abgleich
+     * @return int Anzahl neu übernommener Anrufe
+     */
+    public function sync(SipgateConnection $connection, ?CarbonImmutable $since = null): int
     {
-        $from = CarbonImmutable::instance($connection->last_synced_at ?? now()->subDay())->subMinutes(15);
+        $from = $since ?? CarbonImmutable::instance($connection->last_synced_at ?? now()->subDay())->subMinutes(15);
         $started = now();
         $created = 0;
 
-        foreach ($this->client->callHistory($connection, $from) as $entry) {
+        $entries = $this->client->isNeo($connection)
+            ? $this->client->channelCallHistory($connection, $from)
+            : $this->client->callHistory($connection, $from);
+
+        foreach ($entries as $entry) {
             if (($entry['type'] ?? 'CALL') !== 'CALL' || blank($entry['id'] ?? null)) {
                 continue;
             }
