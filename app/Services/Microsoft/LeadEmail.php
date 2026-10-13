@@ -191,13 +191,20 @@ class LeadEmail
             throw new RuntimeException('Für „'.Adk::statusLabel($status).'“ bitte ein Wiedervorlagedatum angeben.');
         }
 
+        // „vorher telefoniert“: Der Status zählt in der Auswertung als Anruf. Darf nicht angerufen werden, vor dem Senden abbrechen.
+        $asCall = $status !== null && ! empty($data['called_before']);
+
+        if ($asCall && ($reason = $lead->callBlockReason()) !== null && ! config("adk.statuses.{$status}.closes")) {
+            throw new RuntimeException($reason.' Bitte „vorher telefoniert“ abwählen.');
+        }
+
         $template = filled($data['email_template_id'] ?? null) ? EmailTemplate::find($data['email_template_id']) : null;
         $attachments = [...$this->templateAttachments($data, $template), ...$this->uploadedAttachments($data)];
         $names = array_column($attachments, 'name');
 
         $reference = $this->mailer->sendMail($connection, $to, $subject, $html, $attachments);
 
-        return DB::transaction(function () use ($user, $lead, $data, $to, $subject, $text, $followUp, $status, $template, $names, $reference) {
+        return DB::transaction(function () use ($user, $lead, $data, $to, $subject, $text, $followUp, $status, $asCall, $template, $names, $reference) {
             $followUpLine = null;
 
             // Mit Status übernimmt der Statuswechsel die Wiedervorlage (eigener Eintrag im Verlauf).
@@ -246,7 +253,7 @@ class LeadEmail
                     'next_action_at' => $followUp?->toDateString(),
                     'next_action_time' => $data['next_action_time'] ?? null,
                     'note' => 'Mit der E-Mail „'.$subject.'“ gesetzt.',
-                ], $user);
+                ], $user, asCall: $asCall);
             }
 
             return $activity;

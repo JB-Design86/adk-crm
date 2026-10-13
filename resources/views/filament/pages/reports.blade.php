@@ -9,7 +9,7 @@
     $th = 'px-3 py-2 text-left font-semibold whitespace-nowrap';
     $td = 'px-3 py-1.5 whitespace-nowrap';
     $num = 'px-3 py-1.5 text-right tabular-nums';
-    $metricLabels = ['calls' => 'Anrufe', 'reached' => 'erreicht', 'appointments' => 'Termine', 'documents' => 'Unterlagen versendet'];
+    $metricLabels = ['calls' => 'Anrufe', 'reached' => 'erreicht', 'appointments' => 'Termine', 'documents' => 'Unterlagen versendet', 'emails' => 'E-Mails gesendet'];
 @endphp
 
 <x-filament-panels::page>
@@ -33,7 +33,7 @@
         </div>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-4" style="grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));">
         @foreach ($metricLabels as $key => $label)
             <x-filament::section>
                 <p class="text-sm text-gray-500">{{ $label }}</p>
@@ -60,6 +60,17 @@
             </dl>
         </x-filament::section>
     @endif
+
+    @php($byStatus = $report->byStatus())
+    <x-filament::section>
+        <x-slot name="heading">Ergebnis je Status</x-slot>
+        <x-slot name="description">Gesetzte Status im Zeitraum, aus der Anrufliste, „Status setzen“ und E-Mails mit Status.</x-slot>
+        <dl class="grid gap-4 text-sm" style="grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));">
+            @foreach ($byStatus as $row)
+                <div><dt class="text-gray-500">{{ $row['label'] }}</dt><dd class="text-2xl font-semibold tabular-nums">{{ number_format($row['count'], 0, ',', '.') }}</dd></div>
+            @endforeach
+        </dl>
+    </x-filament::section>
 
     <div class="grid gap-6 lg:grid-cols-2">
         <x-filament::section>

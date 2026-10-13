@@ -46,6 +46,9 @@ use RuntimeException;
  */
 class LeadActions
 {
+    /** „Status setzen“: Wie kam das Ergebnis zustande? Nur „Anruf“ zählt in der Auswertung als Anruf. */
+    public const CONTACT_VIA = ['call' => 'Anruf', 'email' => 'E-Mail', 'none' => 'ohne Kontakt (z. B. Recherche, Korrektur)'];
+
     public static function setStatus(): Action
     {
         return Action::make('setStatus')
@@ -57,7 +60,7 @@ class LeadActions
             ->schema(fn (Lead $record) => static::statusSchema($record))
             ->action(function (Lead $record, array $data, Action $action) {
                 try {
-                    $result = app(LeadStatusService::class)->apply($record, $data['status'], $data);
+                    $result = app(LeadStatusService::class)->apply($record, $data['status'], $data, asCall: ($data['contact_via'] ?? null) === 'call');
                 } catch (ValidationException $exception) {
                     Notification::make()->title('Nicht gespeichert')->body(implode(' ', $exception->validator->errors()->all()))->danger()->send();
                     $action->halt();
@@ -84,6 +87,12 @@ class LeadActions
             ->all();
 
         return [
+            Select::make('contact_via')
+                ->label('Kontakt per')
+                ->options(self::CONTACT_VIA)
+                ->default($lead->callBlockReason() === null ? 'call' : 'none')
+                ->required()
+                ->helperText('„Anruf“ zählt in der Auswertung als Anruf, bei Status wie „Interesse“ oder „Kein Bedarf“ auch als „erreicht“.'),
             Select::make('status')
                 ->label('Status')
                 ->options($statusOptions)
@@ -315,6 +324,11 @@ class LeadActions
                     'required' => 'Bitte unten ein Wiedervorlagedatum eintragen.',
                     default => $lead->contact ? null : '„Unterlagen versendet“ braucht eine Ansprechperson am Vorgang, dafür bitte „Status setzen“ verwenden.',
                 }),
+            Checkbox::make('called_before')
+                ->label('Vorher telefoniert')
+                ->default(true)
+                ->visible(fn (Get $get) => filled($get('status_after')))
+                ->helperText('Zählt in der Auswertung als Anruf (und „erreicht“). Abwählen, wenn die E-Mail ohne Telefonat rausgeht, z. B. auf eine Anfrage über die Website.'),
             Grid::make(2)->schema([
                 DatePicker::make('next_action_at')
                     ->label(fn (Get $get) => config('adk.statuses.'.$get('status_after').'.follow_up') === 'required' ? 'Wiedervorlage am' : 'Wiedervorlage am (optional)')

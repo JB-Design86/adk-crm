@@ -325,6 +325,7 @@ class LeadStatusService
     private function activityBody(array $data, ?string $closeReason, ?string $callback = null): ?string
     {
         $parts = array_filter([
+            ($data['contact_via'] ?? null) === 'email' ? 'per E-Mail' : null,
             $closeReason ? 'Grund: '.config("adk.wrong_data_reasons.{$closeReason}") : null,
             $callback,
             filled($data['note'] ?? null) ? trim($data['note']) : null,

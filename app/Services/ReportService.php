@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Kennzahlen der Akquise aus den Aktivitäten.
  *
- * Anruf = Aktivität vom Typ „call“ (Speichern in der Anrufliste).
+ * Anruf = Aktivität vom Typ „call“: Anrufliste, „Status setzen“ mit „Kontakt per: Anruf“, E-Mail mit Status und „vorher telefoniert“.
  * Erreicht = Anruf mit einem Ergebnis, das in config('adk.statuses') als reached markiert ist.
  * Termin / Unterlagen versendet = Aktivität mit Ergebnis appointment bzw. documents_sent.
+ * E-Mails = Aktivitäten „E-Mail“: aus dem CRM gesendet oder unter „Aktivität erfassen“ von Hand eingetragen.
  */
 class ReportService
 {
@@ -29,7 +30,7 @@ class ReportService
         return new self(CarbonImmutable::parse($from)->startOfDay(), CarbonImmutable::parse($until)->endOfDay(), $userId);
     }
 
-    /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int}> je Tag */
+    /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int, emails: int}> je Tag */
     public function perDay(): array
     {
         $rows = $this->base()
@@ -49,7 +50,7 @@ class ReportService
         return $result;
     }
 
-    /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int}> je Kalenderwoche */
+    /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int, emails: int}> je Kalenderwoche */
     public function perWeek(): array
     {
         $weeks = [];
@@ -57,7 +58,7 @@ class ReportService
         foreach ($this->perDay() as $day => $metrics) {
             $date = CarbonImmutable::parse($day);
             $key = 'KW '.$date->isoWeek().' / '.$date->isoWeekYear();
-            $weeks[$key] ??= ['calls' => 0, 'reached' => 0, 'appointments' => 0, 'documents' => 0];
+            $weeks[$key] ??= ['calls' => 0, 'reached' => 0, 'appointments' => 0, 'documents' => 0, 'emails' => 0];
 
             foreach ($metrics as $name => $value) {
                 $weeks[$key][$name] += $value;
@@ -67,17 +68,38 @@ class ReportService
         return $weeks;
     }
 
-    /** @return array{calls: int, reached: int, appointments: int, documents: int} */
+    /** @return array{calls: int, reached: int, appointments: int, documents: int, emails: int} */
     public function totals(): array
     {
         return $this->metrics($this->base()->selectRaw($this->metricsSql())->first());
     }
 
     /**
+     * Ergebnisse je Status im Zeitraum (Anrufliste, „Status setzen“, E-Mail mit Status), in der Reihenfolge der Status.
+     *
+     * @return list<array{status: string, label: string, count: int}>
+     */
+    public function byStatus(): array
+    {
+        $counts = $this->base()
+            ->whereIn('activities.type', ['call', 'status_change'])
+            ->whereNotNull('activities.outcome')
+            ->selectRaw('activities.outcome as status, COUNT(*) as total')
+            ->groupBy('activities.outcome')
+            ->pluck('total', 'status');
+
+        return collect(Adk::statuses())
+            ->except('new')
+            ->map(fn (array $status, string $key) => ['status' => $key, 'label' => $status['label'], 'count' => (int) ($counts[$key] ?? 0)])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Quoten nach Branche, Kanal oder Importquelle.
      *
      * @param  'industry'|'channel'|'source'  $dimension
-     * @return list<array{label: string, calls: int, reached: int, appointments: int, documents: int, reached_rate: ?float, appointment_rate: ?float}>
+     * @return list<array{label: string, calls: int, reached: int, appointments: int, documents: int, emails: int, reached_rate: ?float, appointment_rate: ?float}>
      */
     public function byDimension(string $dimension): array
     {
@@ -223,7 +245,7 @@ class ReportService
             ->join('leads', 'leads.id', '=', 'activities.lead_id')
             ->leftJoin('organizations', 'organizations.id', '=', 'leads.organization_id')
             ->whereBetween('activities.occurred_at', [$this->from, $this->until])
-            ->whereIn('activities.type', ['call', 'status_change'])
+            ->whereIn('activities.type', ['call', 'status_change', 'email'])
             ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId));
     }
 
@@ -236,10 +258,11 @@ class ReportService
             "SUM(CASE WHEN activities.type = 'call' AND activities.outcome IN ({$reached}) THEN 1 ELSE 0 END) as reached",
             "SUM(CASE WHEN activities.outcome = 'appointment' THEN 1 ELSE 0 END) as appointments",
             "SUM(CASE WHEN activities.outcome = 'documents_sent' THEN 1 ELSE 0 END) as documents",
+            "SUM(CASE WHEN activities.type = 'email' THEN 1 ELSE 0 END) as emails",
         ]);
     }
 
-    /** @return array{calls: int, reached: int, appointments: int, documents: int} */
+    /** @return array{calls: int, reached: int, appointments: int, documents: int, emails: int} */
     private function metrics(?object $row): array
     {
         return [
@@ -247,6 +270,7 @@ class ReportService
             'reached' => (int) ($row->reached ?? 0),
             'appointments' => (int) ($row->appointments ?? 0),
             'documents' => (int) ($row->documents ?? 0),
+            'emails' => (int) ($row->emails ?? 0),
         ];
     }
 }

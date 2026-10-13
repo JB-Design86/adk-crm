@@ -37,7 +37,7 @@ class DoctorLeadCleanup
     private const NOT_DOCTOR = '/anwalt|kanzlei|steuer|notar|beratung|coaching|kosmetik|beauty|massage|tattoo|yoga|fitness|ernaehrung|tier|hund|katze|pferd|design|architekt|immobil/u';
 
     /** Arzt oder Zahnarzt („praxis“ allein nur, wenn nichts aus CARE, OTHER_HEALTH oder NOT_DOCTOR passt). */
-    private const DOCTOR = '/zahnarzt|zahnaerzt|arzt|aerzt|zahnmedizin|zahnheilk|kieferorthop|kieferchirurg|oralchirurg|implantolog|orthopaed|\bmvz\b|\bhno\b|\bdr\.?\s?med\b|allgemeinmedizin|dermatolog|gynaekolog|urolog|neurolog|kardiolog|radiolog|nuklearmedizin|onkolog|internist|anaesthes|chirurg|psychiat|praxis/u';
+    private const DOCTOR = '/zahnarzt|zahnaerzt|arzt|aerzt|zahnmedizin|zahnheilk|kieferorthop|kieferchirurg|oralchirurg|implantolog|orthopaed|\bz?mvz\b|\bhno\b|\bdr\.?\s?med\b|allgemeinmedizin|dermatolog|gynaekolog|urolog|neurolog|kardiolog|radiolog|nuklearmedizin|onkolog|internist|anaesthes|chirurg|psychiat|praxis/u';
 
     /** WZ 2008: 86.21 Allgemeinarzt-, 86.22 Facharzt-, 86.23 Zahnarztpraxen. */
     private const DOCTOR_WZ = ['8621', '8622', '8623'];

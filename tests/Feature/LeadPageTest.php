@@ -24,6 +24,15 @@ it('setzt auf der Vorgangsseite den Status über den Dialog', function () {
         ->assertHasNoActionErrors();
 
     expect($lead->fresh())->status->toBe('interested')->next_action_at->toDateString()->toBe('2026-10-02');
+
+    // „Kontakt per: Anruf“ ist vorbelegt und zählt in der Auswertung als Anruf, „E-Mail“ nur als Statuswechsel.
+    expect($lead->activities()->sole())->type->toBe('call')->outcome->toBe('interested');
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->callAction('setStatus', ['contact_via' => 'email', 'status' => 'later', 'next_action_at' => '2026-11-02'])
+        ->assertHasNoActionErrors();
+
+    expect($lead->activities()->where('outcome', 'later')->sole())->type->toBe('status_change')->body->toStartWith('per E-Mail');
 });
 
 it('verlangt im Dialog die Bestätigung des Werbewiderspruchs', function () {

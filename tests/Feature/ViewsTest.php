@@ -3,6 +3,7 @@
 use App\Filament\Pages\Calendar;
 use App\Filament\Pages\Today;
 use App\Filament\Resources\Leads\Pages\ListLeads;
+use App\Models\Activity;
 use App\Models\Appointment;
 use App\Models\ImportLog;
 use App\Models\Lead;
@@ -81,7 +82,11 @@ it('zählt Anrufe, Erreichte, Termine und Unterlagen und bildet Quoten', functio
 
     $report = ReportService::forPeriod('2026-09-21', '2026-09-27');
 
-    expect($report->totals())->toBe(['calls' => 4, 'reached' => 2, 'appointments' => 1, 'documents' => 1]);
+    // Eine E-Mail aus dem CRM zählt als E-Mail, nicht als Anruf.
+    Activity::create(['lead_id' => $b->id, 'type' => 'email', 'body' => 'An: x', 'occurred_at' => now()]);
+
+    expect($report->totals())->toBe(['calls' => 4, 'reached' => 2, 'appointments' => 1, 'documents' => 1, 'emails' => 1]);
+    expect(collect($report->byStatus())->pluck('count', 'status')->filter()->all())->toBe(['not_reached' => 1, 'documents_sent' => 1, 'appointment' => 1, 'wrong_data' => 1]);
     expect($report->perDay()['2026-09-24']['calls'])->toBe(4);
     expect($report->perWeek())->toHaveKey('KW 39 / 2026');
 

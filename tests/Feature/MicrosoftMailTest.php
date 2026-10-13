@@ -428,8 +428,17 @@ it('setzt mit der E-Mail auf Wunsch gleich den Status „Unterlagen versendet“
     $lead->refresh();
     expect($lead->status)->toBe('documents_sent')
         ->and($lead->next_action_at->toDateString())->toBe(WorkingDays::add(today(), 5)->toDateString())
-        ->and($lead->activities()->where('type', 'status_change')->sole()->body)->toContain('Mit der E-Mail „Ihre Unterlagen“ gesetzt.')
+        // „vorher telefoniert“ ist vorbelegt: zählt in der Auswertung als Anruf.
+        ->and($lead->activities()->where('type', 'call')->sole())->outcome->toBe('documents_sent')->body->toContain('Mit der E-Mail „Ihre Unterlagen“ gesetzt.')
         ->and($lead->activities()->where('type', 'email')->sole()->body)->not->toContain('Wiedervorlage:');
+
+    // Ohne Telefonat (z. B. Antwort auf eine Website-Anfrage) nur ein Statuswechsel.
+    $other = mailLead();
+    Livewire::test(ViewLead::class, ['record' => $other->id])
+        ->callAction('sendEmail', emailData(['status_after' => 'later', 'called_before' => false, 'next_action_at' => '2026-11-02']))
+        ->assertHasNoActionErrors();
+    expect($other->activities()->where('type', 'call')->exists())->toBeFalse()
+        ->and($other->activities()->where('type', 'status_change')->sole()->outcome)->toBe('later');
 });
 
 it('verlangt für „Interesse“ eine Wiedervorlage und sendet ohne sie nicht', function () {
