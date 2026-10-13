@@ -2,36 +2,35 @@
 
 namespace App\Console\Commands;
 
-use App\Services\HealthSectorCleanup;
+use App\Services\DoctorLeadCleanup;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
 /**
- * Gesundheitswesen aus den Leadlisten aussortieren (HealthSectorCleanup). Ohne --loeschen nur Probelauf.
+ * Arzt- und Zahnarztpraxen aus den Leadlisten aussortieren (DoctorLeadCleanup). Ohne --loeschen nur Probelauf.
  * Keine Rückfrage im Terminal: Eingefügte Befehle brechen interaktive Fragen ab, --loeschen ist die Bestätigung.
  */
-class HealthSectorCleanupCommand extends Command
+class DoctorLeadCleanupCommand extends Command
 {
-    protected $signature = 'adk:gesundheit-aussortieren
+    protected $signature = 'adk:aerzte-aussortieren
         {--loeschen : Wirklich endgültig löschen (ohne: Probelauf, löscht nichts)}
-        {--grenzfaelle : Auch Grenzfälle löschen (Tierärzte, Apotheken, Pflege, Optiker, Sanitätshäuser, Medizintechnik)}
         {--ohne= : Vorgangsnummern, die bleiben sollen, durch Komma getrennt, z. B. --ohne=12,345}
         {--liste : Im Probelauf alle Betriebe einzeln auflisten statt nur Beispiele}';
 
-    protected $description = 'Löscht neue, unbearbeitete Vorgänge aus Leadlisten im Gesundheitswesen (Praxen, Ärzte, Therapeuten, Kliniken)';
+    protected $description = 'Löscht neue, unbearbeitete Vorgänge aus Leadlisten von Arzt- und Zahnarztpraxen (Pflege und übriger Gesundheitsbereich bleiben)';
 
-    public function handle(HealthSectorCleanup $cleanup): int
+    public function handle(DoctorLeadCleanup $cleanup): int
     {
         $keep = collect(explode(',', (string) $this->option('ohne')))->map(fn (string $id) => (int) trim($id))->filter()->values()->all();
-        $withBorderline = (bool) $this->option('grenzfaelle');
-        $preview = $cleanup->preview($keep, $withBorderline);
 
         if (! $this->option('loeschen')) {
+            $preview = $cleanup->preview($keep);
+
             $this->info('Probelauf am '.now()->format('d.m.Y H:i').': Es wird nichts gelöscht.');
             $this->newLine();
-            $this->section('Würde gelöscht', $preview['delete'], (bool) $this->option('liste'));
-            $this->section('Grenzfälle, bleiben (mit --grenzfaelle auch löschen)', $preview['borderline'], true);
-            $this->section('Schon bearbeitet, bleiben (Anruf, Aktivität, Termin …)', $preview['worked'], true);
+            $this->section('Würde gelöscht (Arzt- und Zahnarztpraxen)', $preview['delete'], (bool) $this->option('liste'));
+            $this->section('Bleibt trotz Arzt-Treffer (Pflege, Therapie, Klinik, Tiermedizin …)', $preview['kept'], true);
+            $this->section('Arztpraxen schon bearbeitet, bleiben (Anruf, Aktivität, Termin …)', $preview['worked'], true);
 
             if ($keep !== []) {
                 $this->line('Ausgenommen: Vorgänge '.implode(', ', $keep));
@@ -42,7 +41,7 @@ class HealthSectorCleanupCommand extends Command
             return self::SUCCESS;
         }
 
-        $counts = $cleanup->run($keep, $withBorderline);
+        $counts = $cleanup->run($keep);
 
         $this->info('Aussortiert: '.$counts['leads'].' Vorgänge, '.$counts['organizations'].' Betriebe, '.$counts['contacts'].' Kontakte.');
         $this->line('Im Protokoll (Bereich „Aussortieren“) stehen nur die Anzahlen, keine Namen.');

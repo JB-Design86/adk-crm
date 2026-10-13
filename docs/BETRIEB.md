@@ -481,17 +481,17 @@ Auftrag von Janosch (11.10.2026): Server regelmäßig prüfen (Updates, Fehler, 
 
 Claude prüft zusätzlich in jeder Sitzung mit Plesk-Zugang kurz den Zustand und meldet Auffälligkeiten.
 
-## 17 Gesundheitswesen aus den Leadlisten aussortieren (13.10.2026)
+## 17 Arzt- und Zahnarztpraxen aus den Leadlisten aussortieren (13.10.2026)
 
-Arzt- und Zahnarztpraxen, Therapeuten und Kliniken dürfen kaum werben (Berufsordnung, Heilmittelwerbegesetz) und passen nicht zum Projekt. Auftrag Janosch: diese Einträge aus den Leadlisten löschen.
+Arzt- und Zahnarztpraxen dürfen laut Berufsordnung kaum werben und passen nicht zum Projekt. Auftrag Janosch: diese Einträge aus den Leadlisten löschen. **Der übrige Gesundheitsbereich bleibt ausdrücklich**, vor allem Pflegedienste (wichtige Zielgruppe, dürfen über Google Ads werben), dazu Therapeuten, Kliniken, Apotheken, Optiker, Tierärzte.
 
 Befehl im SSH-Terminal der Domain (Websites & Domains → crm.adk-akademie.de → SSH Terminal, läuft als `crmadk`), im Verzeichnis `httpdocs`:
 
 ```bash
-/opt/plesk/php/8.4/bin/php artisan adk:gesundheit-aussortieren
+/opt/plesk/php/8.4/bin/php artisan adk:aerzte-aussortieren
 ```
 
-- Ohne Zusatz nur **Probelauf**: Treffer nach Stichwort mit Beispielen, Grenzfälle und schon bearbeitete Vorgänge. `--liste` zeigt alle Betriebe einzeln.
+- Ohne Zusatz nur **Probelauf**: Treffer nach Stichwort mit Beispielen, Betriebe, die nach Arzt aussehen, aber bleiben (Pflege, Therapie, Klinik, Tiermedizin, Kanzlei, Kosmetik …), und schon bearbeitete Arztpraxen. `--liste` zeigt alle Betriebe einzeln.
 - `--loeschen` löscht endgültig (RecordPurger wie beim Löschersuchen): Vorgänge, Betriebe ohne weiteren Vorgang samt Ansprechpersonen. Im Protokoll (Bereich „Aussortieren“) nur Anzahlen.
-- `--ohne=12,345` nimmt einzelne Vorgänge aus, `--grenzfaelle` löscht auch Tierärzte, Apotheken, Pflege, Optiker, Sanitätshäuser und Medizintechnik (die dürfen werben, bleiben sonst).
-- Erfasst nur Vorgänge mit Status „Neu“ aus einem Import, offen, ohne Anrufversuch, Aktivität, Termin, Dokument, Teilnehmerakte oder Förderfall. Erkennung über Name und Branche des Betriebs sowie WZ-Code 86 (Grenzfälle 87, 75, 47.73, 47.74, 47.78.1). Logik: `App\Services\HealthSectorCleanup`.
+- `--ohne=12,345` nimmt einzelne Vorgänge aus.
+- Erfasst nur Vorgänge mit Status „Neu“ aus einem Import, offen, ohne Anrufversuch, Aktivität, Termin, Dokument, Teilnehmerakte oder Förderfall. Erkennung über Name und Branche des Betriebs sowie WZ 86.21–86.23; im Zweifel bleibt der Betrieb. Logik: `App\Services\DoctorLeadCleanup`.
