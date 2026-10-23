@@ -8,6 +8,7 @@ use App\Filament\Resources\EmailTemplates\Pages\EditEmailTemplate;
 use App\Filament\Resources\EmailTemplates\Pages\ListEmailTemplates;
 use App\Models\EmailTemplate;
 use App\Services\Microsoft\GraphMailer;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use App\Support\MailHtml;
 use BackedEnum;
@@ -15,6 +16,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -25,6 +27,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -78,6 +81,12 @@ class EmailTemplateResource extends Resource
             Section::make('Vorlage')
                 ->columnSpanFull()
                 ->schema([
+                    Select::make('brand')
+                        ->label('Marke')
+                        ->options(Brand::options())
+                        ->default(fn () => Brand::currentOrDefault())
+                        ->required()
+                        ->helperText('Die Vorlage erscheint nur in Vorgängen dieser Marke und geht vom Postfach der Marke.'),
                     TextInput::make('name')
                         ->label('Bezeichnung')
                         ->required()
@@ -122,8 +131,10 @@ class EmailTemplateResource extends Resource
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
             ->reorderRecordsTriggerAction(fn ($action, bool $isReordering) => $action->label($isReordering ? 'Reihenfolge fertig' : 'Reihenfolge ändern'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->when(Brand::current(), fn (Builder $q, string $brand) => $q->where('brand', $brand)))
             ->columns([
                 TextColumn::make('sort_order')->label('Nr.')->alignCenter(),
+                TextColumn::make('brand')->label('Marke')->badge()->formatStateUsing(fn (string $state) => Brand::label($state))->color(fn (string $state) => Brand::color($state)),
                 TextColumn::make('name')->label('Bezeichnung')->weight('medium')->searchable(),
                 TextColumn::make('subject')->label('Betreff')->wrap(),
                 TextColumn::make('attachment_name')->label('Anhang')->placeholder('–'),

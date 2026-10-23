@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\User;
 use App\Services\ReportService;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -81,7 +82,34 @@ class Reports extends Page
             $from = $until->subYear();
         }
 
-        return ReportService::forPeriod($from->toDateString(), $until->toDateString(), $this->userId ?: null);
+        return ReportService::forPeriod($from->toDateString(), $until->toDateString(), $this->userId ?: null, $this->brands());
+    }
+
+    /**
+     * Marken der Auswertung: die oben gewählte, sonst alle des Kontos (null = alle Marken, ohne Einschränkung).
+     *
+     * @return list<string>|null
+     */
+    public function brands(): ?array
+    {
+        if ($brand = Brand::current()) {
+            return [$brand];
+        }
+
+        $user = auth()->user();
+
+        return $user->isBrandRestricted() ? $user->allowedBrands() : null;
+    }
+
+    /** Förderweg gibt es nur bei der ADK. */
+    public function showsFunding(): bool
+    {
+        return $this->brands() === null || in_array('adk', $this->brands(), true);
+    }
+
+    public function brandHeading(): string
+    {
+        return $this->brands() === null ? 'alle Marken' : implode(', ', array_map(fn (string $brand) => Brand::name($brand), $this->brands()));
     }
 
     /** @return array<int, string> */

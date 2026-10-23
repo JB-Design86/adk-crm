@@ -153,12 +153,13 @@ class TestDataSeeder extends Seeder
      */
     private function ensureAllStatuses(User $user): void
     {
-        foreach (array_keys(config('adk.statuses')) as $status) {
+        foreach (array_keys(Adk::statuses('adk')) as $status) {
             if ($status === 'new' || (config("adk.statuses.{$status}.manual") ?? true) === false || Lead::where('status', $status)->exists()) {
                 continue;
             }
 
             $lead = Lead::query()
+                ->where('brand', 'adk')
                 ->whereNull('closed_at')
                 ->where('status', 'new')
                 ->whereNotNull('organization_id')
@@ -372,8 +373,17 @@ class TestDataSeeder extends Seeder
                             $outcome = 'no_interest';
                         }
 
+                        // Weiterbildung abgelehnt, aber Interesse an einer Website: Vorgang für JB IT-Design (Paket).
                         if ($outcome === 'cross_selling') {
-                            $this->service->toggleCrossSelling($lead, today()->addDays(fake()->numberBetween(5, 40))->toDateString(), 'Interesse an Anzeigenbetreuung', $user);
+                            try {
+                                $this->service->createForOtherBrand($lead, 'later', [
+                                    'next_action_at' => today()->addDays(fake()->numberBetween(5, 40))->toDateString(),
+                                    'note' => 'Interesse an einer neuen Website',
+                                ], $user);
+                            } catch (ValidationException) {
+                                // schon ein offener Vorgang der anderen Marke
+                            }
+
                             $outcome = 'no_interest';
                         }
 
@@ -394,6 +404,7 @@ class TestDataSeeder extends Seeder
     {
         return Lead::query()
             ->with(['organization', 'contact'])
+            ->where('brand', 'adk')
             ->whereNull('closed_at')
             ->whereNotNull('organization_id')
             ->where('status', '!=', 'handed_over')

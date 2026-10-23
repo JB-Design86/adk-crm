@@ -4,6 +4,7 @@ namespace App\Services\Microsoft;
 
 use App\Models\MailConnection;
 use App\Models\User;
+use App\Support\Brand;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -19,15 +20,23 @@ class MicrosoftClient
 {
     public const RECONNECT = 'Bitte verbinden Sie Ihr Postfach unter „E-Mail-Konto“ neu.';
 
-    public static function isConfigured(): bool
+    /** Client-ID, Secret und Mandant für eine Marke (config services.microsoft.brands), sonst die allgemeinen Werte. */
+    public static function credential(string $key, ?string $brand = null): ?string
     {
-        return filled(config('services.microsoft.client_id')) && filled(config('services.microsoft.client_secret'));
+        $value = $brand !== null ? config("services.microsoft.brands.{$brand}.{$key}") : null;
+
+        return filled($value) ? $value : config("services.microsoft.{$key}");
     }
 
-    public function authorizeUrl(string $state): string
+    public static function isConfigured(?string $brand = null): bool
     {
-        return $this->loginUrl('authorize').'?'.http_build_query([
-            'client_id' => config('services.microsoft.client_id'),
+        return filled(self::credential('client_id', $brand)) && filled(self::credential('client_secret', $brand));
+    }
+
+    public function authorizeUrl(string $state, ?string $brand = null): string
+    {
+        return $this->loginUrl('authorize', $brand).'?'.http_build_query([
+            'client_id' => self::credential('client_id', $brand),
             'response_type' => 'code',
             'redirect_uri' => config('services.microsoft.redirect'),
             'response_mode' => 'query',
@@ -38,14 +47,16 @@ class MicrosoftClient
         ], '', '&', PHP_QUERY_RFC3986);
     }
 
-    /** Code aus dem Rückruf gegen Tokens tauschen, Postfach abfragen und die Verbindung speichern. */
-    public function connect(User $user, string $code): MailConnection
+    /** Code aus dem Rückruf gegen Tokens tauschen, Postfach abfragen und die Verbindung der Marke speichern. */
+    public function connect(User $user, string $code, ?string $brand = null): MailConnection
     {
+        $brand ??= Brand::default();
+
         $tokens = $this->tokenRequest([
             'grant_type' => 'authorization_code',
             'code' => $code,
             'redirect_uri' => config('services.microsoft.redirect'),
-        ]);
+        ], $brand);
 
         // Ohne Recht zum Senden ist die Verbindung nutzlos, z. B. wenn die Administratorzustimmung fehlt.
         if (isset($tokens['scope']) && ! Str::contains((string) $tokens['scope'], 'mail.send', ignoreCase: true)) {
@@ -65,7 +76,7 @@ class MicrosoftClient
         }
 
         return MailConnection::updateOrCreate(
-            ['user_id' => $user->id],
+            ['user_id' => $user->id, 'brand' => $brand],
             [...$this->tokenAttributes($tokens), 'mailbox' => Str::lower($mailbox), 'display_name' => $me['displayName'] ?? null],
         );
     }
@@ -85,7 +96,7 @@ class MicrosoftClient
         $tokens = $this->tokenRequest([
             'grant_type' => 'refresh_token',
             'refresh_token' => $connection->refresh_token,
-        ]);
+        ], $connection->brand);
 
         $connection->update($this->tokenAttributes($tokens, $connection->refresh_token));
     }
@@ -96,13 +107,13 @@ class MicrosoftClient
     }
 
     /** @return array<string, mixed> */
-    private function tokenRequest(array $params): array
+    private function tokenRequest(array $params, ?string $brand = null): array
     {
         try {
-            $response = Http::asForm()->acceptJson()->timeout(15)->post($this->loginUrl('token'), [
+            $response = Http::asForm()->acceptJson()->timeout(15)->post($this->loginUrl('token', $brand), [
                 ...$params,
-                'client_id' => config('services.microsoft.client_id'),
-                'client_secret' => config('services.microsoft.client_secret'),
+                'client_id' => self::credential('client_id', $brand),
+                'client_secret' => self::credential('client_secret', $brand),
                 'scope' => config('services.microsoft.scopes'),
             ]);
         } catch (ConnectionException) {
@@ -130,8 +141,8 @@ class MicrosoftClient
         ];
     }
 
-    private function loginUrl(string $endpoint): string
+    private function loginUrl(string $endpoint, ?string $brand = null): string
     {
-        return config('services.microsoft.login_url').rawurlencode((string) config('services.microsoft.tenant')).'/oauth2/v2.0/'.$endpoint;
+        return config('services.microsoft.login_url').rawurlencode((string) self::credential('tenant', $brand)).'/oauth2/v2.0/'.$endpoint;
     }
 }

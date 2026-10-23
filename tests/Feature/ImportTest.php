@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Activity;
 use App\Models\AuditLog;
 use App\Models\BlocklistEntry;
 use App\Models\ImportLog;
@@ -155,4 +156,69 @@ it('ordnet die Spalten der Mustervorlage automatisch zu', function () {
     $mapping = $this->service->guessMapping(array_values($header));
 
     expect(array_filter($mapping, fn ($index) => $index === null))->toBeEmpty();
+});
+
+function runImportForBrand(object $test, string $brand, bool $includeHalalReview = false): ImportLog
+{
+    $preview = $test->service->preview($test->path, 'csv');
+    $mapping = $test->service->guessMapping($preview['header']);
+
+    return $test->service->import($test->path, 'csv', 'jb-liste.csv', 'Leadliste JB', '2026-09-20', $mapping, $test->user, $brand, $includeHalalReview);
+}
+
+it('hängt Firmen der anderen Marke einen eigenen Vorgang an und beachtet die Ampel', function () {
+    $company = fn (string $name, string $phone, array $attributes = []) => Organization::factory()->state(['name' => $name, 'postal_code' => '55116', 'phone_display' => $phone, ...$attributes]);
+    $free = Lead::factory()->create(['status' => 'no_need', 'closed_at' => now()->subMonths(5), 'organization_id' => $company('Frei GmbH', '06131 500000', ['website' => null])]);
+    Lead::factory()->create(['status' => 'appointment', 'organization_id' => $company('Termin GmbH', '06131 600000')]);
+    $declined = Lead::factory()->create(['status' => 'no_interest', 'closed_at' => now()->subDays(10), 'organization_id' => $company('Absage GmbH', '06131 700000')]);
+    Activity::create(['lead_id' => $declined->id, 'type' => 'email', 'body' => 'Unterlagen']);
+
+    writeCsv($this->path, [
+        ['Frei GmbH', '55116', 'Mainz', '06131 500000', '', 'https://frei.example', 'A', '', ''],
+        ['Termin GmbH', '55116', 'Mainz', '06131 600000', '', '', 'A', '', ''],
+        ['Absage GmbH', '55116', 'Mainz', '06131 700000', '', '', 'A', '', ''],
+    ]);
+
+    $log = runImportForBrand($this, 'jb');
+
+    expect($log)->brand->toBe('jb')->rows_imported->toBe(2)->rows_attached->toBe(2)->rows_skipped->toBe(1)
+        ->and(Organization::count())->toBe(3)
+        ->and(Lead::where('brand', 'jb')->count())->toBe(2)
+        ->and(Organization::find($free->organization_id)->website)->toBe('https://frei.example')
+        ->and(collect($log->attached_rows)->pluck('light')->all())->toBe(['Ampel: frei', 'Ampel: persönlich'])
+        ->and($log->skipped_rows[0])->type->toBe('cross_brand')->reason->toContain('Ampel: gesperrt');
+
+    // Zweiter Import derselben Liste: Vorgänge der Marke gibt es jetzt, also Dubletten.
+    expect(runImportForBrand($this, 'jb')->duplicates)->toBe(2);
+});
+
+it('überspringt bei JB IT-Design Branchen ohne Halal-Bezug, Prüffälle erst nach Bestätigung', function () {
+    $rows = [
+        ['Volksbank Mainz eG', '55116', 'Mainz', '06131 810001', '', '', 'A', '', ''],
+        ['Cocktailbar Blau', '55116', 'Mainz', '06131 810002', '', '', 'A', '', ''],
+        ['Spielhalle Glück', '55116', 'Mainz', '06131 810003', '', '', 'A', '', ''],
+        ['Ristorante Roma', '55116', 'Mainz', '06131 810004', '', '', 'A', '', ''],
+        ['Datenbank Service GmbH', '55116', 'Mainz', '06131 810005', '', '', 'A', '', ''],
+        ['Holz Schreinerei', '55116', 'Mainz', '06131 810006', '', '', 'A', 'Versicherungsvermittlung', ''],
+        ['Tischlerei Werkbank', '55116', 'Mainz', '06131 810007', '', '', 'A', '', ''],
+    ];
+    writeCsv($this->path, $rows);
+
+    $log = runImportForBrand($this, 'jb');
+    $reasons = collect($log->skipped_rows)->pluck('reason', 'name');
+
+    expect($log->rows_imported)->toBe(2)
+        ->and(collect($log->skipped_rows)->pluck('type')->unique()->all())->toBe(['halal'])
+        ->and($reasons['Volksbank Mainz eG'])->toContain('Halal-Filter: Bank oder Kredit')
+        ->and($reasons['Cocktailbar Blau'])->toContain('Halal-Filter: Alkohol')
+        ->and($reasons['Spielhalle Glück'])->toContain('Halal-Filter: Glücksspiel')
+        ->and($reasons['Ristorante Roma'])->toContain('Halal-Prüffall')
+        ->and($reasons['Holz Schreinerei'])->toContain('Versicherung');
+
+    writeCsv($this->path, [$rows[3]]);
+    expect(runImportForBrand($this, 'jb', includeHalalReview: true)->rows_imported)->toBe(1);
+
+    // Die ADK filtert nicht nach Halal-Bezug.
+    writeCsv($this->path, [$rows[0]]);
+    expect(runImportForBrand($this, 'adk')->rows_imported)->toBe(1);
 });

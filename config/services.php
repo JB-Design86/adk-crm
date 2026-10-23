@@ -51,6 +51,10 @@ return [
         // Angezeigte Nummer bei Anrufen aus dem CRM (Pflicht bei Werbeanrufen, keine Rufnummernunterdrückung).
         // Ohne Angabe zeigte sipgate Neo „private Nummer“. Muss eine Nummer des sipgate-Kontos sein.
         'caller_id' => env('SIPGATE_CALLER_ID', '+4961318888910'),
+        // Je Marke eine eigene Nummer (Schlüssel aus config/adk.php, brands). Fehlt eine, gilt caller_id.
+        'caller_ids' => [
+            'jb' => env('SIPGATE_JB_CALLER_ID', '+4961318888867'),
+        ],
     ],
 
     /*
@@ -68,6 +72,16 @@ return [
         'scopes' => 'offline_access openid profile email User.Read Mail.Send',
         'login_url' => 'https://login.microsoftonline.com/',
         'graph_url' => 'https://graph.microsoft.com/v1.0',
+        // Postfach je Marke (Schlüssel aus config/adk.php, brands). jb-design.net liegt in einem eigenen
+        // Microsoft-365-Mandanten: Entweder eine eigene App-Registrierung dort (Client-ID und Secret hier),
+        // oder die App oben ist mehrinstanzfähig, dann genügt die Mandanten-ID. Leere Werte = Werte oben.
+        'brands' => [
+            'jb' => [
+                'client_id' => env('MICROSOFT_JB_CLIENT_ID'),
+                'client_secret' => env('MICROSOFT_JB_CLIENT_SECRET'),
+                'tenant' => env('MICROSOFT_JB_TENANT_ID', 'a8346e3a-72a9-4521-be3a-0e966907e4e9'),
+            ],
+        ],
     ],
 
     /*

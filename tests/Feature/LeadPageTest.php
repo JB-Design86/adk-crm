@@ -51,17 +51,24 @@ it('verlangt im Dialog die Bestätigung des Werbewiderspruchs', function () {
     expect($lead->fresh()->status)->toBe('objection')->and(BlocklistEntry::count())->toBe(1);
 });
 
-it('erfasst Aktivitäten und Cross-Selling auf der Vorgangsseite', function () {
+it('erfasst Aktivitäten und legt per Cross-Selling einen verknüpften Vorgang für JB IT-Design an', function () {
     $lead = Lead::factory()->create();
 
     Livewire::test(ViewLead::class, ['record' => $lead->id])
         ->callAction('addActivity', ['type' => 'email', 'body' => 'Unterlagen angefragt'])
         ->assertHasNoActionErrors()
-        ->callAction('crossSelling', ['follow_up_at' => '2026-10-20'])
-        ->assertHasNoActionErrors();
+        ->callAction('otherBrand', ['status' => 'interested', 'next_action_at' => '2026-10-20', 'note' => 'Website ist veraltet'])
+        ->assertHasNoActionErrors()
+        ->assertActionHidden('otherBrand');
+
+    $jb = Lead::where('brand', 'jb')->sole();
 
     expect(Activity::where('lead_id', $lead->id)->where('type', 'email')->exists())->toBeTrue()
-        ->and($lead->fresh()->cross_selling)->toBeTrue();
+        ->and($jb)->organization_id->toBe($lead->organization_id)->status->toBe('interested')->channel->toBe('cross_selling')
+        ->package_lead_id->toBe($lead->id)->next_action_at->toDateString()->toBe('2026-10-20')
+        ->and($lead->fresh())->status->toBe('new')->package_lead_id->toBe($jb->id);
+
+    Livewire::test(ViewLead::class, ['record' => $jb->id])->assertSee('ADK-Vorgang');
 });
 
 it('setzt in der Heute-Ansicht den Status über die Zeilenaktion', function () {

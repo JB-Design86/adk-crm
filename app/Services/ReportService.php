@@ -19,15 +19,20 @@ use Illuminate\Support\Facades\DB;
  */
 class ReportService
 {
+    /**
+     * @param  list<string>|null  $brands  nur Vorgänge dieser Marken (null = alle)
+     */
     public function __construct(
         private CarbonImmutable $from,
         private CarbonImmutable $until,
         private ?int $userId = null,
+        private ?array $brands = null,
     ) {}
 
-    public static function forPeriod(string $from, string $until, ?int $userId = null): self
+    /** @param  list<string>|null  $brands */
+    public static function forPeriod(string $from, string $until, ?int $userId = null, ?array $brands = null): self
     {
-        return new self(CarbonImmutable::parse($from)->startOfDay(), CarbonImmutable::parse($until)->endOfDay(), $userId);
+        return new self(CarbonImmutable::parse($from)->startOfDay(), CarbonImmutable::parse($until)->endOfDay(), $userId, $brands);
     }
 
     /** @return array<string, array{calls: int, reached: int, appointments: int, documents: int, emails: int}> je Tag */
@@ -88,7 +93,10 @@ class ReportService
             ->groupBy('activities.outcome')
             ->pluck('total', 'status');
 
-        return collect(Adk::statuses())
+        // Bei einer Marke nur ihre Status (JB ohne Förderweg, ADK ohne „Angebot versendet“).
+        $statuses = $this->brands !== null && count($this->brands) === 1 ? Adk::statuses($this->brands[0]) : Adk::statuses();
+
+        return collect($statuses)
             ->except('new')
             ->map(fn (array $status, string $key) => ['status' => $key, 'label' => $status['label'], 'count' => (int) ($counts[$key] ?? 0)])
             ->values()
@@ -143,10 +151,11 @@ class ReportService
     public function phoneLog(): array
     {
         $row = DB::table('activities')
-            ->whereBetween('occurred_at', [$this->from, $this->until])
-            ->where('type', 'phone_log')
-            ->when($this->userId, fn (Builder $q) => $q->where('user_id', $this->userId))
-            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN outcome = 'PICKUP' THEN 1 ELSE 0 END) as picked_up, SUM(CASE WHEN outcome = 'PICKUP' THEN COALESCE(duration_seconds, 0) ELSE 0 END) as talk_seconds")
+            ->whereBetween('activities.occurred_at', [$this->from, $this->until])
+            ->where('activities.type', 'phone_log')
+            ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId))
+            ->when($this->brands !== null, fn (Builder $q) => $q->whereIn('activities.lead_id', DB::table('leads')->select('id')->whereIn('brand', $this->brands)))
+            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN activities.outcome = 'PICKUP' THEN 1 ELSE 0 END) as picked_up, SUM(CASE WHEN activities.outcome = 'PICKUP' THEN COALESCE(activities.duration_seconds, 0) ELSE 0 END) as talk_seconds")
             ->first();
 
         $pickedUp = (int) ($row->picked_up ?? 0);
@@ -173,6 +182,7 @@ class ReportService
             ->whereBetween('activities.occurred_at', [$this->from, $this->until])
             ->where('activities.outcome', 'wrong_data')
             ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId))
+            ->when($this->brands !== null, fn (Builder $q) => $q->whereIn('leads.brand', $this->brands))
             ->selectRaw('organizations.source as source, COUNT(DISTINCT leads.id) as wrong')
             ->groupBy('organizations.source')
             ->pluck('wrong', 'source');
@@ -246,7 +256,8 @@ class ReportService
             ->leftJoin('organizations', 'organizations.id', '=', 'leads.organization_id')
             ->whereBetween('activities.occurred_at', [$this->from, $this->until])
             ->whereIn('activities.type', ['call', 'status_change', 'email'])
-            ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId));
+            ->when($this->userId, fn (Builder $q) => $q->where('activities.user_id', $this->userId))
+            ->when($this->brands !== null, fn (Builder $q) => $q->whereIn('leads.brand', $this->brands));
     }
 
     private function metricsSql(): string

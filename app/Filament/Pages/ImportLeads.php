@@ -4,9 +4,11 @@ namespace App\Filament\Pages;
 
 use App\Filament\Resources\ImportLogs\ImportLogResource;
 use App\Services\ImportService;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -14,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
@@ -63,7 +66,7 @@ class ImportLeads extends Page
 
     public function mount(): void
     {
-        $this->form->fill(['retrieved_at' => null]);
+        $this->form->fill(['retrieved_at' => null, 'brand' => Brand::currentOrDefault(), 'include_halal_review' => false]);
     }
 
     public function form(Schema $schema): Schema
@@ -75,6 +78,16 @@ class ImportLeads extends Page
                     ->description('Quelle und Abrufdatum sind Pflicht. Ohne sie wird nichts eingespielt.')
                     ->columns(2)
                     ->schema([
+                        Select::make('brand')
+                            ->label('Marke der Leadliste')
+                            ->options(fn () => Brand::options(auth()->user()))
+                            ->required()
+                            ->live()
+                            ->helperText('Firmen, die schon bei der anderen Marke sind, bekommen einen eigenen Vorgang. Die Ampel sagt, ab wann sie angerufen werden.'),
+                        Checkbox::make('include_halal_review')
+                            ->label('Halal-Prüffälle übernehmen (z. B. Restaurant ohne Alkohol, Halal-Metzgerei)')
+                            ->helperText('Nur anhaken, wenn Sie die Prüffälle aus einem früheren Import einzeln geprüft haben. Ausschlüsse (Bank, Bar, Spielhalle …) bleiben immer draußen.')
+                            ->visible(fn (Get $get) => Brand::hasHalalFilter($get('brand'))),
                         FileUpload::make('file')
                             ->label('Datei (CSV oder XLSX)')
                             ->disk('local')
@@ -162,13 +175,17 @@ class ImportLeads extends Page
             retrievedAt: $this->data['retrieved_at'] ?? null,
             mapping: $mapping,
             user: auth()->user(),
+            brand: $this->data['brand'] ?? null,
+            includeHalalReview: (bool) ($this->data['include_halal_review'] ?? false),
         );
 
         $this->discardFile();
 
         Notification::make()
-            ->title('Import abgeschlossen')
-            ->body("{$log->rows_imported} von {$log->rows_total} Zeilen eingespielt, {$log->rows_skipped} übersprungen (davon {$log->duplicates} Dubletten).")
+            ->title('Import abgeschlossen: '.Brand::label($log->brand))
+            ->body("{$log->rows_imported} von {$log->rows_total} Zeilen eingespielt"
+                .($log->rows_attached ? " (davon {$log->rows_attached} an Firmen der anderen Marke angehängt)" : '')
+                .", {$log->rows_skipped} übersprungen (davon {$log->duplicates} Dubletten).")
             ->success()
             ->persistent()
             ->send();

@@ -9,6 +9,7 @@ use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Appointment;
 use App\Models\Lead;
 use App\Support\Adk;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -76,12 +77,12 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
 
         return $table
             ->query(fn () => Lead::query()
-                ->with(['organization', 'contact', 'assignee', 'fundingCase'])
+                ->with(['organization', 'contact', 'assignee', 'fundingCase', 'packageLead'])
+                ->ofCurrentBrand()
                 ->whereNull('closed_at')
                 ->where(fn (Builder $q) => $q
                     ->whereDate('next_action_at', '<=', today())
-                    ->orWhere(fn (Builder $n) => $n->where('status', 'new')->whereIn('channel', $inbound))
-                    ->orWhere(fn (Builder $c) => $c->where('cross_selling', true)->whereDate('cross_selling_follow_up_at', '<=', today())))
+                    ->orWhere(fn (Builder $n) => $n->where('status', 'new')->whereIn('channel', $inbound)))
                 ->orderByRaw("CASE WHEN status = 'new' AND channel IN ({$placeholders}) THEN 0 ELSE 1 END", $inbound)
                 ->orderByCallbackDue()
                 ->orderBy('next_action_at')
@@ -93,6 +94,12 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
             ->description('Heute fällig und überfällig. Neue eingehende Anfragen stehen rot oben, danach fällige Rückrufe mit Uhrzeit.')
             ->recordClasses(fn (Lead $record) => $record->isNewInbound() ? 'adk-row-inbound' : null)
             ->columns([
+                TextColumn::make('brand')
+                    ->label('Marke')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => Brand::label($state))
+                    ->color(fn (string $state) => Brand::color($state))
+                    ->visible(fn () => Brand::current() === null),
                 TextColumn::make('name')
                     ->label('Vorgang')
                     ->state(fn (Lead $record) => $record->displayName())
@@ -125,13 +132,13 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
                     })
                     ->color(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'danger' : null)
                     ->weight(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'bold' : null),
-                IconColumn::make('cross_selling_due')
-                    ->label('JB')
-                    ->state(fn (Lead $record) => $record->cross_selling && $record->cross_selling_follow_up_at?->lte(today()))
+                IconColumn::make('package')
+                    ->label('Paket')
+                    ->state(fn (Lead $record) => $record->packageLead !== null)
                     ->boolean()
                     ->trueIcon(Heroicon::OutlinedSparkles)
                     ->falseIcon('')
-                    ->tooltip('Cross-Selling JB Design fällig'),
+                    ->tooltip(fn (Lead $record) => $record->packageLead ? 'Paket mit '.$record->packageLead->brandLabel().'-Vorgang' : null),
                 TextColumn::make('assignee.name')->label('zuständig')->placeholder('–'),
             ])
             ->filters([
@@ -162,6 +169,8 @@ class Today extends Page implements HasActions, HasSchemas, HasTable
     {
         return Appointment::query()
             ->with(['lead.organization', 'lead.contact', 'user'])
+            // Termine nur zu Vorgängen, die das Konto sieht, und der oben gewählten Marke.
+            ->whereHas('lead', fn (Builder $q) => $q->ofCurrentBrand())
             ->whereDate('starts_at', today())
             ->when($this->onlyMine, fn (Builder $q) => $q->where('user_id', auth()->id()))
             ->orderBy('starts_at')

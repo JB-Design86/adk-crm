@@ -7,10 +7,24 @@ namespace App\Support;
  */
 class Adk
 {
-    /** @return array<string, array<string, mixed>> */
-    public static function statuses(): array
+    /**
+     * Alle Status, oder nur die einer Marke (config adk.statuses.*.brands, fehlt = alle Marken).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function statuses(?string $brand = null): array
     {
-        return config('adk.statuses');
+        $statuses = config('adk.statuses');
+
+        return $brand === null
+            ? $statuses
+            : array_filter($statuses, fn (array $status) => in_array($brand, $status['brands'] ?? Brand::keys(), true));
+    }
+
+    /** Gibt es den Status bei dieser Marke (z. B. „Übergeben an Förderweg“ nur bei der ADK)? */
+    public static function statusAllowed(string $status, string $brand): bool
+    {
+        return array_key_exists($status, self::statuses($brand));
     }
 
     /** @return array<string, mixed> */
@@ -35,10 +49,10 @@ class Adk
         return config("adk.statuses.{$key}.color") ?? 'gray';
     }
 
-    /** Status, der zu einer Taste gehört. */
-    public static function statusForKey(string $key): ?string
+    /** Status, der zu einer Taste gehört (bei Angabe der Marke nur Status dieser Marke). */
+    public static function statusForKey(string $key, ?string $brand = null): ?string
     {
-        foreach (self::statuses() as $status => $definition) {
+        foreach (self::statuses($brand) as $status => $definition) {
             if (($definition['key'] ?? null) === $key) {
                 return $status;
             }

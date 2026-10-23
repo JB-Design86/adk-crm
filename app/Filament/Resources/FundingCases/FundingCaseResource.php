@@ -36,14 +36,15 @@ class FundingCaseResource extends Resource
 
     protected static ?string $slug = 'foerderfaelle';
 
+    /** Förderfälle gibt es nur bei der ADK; Konten ohne die Marke ADK sehen sie nicht. */
     public static function canViewAny(): bool
     {
-        return Gate::allows('leads.view');
+        return Gate::allows('leads.view') && (bool) auth()->user()?->canUseBrand('adk');
     }
 
     public static function canView(Model $record): bool
     {
-        return Gate::allows('leads.view');
+        return static::canViewAny();
     }
 
     public static function canCreate(): bool

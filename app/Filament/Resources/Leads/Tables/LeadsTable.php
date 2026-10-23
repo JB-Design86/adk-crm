@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadExportService;
 use App\Support\Adk;
+use App\Support\Brand;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -30,7 +31,8 @@ class LeadsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['organization', 'contact', 'assignee', 'importLog']))
+            // Oben gewählte Marke (Umschalter), „alle Marken“ ohne Einschränkung.
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['organization', 'contact', 'assignee', 'importLog'])->ofCurrentBrand())
             ->defaultSort(fn (Builder $query) => $query
                 ->orderByRaw('CASE WHEN status = ? AND channel IN ('.implode(',', array_fill(0, count(Adk::inboundChannels()), '?')).') THEN 0 ELSE 1 END', ['new', ...Adk::inboundChannels()])
                 ->orderByRaw('next_action_at IS NULL')
@@ -47,6 +49,12 @@ class LeadsTable
                     ->searchable(query: fn (Builder $query, string $search) => $query->where(fn (Builder $q) => $q
                         ->whereHas('organization', fn (Builder $o) => $o->where('name', 'like', "%{$search}%")->orWhere('city', 'like', "%{$search}%")->orWhere('postal_code', 'like', "{$search}%"))
                         ->orWhereHas('contact', fn (Builder $c) => $c->where('last_name', 'like', "%{$search}%")->orWhere('first_name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")))),
+                TextColumn::make('brand')
+                    ->label('Marke')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => Brand::label($state))
+                    ->color(fn (string $state) => Brand::color($state))
+                    ->visible(fn () => Brand::current() === null),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -73,7 +81,13 @@ class LeadsTable
                     ->color(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'danger' : null)
                     ->weight(fn (Lead $record) => $record->isOverdue() || $record->isCallbackDue() ? 'bold' : null),
                 TextColumn::make('call_attempts')->label('Versuche')->alignCenter()->toggleable(),
-                IconColumn::make('cross_selling')->label('JB')->boolean()->trueIcon(Heroicon::OutlinedSparkles)->falseIcon('')->tooltip('Cross-Selling JB Design'),
+                IconColumn::make('package_lead_id')
+                    ->label('Paket')
+                    ->state(fn (Lead $record) => $record->package_lead_id !== null)
+                    ->boolean()
+                    ->trueIcon(Heroicon::OutlinedSparkles)
+                    ->falseIcon('')
+                    ->tooltip('Mit einem Vorgang der anderen Marke verknüpft (Cross-Selling, Paket)'),
                 TextColumn::make('assignee.name')->label('zuständig')->toggleable(),
                 TextColumn::make('last_contact_at')->label('letzter Kontakt')->dateTime('d.m.Y')->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -105,7 +119,12 @@ class LeadsTable
                     ->label('nur meine')
                     ->toggle()
                     ->query(fn (Builder $query) => $query->where('assigned_to', auth()->id())),
-                TernaryFilter::make('cross_selling')->label('Cross-Selling JB Design'),
+                TernaryFilter::make('package')
+                    ->label('Paket (mit Vorgang der anderen Marke)')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereNotNull('package_lead_id'),
+                        false: fn (Builder $query) => $query->whereNull('package_lead_id'),
+                    ),
                 Filter::make('next_action_at')
                     ->label('Wiedervorlage')
                     ->schema([

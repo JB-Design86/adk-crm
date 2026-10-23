@@ -8,9 +8,12 @@ use App\Models\Contact;
 use App\Models\ImportLog;
 use App\Models\Lead;
 use App\Models\Organization;
+use App\Models\Scopes\AllowedBrandScope;
 use App\Models\User;
 use App\Services\Duplicates\DuplicateFinder;
 use App\Services\Duplicates\DuplicateMatch;
+use App\Support\Brand;
+use App\Support\HalalFilter;
 use App\Support\Normalizer;
 use App\Support\Phone;
 use App\Support\Spreadsheet;
@@ -241,9 +244,17 @@ class ImportService
 
     /**
      * @param  array<string, int|string|null>  $mapping  Zielfeld => Spaltenindex
+     * @param  string  $brand  Marke der neuen Vorgänge (config adk.brands)
+     * @param  bool  $includeHalalReview  Halal-Prüffälle (z. B. Restaurant) sind geprüft und werden übernommen
      */
-    public function import(string $path, string $extension, string $fileName, ?string $source, mixed $retrievedAt, array $mapping, User $user): ImportLog
+    public function import(string $path, string $extension, string $fileName, ?string $source, mixed $retrievedAt, array $mapping, User $user, ?string $brand = null, bool $includeHalalReview = false): ImportLog
     {
+        $brand ??= Brand::default();
+
+        if (! Brand::exists($brand) || ! $user->canUseBrand($brand)) {
+            throw ValidationException::withMessages(['brand' => 'Für diese Marke ist Ihr Konto nicht freigeschaltet.']);
+        }
+
         if (blank($source) || blank($retrievedAt)) {
             throw ValidationException::withMessages(array_filter([
                 'source' => blank($source) ? 'Die Quelle ist Pflicht. Ohne Quelle wird nichts eingespielt.' : null,
@@ -263,8 +274,9 @@ class ImportService
             throw ValidationException::withMessages(['mapping.name' => 'Bitte ordnen Sie die Spalte „Firmenname“ zu.']);
         }
 
-        return DB::transaction(function () use ($path, $extension, $fileName, $source, $retrievedAt, $mapping, $user) {
+        return DB::transaction(function () use ($path, $extension, $fileName, $source, $retrievedAt, $mapping, $user, $brand, $includeHalalReview) {
             $log = ImportLog::create([
+                'brand' => $brand,
                 'file_name' => $fileName,
                 'source' => $source,
                 'retrieved_at' => $retrievedAt,
@@ -273,6 +285,7 @@ class ImportService
 
             $seen = ['phone' => [], 'domain' => [], 'name_plz' => []];
             $skipped = [];
+            $attached = [];
             $counts = ['total' => 0, 'imported' => 0, 'skipped' => 0, 'duplicates' => 0, 'suspected' => 0];
             $line = 1;
 
@@ -287,24 +300,43 @@ class ImportService
 
                 $counts['total']++;
                 $data = $this->extract($row, $mapping);
-                $reason = $this->skipReason($data, $seen);
+                [$reason, $type, $existing] = $this->classify($data, $seen, $brand, $includeHalalReview);
 
                 if ($reason !== null) {
                     $counts['skipped']++;
-                    $isDuplicate = str_starts_with($reason, 'Dublette');
-                    $counts['duplicates'] += $isDuplicate ? 1 : 0;
-                    $skipped[] = [
-                        'row' => $line - 1,
-                        'name' => $data['name'],
-                        'reason' => $reason,
-                        'type' => $isDuplicate ? 'duplicate' : (str_starts_with($reason, 'Sperrliste') ? 'blocklist' : 'invalid'),
-                    ];
+                    $counts['duplicates'] += $type === 'duplicate' ? 1 : 0;
+                    $skipped[] = ['row' => $line - 1, 'name' => $data['name'], 'reason' => $reason, 'type' => $type];
 
                     continue;
                 }
 
                 $this->remember($data, $seen, $line - 1);
-                [$organization, $contact] = $this->createRecords($data, $log, $source, $retrievedAt);
+
+                // Firma schon da (andere Marke): Vorgang dort anhängen, die Ampel entscheidet, wann er dran ist.
+                if ($existing !== null) {
+                    $light = app(CrossBrand::class)->forOrganization($existing, $brand);
+
+                    if ($light->color === 'red') {
+                        $counts['skipped']++;
+                        $skipped[] = ['row' => $line - 1, 'name' => $data['name'], 'reason' => $light->label().'. '.$light->reason, 'type' => 'cross_brand'];
+
+                        continue;
+                    }
+
+                    $lead = $this->attachLead($existing, $data, $log, $brand, $light);
+                    $counts['imported']++;
+                    $attached[] = [
+                        'row' => $line - 1,
+                        'name' => $data['name'],
+                        'lead_id' => $lead->id,
+                        'light' => $light->label(),
+                        'reason' => $light->reason ?? 'frei: noch kein laufender Kontakt der anderen Marke',
+                    ];
+
+                    continue;
+                }
+
+                [$organization, $contact] = $this->createRecords($data, $log, $source, $retrievedAt, $brand);
                 $counts['imported']++;
 
                 $suspected = $this->finder()->record($organization, $log) + ($contact ? $this->finder()->record($contact, $log) : 0);
@@ -314,10 +346,12 @@ class ImportService
             $log->update([
                 'rows_total' => $counts['total'],
                 'rows_imported' => $counts['imported'],
+                'rows_attached' => count($attached),
                 'rows_skipped' => $counts['skipped'],
                 'duplicates' => $counts['duplicates'],
                 'suspected_duplicates' => $counts['suspected'],
                 'skipped_rows' => $skipped,
+                'attached_rows' => $attached,
             ]);
 
             activity('import')
@@ -325,11 +359,13 @@ class ImportService
                 ->performedOn($log)
                 ->event('import')
                 ->withProperties([
+                    'brand' => Brand::label($brand),
                     'file_name' => $fileName,
                     'source' => $source,
                     'retrieved_at' => $retrievedAt->toDateString(),
                     'rows_total' => $counts['total'],
                     'rows_imported' => $counts['imported'],
+                    'rows_attached' => count($attached),
                     'rows_skipped' => $counts['skipped'],
                     'duplicates' => $counts['duplicates'],
                     'suspected_duplicates' => $counts['suspected'],
@@ -378,44 +414,60 @@ class ImportService
     }
 
     /**
+     * Einordnung einer Zeile: [Grund, Art, null] = überspringen; [null, null, Organisation] = Firma ist schon da,
+     * hat aber noch keinen Vorgang dieser Marke (Vorgang anhängen); [null, null, null] = neu anlegen.
+     * Arten: invalid, blocklist, halal, duplicate.
+     *
      * @param  array<string, mixed>  $data
      * @param  array<string, array<string, int>>  $seen
+     * @return array{0: ?string, 1: ?string, 2: ?Organization}
      */
-    private function skipReason(array $data, array $seen): ?string
+    private function classify(array $data, array $seen, string $brand, bool $includeHalalReview): array
     {
         if (blank($data['name']) || $data['name_normalized'] === null) {
-            return 'Firmenname fehlt';
+            return ['Firmenname fehlt', 'invalid', null];
         }
 
         if ($data['email'] && ! filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            return 'E-Mail-Adresse ungültig';
+            return ['E-Mail-Adresse ungültig', 'invalid', null];
         }
 
         $blocked = BlocklistEntry::findMatch($data['phone_e164'], $data['email'], $data['name'], $data['postal_code'])
             ?? BlocklistEntry::findMatch($data['contact_phone_e164'], $data['contact_email']);
 
         if ($blocked) {
-            return 'Sperrliste (Eintrag vom '.$blocked->blocked_on->format('d.m.Y').')';
+            return ['Sperrliste (Eintrag vom '.$blocked->blocked_on->format('d.m.Y').')', 'blocklist', null];
+        }
+
+        // Halal-Filter der Marke (z. B. JB IT-Design): keine Banken, Bars, Spielhallen …
+        if (Brand::hasHalalFilter($brand) && ($hit = HalalFilter::check($data['name'], $data['industry'], $data['wz_code']))
+            && ! ($hit['type'] === 'review' && $includeHalalReview)) {
+            return [HalalFilter::reason($hit), 'halal', null];
         }
 
         $namePlz = $data['postal_code'] ? $data['name_normalized'].'|'.$data['postal_code'] : null;
 
         // Dubletten innerhalb der Datei
         if ($data['phone_e164'] && isset($seen['phone'][$data['phone_e164']])) {
-            return 'Dublette in der Datei: gleiche Telefonnummer wie Zeile '.$seen['phone'][$data['phone_e164']];
+            return ['Dublette in der Datei: gleiche Telefonnummer wie Zeile '.$seen['phone'][$data['phone_e164']], 'duplicate', null];
         }
 
         if ($data['domain'] && isset($seen['domain'][$data['domain']])) {
-            return 'Dublette in der Datei: gleiche Website wie Zeile '.$seen['domain'][$data['domain']];
+            return ['Dublette in der Datei: gleiche Website wie Zeile '.$seen['domain'][$data['domain']], 'duplicate', null];
         }
 
         if ($namePlz && isset($seen['name_plz'][$namePlz])) {
-            return 'Dublette in der Datei: gleicher Firmenname und gleiche PLZ wie Zeile '.$seen['name_plz'][$namePlz];
+            return ['Dublette in der Datei: gleicher Firmenname und gleiche PLZ wie Zeile '.$seen['name_plz'][$namePlz], 'duplicate', null];
         }
 
         // Dubletten im Bestand: alle Organisationen und Kontakte, auch Förderfälle, Teilnehmer und geschlossene Vorgänge.
+        // Hat die Firma nur Vorgänge der anderen Marke, ist sie für diese Marke neu: Vorgang anhängen.
         if ($match = $this->finder()->organizationMatches($data)->first(fn (DuplicateMatch $m) => $m->certain)) {
-            return "Dublette: {$match->reasonText()} wie Organisation {$match->record->id} (".DuplicateFinder::describe($match->record).')';
+            $brands = Lead::withoutGlobalScope(AllowedBrandScope::class)->where('organization_id', $match->record->id)->distinct()->pluck('brand');
+
+            return $brands->isNotEmpty() && ! $brands->contains($brand)
+                ? [null, null, $match->record]
+                : ["Dublette: {$match->reasonText()} wie Organisation {$match->record->id} (".DuplicateFinder::describe($match->record).')', 'duplicate', null];
         }
 
         if ($data['contact_email'] || $data['contact_phone_e164']) {
@@ -427,11 +479,64 @@ class ImportService
             ])->first(fn (DuplicateMatch $m) => $m->certain);
 
             if ($contactMatch) {
-                return "Dublette: {$contactMatch->reasonText()} wie Kontakt {$contactMatch->record->id} (".DuplicateFinder::describe($contactMatch->record).')';
+                return ["Dublette: {$contactMatch->reasonText()} wie Kontakt {$contactMatch->record->id} (".DuplicateFinder::describe($contactMatch->record).')', 'duplicate', null];
             }
         }
 
-        return null;
+        return [null, null, null];
+    }
+
+    /**
+     * Vorgang der Marke an eine vorhandene Firma hängen (sie hat bisher nur Vorgänge der anderen Marke).
+     * Leere Felder der Firma füllt die neue Liste auf, Vorhandenes bleibt. Gelbe Ampel: Wiedervorlage ab „frei ab“.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function attachLead(Organization $organization, array $data, ImportLog $log, string $brand, TrafficLight $light): Lead
+    {
+        foreach (['legal_form', 'industry', 'wz_code', 'priority', 'street', 'postal_code', 'city', 'email', 'website', 'employee_count', 'is_training_company'] as $field) {
+            if ($organization->{$field} === null && $data[$field] !== null) {
+                $organization->{$field} = $data[$field];
+            }
+        }
+
+        if ($organization->phone_display === null && $data['phone'] !== null) {
+            $organization->phone_display = $data['phone'];
+        }
+
+        $organization->save();
+
+        $contact = null;
+
+        if ($data['contact_last_name']) {
+            $contact = $organization->contacts()
+                ->where(fn ($q) => $q
+                    ->when($data['contact_email'], fn ($e) => $e->orWhere('email', Normalizer::email($data['contact_email'])))
+                    ->when($data['contact_phone_e164'], fn ($p) => $p->orWhere('phone_e164', $data['contact_phone_e164']))
+                    ->orWhere(fn ($n) => $n->where('last_name', $data['contact_last_name'])->where('first_name', $data['contact_first_name'])))
+                ->first()
+                ?? Contact::create([
+                    'organization_id' => $organization->id,
+                    'salutation' => $data['contact_salutation'],
+                    'first_name' => $data['contact_first_name'],
+                    'last_name' => $data['contact_last_name'],
+                    'position' => $data['contact_position'],
+                    'phone_display' => $data['contact_phone'],
+                    'email' => filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL) ? $data['contact_email'] : null,
+                    'is_private' => false,
+                ]);
+        }
+
+        return Lead::create([
+            'brand' => $brand,
+            'organization_id' => $organization->id,
+            'contact_id' => $contact?->id,
+            'target_group' => 'company_open',
+            'channel' => 'cold_call',
+            'status' => 'new',
+            'import_log_id' => $log->id,
+            'next_action_at' => $light->color === 'yellow' ? $light->until : null,
+        ]);
     }
 
     /**
@@ -457,7 +562,7 @@ class ImportService
      * @param  array<string, mixed>  $data
      */
     /** @return array{0: Organization, 1: ?Contact} */
-    private function createRecords(array $data, ImportLog $log, string $source, CarbonImmutable $retrievedAt): array
+    private function createRecords(array $data, ImportLog $log, string $source, CarbonImmutable $retrievedAt, string $brand): array
     {
         $organization = Organization::create([
             'name' => $data['name'],
@@ -498,6 +603,7 @@ class ImportService
         }
 
         Lead::create([
+            'brand' => $brand,
             'organization_id' => $organization->id,
             'contact_id' => $contact?->id,
             'target_group' => 'company_open',

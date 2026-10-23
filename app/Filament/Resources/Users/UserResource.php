@@ -7,9 +7,11 @@ use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\User;
 use App\Support\Adk;
+use App\Support\Brand;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -74,6 +76,11 @@ class UserResource extends Resource
                     TextInput::make('name')->label('Name')->required()->maxLength(255),
                     TextInput::make('email')->label('E-Mail (Anmeldename)')->email()->required()->unique(ignoreRecord: true),
                     Select::make('role')->label('Rolle')->options(Adk::roleOptions())->required()->default('staff'),
+                    CheckboxList::make('brands')
+                        ->label('Marken')
+                        ->options(Brand::options())
+                        ->columns(2)
+                        ->helperText('Nichts angehakt = alle Marken. Eine Vertriebshilfe nur für JB IT-Design sieht weder ADK-Vorgänge noch Teilnehmerakten.'),
                     TextInput::make('password')
                         ->label(fn ($livewire) => $livewire instanceof CreateRecord ? 'Kennwort' : 'Neues Kennwort')
                         ->password()
@@ -100,6 +107,9 @@ class UserResource extends Resource
                 TextColumn::make('name')->label('Name')->searchable()->sortable()->weight('medium'),
                 TextColumn::make('email')->label('E-Mail')->searchable(),
                 TextColumn::make('role')->label('Rolle')->badge()->formatStateUsing(fn (string $state) => Adk::roleOptions()[$state] ?? $state),
+                TextColumn::make('brands')
+                    ->label('Marken')
+                    ->state(fn (User $record) => $record->isBrandRestricted() ? implode(', ', array_map(fn (string $brand) => Brand::label($brand), $record->allowedBrands())) : 'alle'),
                 IconColumn::make('two_factor')->label('2FA')->boolean()->state(fn (User $record) => $record->hasTwoFactor()),
                 IconColumn::make('is_blocked')->label('gesperrt')->boolean()->trueColor('danger')->falseColor('gray'),
                 TextColumn::make('last_login_at')->label('letzte Anmeldung')->dateTime('d.m.Y H:i')->placeholder('noch nie'),

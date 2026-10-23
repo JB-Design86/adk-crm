@@ -137,17 +137,22 @@ it('fragt nach dem dritten Versuch, ob der Vorgang ruhen soll', function () {
     expect($lead->fresh()->next_action_at->toDateString())->toBe('2026-12-24');
 });
 
-it('setzt mit Taste 0 Cross-Selling, ohne den Status zu ändern', function () {
+it('legt mit Taste 0 einen Vorgang für die andere Marke an, ohne den Status zu ändern', function () {
     $lead = leadWithPriority('A');
 
     Livewire::test(CallList::class)
         ->call('selectKey', '0')
         ->assertSet('crossSellingOpen', true)
+        ->set('crossSellingStatus', 'later')
         ->set('crossSellingDate', '2026-11-01')
         ->call('saveCrossSelling')
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertSee('Paket');
 
-    expect($lead->fresh())->cross_selling->toBeTrue()->status->toBe('new');
+    $jb = Lead::where('brand', 'jb')->sole();
+
+    expect($lead->fresh())->status->toBe('new')->package_lead_id->toBe($jb->id)
+        ->and($jb)->status->toBe('later')->next_action_at->toDateString()->toBe('2026-11-01');
 });
 
 it('arbeitet auf Wunsch nur eine Leadliste ab', function () {

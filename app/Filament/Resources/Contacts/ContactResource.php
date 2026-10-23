@@ -37,6 +37,17 @@ class ContactResource extends Resource
 
     protected static ?string $slug = 'kontakte';
 
+    /**
+     * Konten mit eingeschränkten Marken sehen nur Personen, die selbst an einem Vorgang ihrer Marken hängen,
+     * also z. B. keine Teilnehmenden der ADK aus demselben Betrieb.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        return auth()->user()?->isBrandRestricted() ? $query->whereHas('leads') : $query;
+    }
+
     public static function canViewAny(): bool
     {
         return Gate::allows('leads.view');

@@ -7,8 +7,10 @@ use App\Models\Appointment;
 use App\Models\BlocklistEntry;
 use App\Models\Contact;
 use App\Models\Lead;
+use App\Models\Scopes\AllowedBrandScope;
 use App\Models\User;
 use App\Support\Adk;
+use App\Support\Brand;
 use App\Support\WorkingDays;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +56,10 @@ class LeadStatusService
         $user ??= auth()->user();
         $today = CarbonImmutable::today();
         $result = new StatusResult;
+
+        if (! Adk::statusAllowed($status, $lead->brand ?? Brand::default())) {
+            throw ValidationException::withMessages(['status' => 'Den Status „'.Adk::statusLabel($status).'“ gibt es bei '.Brand::label($lead->brand).' nicht.']);
+        }
 
         if ($asCall && $lead->callBlockReason() !== null && ! $definition['closes']) {
             throw ValidationException::withMessages(['status' => $lead->callBlockReason()]);
@@ -147,26 +153,86 @@ class LeadStatusService
     }
 
     /**
-     * Taste 0: Merkmal Cross-Selling JB Design umschalten. Ändert den Status nicht.
+     * Status, mit denen ein Vorgang der anderen Marke aus einem Gespräch entsteht (Cross-Selling):
+     * erreicht, noch offen, ohne Förderweg. Z. B. Interesse, Termin, Später Interesse, Angebot versendet.
+     *
+     * @return array<string, string>
      */
-    public function toggleCrossSelling(Lead $lead, ?string $followUpAt = null, ?string $note = null, ?User $user = null): void
+    public static function crossSellingStatusOptions(string $brand): array
     {
-        $enable = ! $lead->cross_selling;
-        $date = $enable ? $this->requiredDate($followUpAt, CarbonImmutable::today()) : null;
+        return collect(Adk::statuses($brand))
+            ->filter(fn (array $status, string $key) => $status['reached'] && ! $status['closes'] && ($status['manual'] ?? true) && $key !== 'handed_over')
+            ->map(fn (array $status) => $status['label'])
+            ->all();
+    }
 
-        DB::transaction(function () use ($lead, $enable, $date, $note, $user) {
-            $lead->cross_selling = $enable;
-            $lead->cross_selling_follow_up_at = $date;
+    /**
+     * Taste 0 / „Vorgang für … anlegen“: Vorgang der anderen Marke zur selben Firma anlegen, mit diesem
+     * verknüpfen (Paket) und gleich mit dem Status aus dem Gespräch versehen. Der Status hier bleibt.
+     * $data wie bei apply() (Wiedervorlage, Termin, Notiz …).
+     */
+    public function createForOtherBrand(Lead $lead, string $status, array $data = [], ?User $user = null): Lead
+    {
+        $user ??= auth()->user();
+        $brand = Brand::other($lead->brand);
+
+        if ($brand === null || ($user !== null && ! $user->canUseBrand($brand))) {
+            throw ValidationException::withMessages(['status' => 'Für die andere Marke ist Ihr Konto nicht freigeschaltet.']);
+        }
+
+        if (! array_key_exists($status, self::crossSellingStatusOptions($brand))) {
+            throw ValidationException::withMessages(['status' => 'Bitte wählen Sie, wie das Gespräch für '.Brand::label($brand).' ausging.']);
+        }
+
+        $existing = $lead->package_lead_id ? Lead::withoutGlobalScope(AllowedBrandScope::class)->find($lead->package_lead_id) : null;
+
+        if ($existing?->isOpen()) {
+            throw ValidationException::withMessages(['status' => 'Es gibt schon einen offenen '.Brand::label($existing->brand).'-Vorgang zu dieser Firma.']);
+        }
+
+        $previousPackage = $lead->package_lead_id;
+
+        try {
+            return $this->createLinkedLead($lead, $brand, $status, $data, $user);
+        } catch (\Throwable $exception) {
+            // Alles ist zurückgerollt; auch der Vorgang im Speicher soll nicht auf den verworfenen zeigen.
+            $lead->package_lead_id = $previousPackage;
+            $lead->syncOriginalAttribute('package_lead_id');
+
+            throw $exception;
+        }
+    }
+
+    private function createLinkedLead(Lead $lead, string $brand, string $status, array $data, ?User $user): Lead
+    {
+        return DB::transaction(function () use ($lead, $brand, $status, $data, $user) {
+            $other = Lead::create([
+                'brand' => $brand,
+                'organization_id' => $lead->organization_id,
+                'contact_id' => $lead->contact_id,
+                'target_group' => $lead->organization_id ? 'company_open' : 'open',
+                'channel' => 'cross_selling',
+                'assigned_to' => $lead->assigned_to ?? $user?->id,
+                'package_lead_id' => $lead->id,
+            ]);
+
+            $lead->package_lead_id = $other->id;
             $lead->save();
+            $lead->setRelation('packageLead', $other);
 
             Activity::create([
                 'lead_id' => $lead->id,
-                'user_id' => ($user ?? auth()->user())?->id,
+                'user_id' => $user?->id,
                 'type' => 'note',
-                'body' => trim(($enable
-                    ? 'Cross-Selling JB Design gesetzt, Wiedervorlage '.$date->format('d.m.Y')
-                    : 'Cross-Selling JB Design entfernt').($note ? "\n".$note : '')),
+                'body' => trim('Cross-Selling: Vorgang für '.Brand::label($brand).' angelegt („'.Adk::statusLabel($status).'“).'.(filled($data['note'] ?? null) ? "\n".trim($data['note']) : '')),
             ]);
+
+            $this->apply($other, $status, [
+                ...$data,
+                'note' => trim('Aus dem Gespräch zum '.Brand::label($lead->brand).'-Vorgang.'.(filled($data['note'] ?? null) ? "\n".trim($data['note']) : '')),
+            ], $user);
+
+            return $other;
         });
     }
 

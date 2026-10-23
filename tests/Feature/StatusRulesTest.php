@@ -159,21 +159,37 @@ it('Taste 8: schließt den Vorgang und setzt Telefon, E-Mail und Firma auf die S
         ->and($lead->fresh()->isBlocked())->toBeTrue();
 });
 
-it('Taste 0: schaltet Cross-Selling um, fragt nach Wiedervorlage und ändert den Status nicht', function () {
+it('Taste 0: legt den Vorgang der anderen Marke an, verknüpft beide und ändert den Status nicht', function () {
     $lead = Lead::factory()->create(['status' => 'interested', 'next_action_at' => '2026-10-10']);
 
-    expect(fn () => $this->service->toggleCrossSelling($lead))->toThrow(ValidationException::class);
+    // „Interesse“ braucht eine Wiedervorlage, „Kein Interesse“ legt keinen Vorgang an.
+    expect(fn () => $this->service->createForOtherBrand($lead, 'interested'))->toThrow(ValidationException::class)
+        ->and(fn () => $this->service->createForOtherBrand($lead, 'no_interest'))->toThrow(ValidationException::class)
+        ->and($lead->package_lead_id)->toBeNull()
+        ->and(Lead::where('brand', 'jb')->exists())->toBeFalse();
 
-    $this->service->toggleCrossSelling($lead, '2026-11-02');
+    $jb = $this->service->createForOtherBrand($lead, 'interested', ['next_action_at' => '2026-11-02', 'note' => 'Website gewünscht']);
 
-    expect($lead->fresh())
-        ->cross_selling->toBeTrue()
-        ->cross_selling_follow_up_at->toDateString()->toBe('2026-11-02')
-        ->status->toBe('interested')
-        ->next_action_at->toDateString()->toBe('2026-10-10');
+    expect($jb)->brand->toBe('jb')->status->toBe('interested')->next_action_at->toDateString()->toBe('2026-11-02')
+        ->and($jb->activities()->first()->body)->toContain('Aus dem Gespräch zum ADK-Vorgang')->toContain('Website gewünscht')
+        ->and($lead->fresh())->status->toBe('interested')->next_action_at->toDateString()->toBe('2026-10-10')->package_lead_id->toBe($jb->id);
 
-    $this->service->toggleCrossSelling($lead->fresh());
-    expect($lead->fresh())->cross_selling->toBeFalse()->cross_selling_follow_up_at->toBeNull();
+    // Solange der verknüpfte Vorgang offen ist, kein zweiter.
+    expect(fn () => $this->service->createForOtherBrand($lead->fresh(), 'later', ['next_action_at' => '2026-12-01']))->toThrow(ValidationException::class);
+});
+
+it('kennt Status je Marke: Förderweg nur bei der ADK, Angebot und Auftrag nur bei JB IT-Design', function () {
+    $jb = Lead::factory()->create(['brand' => 'jb']);
+    $adk = Lead::factory()->create();
+
+    expect(fn () => $this->service->apply($jb, 'handed_over', ['target_group' => 'C']))->toThrow(ValidationException::class)
+        ->and(fn () => $this->service->apply($adk, 'offer_sent'))->toThrow(ValidationException::class);
+
+    $this->service->apply($jb, 'offer_sent');
+    expect($jb->fresh())->status->toBe('offer_sent')->next_action_at->not->toBeNull();
+
+    $this->service->apply($jb->fresh(), 'won');
+    expect($jb->fresh())->status->toBe('won')->closed_at->not->toBeNull();
 });
 
 it('Übergeben an Förderweg ist setzbar und startet den Förderfall', function () {

@@ -4,6 +4,7 @@ namespace App\Filament\Actions;
 
 use App\Filament\Forms\MailCode;
 use App\Filament\Pages\EmailAccount;
+use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Activity;
 use App\Models\EmailTemplate;
 use App\Models\Lead;
@@ -13,7 +14,9 @@ use App\Services\Microsoft\GraphMailer;
 use App\Services\Microsoft\LeadEmail;
 use App\Services\Microsoft\MicrosoftClient;
 use App\Services\Sipgate\ClickToCall;
+use App\Services\WebsiteCheck;
 use App\Support\Adk;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use App\Support\MailHtml;
 use Closure;
@@ -80,7 +83,7 @@ class LeadActions
     public static function statusSchema(Lead $lead): array
     {
         $follow = fn (Get $get) => config('adk.statuses.'.$get('status').'.follow_up');
-        $statusOptions = collect(Adk::statuses())
+        $statusOptions = collect(Adk::statuses($lead->brand))
             ->except('new')
             ->reject(fn (array $status) => ($status['manual'] ?? true) === false)
             ->mapWithKeys(fn (array $status, string $key) => [$key => ($status['key'] !== null ? "{$status['key']} · " : '').$status['label']])
@@ -186,28 +189,29 @@ class LeadActions
      */
     public static function sendEmail(): Action
     {
-        $connected = fn () => LeadEmail::connectedFor(auth()->user());
+        // Je Marke ein eigenes Postfach, z. B. contact@jb-design.net für JB IT-Design.
+        $connected = fn (?Lead $record) => $record !== null && LeadEmail::connectedFor(auth()->user(), $record->brand);
 
         return Action::make('sendEmail')
             ->label('E-Mail schreiben')
             ->icon(Heroicon::OutlinedEnvelope)
             ->color('gray')
-            ->visible(fn (?Lead $record) => $record !== null && Gate::allows('leads.edit') && MicrosoftClient::isConfigured() && $record->isOpen())
+            ->visible(fn (?Lead $record) => $record !== null && Gate::allows('leads.edit') && MicrosoftClient::isConfigured($record->brand) && $record->isOpen())
             ->disabled(fn (?Lead $record) => $record?->isBlocked() ?? false)
             ->tooltip(fn (?Lead $record) => ($record ? LeadEmail::blockReason($record) : null) ?? Hilfe::feld('send_email'))
-            ->modalHidden(fn () => ! $connected())
+            ->modalHidden(fn (?Lead $record) => ! $connected($record))
             ->modalHeading(fn (Lead $record) => 'E-Mail: '.$record->displayName())
-            ->modalDescription(fn () => 'Geht von '.auth()->user()->mailConnection?->mailbox.' und liegt danach in Outlook unter „Gesendete Elemente“.')
+            ->modalDescription(fn (Lead $record) => 'Geht von '.auth()->user()->mailConnectionFor($record->brand)?->mailbox.' und liegt danach in Outlook unter „Gesendete Elemente“.')
             ->modalWidth(Width::ThreeExtraLarge)
             ->modalSubmitActionLabel('Senden')
-            ->schema(fn (Lead $record) => $connected() ? static::emailSchema($record) : [])
+            ->schema(fn (Lead $record) => $connected($record) ? static::emailSchema($record) : [])
             ->action(function (Lead $record, array $data, Action $action, HasActions $livewire) use ($connected) {
-                if (! $connected()) {
+                if (! $connected($record)) {
                     Notification::make()
                         ->title('Bitte verbinden Sie zuerst Ihr Postfach')
-                        ->body('Unter „E-Mail-Konto“ verbinden Sie einmal Ihr Microsoft-365-Postfach. Danach schreiben Sie hier E-Mails.')
+                        ->body('Unter „E-Mail-Konto“ verbinden Sie einmal Ihr Microsoft-365-Postfach für '.Brand::name($record->brand).'. Danach schreiben Sie hier E-Mails.')
                         ->warning()
-                        ->actions([Action::make('emailAccount')->label('Zum E-Mail-Konto')->button()->url(EmailAccount::getUrl())])
+                        ->actions([Action::make('emailAccount')->label('Zum E-Mail-Konto')->button()->url(EmailAccount::getUrl(['marke' => $record->brand]))])
                         ->send();
 
                     return;
@@ -243,19 +247,19 @@ class LeadActions
     public static function emailSchema(Lead $lead): array
     {
         $contact = $lead->contact;
-        // Dateien aller aktiven Vorlagen, damit z. B. das Kursheft mit jeder E-Mail mitgehen kann.
-        $templateFiles = EmailTemplate::active()->ordered()->whereNotNull('attachment_path')->get()
+        // Dateien aller aktiven Vorlagen der Marke, damit z. B. das Kursheft mit jeder E-Mail mitgehen kann.
+        $templateFiles = EmailTemplate::active()->forBrand($lead->brand)->ordered()->whereNotNull('attachment_path')->get()
             ->mapWithKeys(fn (EmailTemplate $template) => [$template->id => $template->attachmentName().' (Vorlage „'.$template->name.'“)'])
             ->all();
 
         return [
             Select::make('email_template_id')
                 ->label('Vorlage')
-                ->options(fn () => EmailTemplate::active()->ordered()->pluck('name', 'id'))
+                ->options(fn () => EmailTemplate::active()->forBrand($lead->brand)->ordered()->pluck('name', 'id'))
                 ->placeholder('ohne Vorlage')
                 ->live()
                 ->afterStateUpdated(function (Set $set, ?string $state) use ($lead) {
-                    $chosen = filled($state) ? EmailTemplate::active()->find($state) : null;
+                    $chosen = filled($state) ? EmailTemplate::active()->forBrand($lead->brand)->find($state) : null;
 
                     if ($chosen) {
                         $set('email_subject', LeadEmail::render($chosen->subject, $lead, auth()->user()));
@@ -343,23 +347,103 @@ class LeadActions
         ];
     }
 
-    public static function crossSelling(): Action
+    /**
+     * Cross-Selling: Vorgang der anderen Marke zur selben Firma anlegen, mit dem Status aus dem Gespräch,
+     * verknüpft mit diesem (Paket). Z. B. Weiterbildung abgelehnt, aber Interesse an einer neuen Website.
+     */
+    public static function otherBrand(): Action
     {
-        return Action::make('crossSelling')
-            ->label(fn (Lead $record) => $record->cross_selling ? 'Cross-Selling entfernen' : 'Cross-Selling JB Design')
+        $brand = fn (Lead $record) => Brand::other($record->brand);
+        $follow = fn (Get $get) => config('adk.statuses.'.$get('status').'.follow_up');
+
+        return Action::make('otherBrand')
+            ->label(fn (Lead $record) => 'Vorgang für '.Brand::label($brand($record)).' anlegen')
             ->icon(Heroicon::OutlinedSparkles)
             ->color('gray')
-            ->visible(fn () => Gate::allows('leads.edit'))
-            ->schema(fn (Lead $record) => $record->cross_selling ? [
-                Textarea::make('note')->label('Notiz')->rows(2),
-            ] : [
-                DatePicker::make('follow_up_at')->label('Wiedervorlage Cross-Selling')->minDate(today())->required(),
-                Textarea::make('note')->label('Notiz')->rows(2),
+            ->visible(fn (Lead $record) => Gate::allows('leads.edit')
+                && $brand($record) !== null
+                && auth()->user()->canUseBrand($brand($record))
+                && ! $record->packageLead?->isOpen())
+            ->modalHeading(fn (Lead $record) => 'Cross-Selling: '.Brand::name($brand($record)))
+            ->modalDescription(fn (Lead $record) => 'Legt zu '.$record->displayName().' einen Vorgang für '.Brand::label($brand($record)).' an und verknüpft beide (Paket). Der Status hier bleibt, wie er ist.')
+            ->modalSubmitActionLabel('Anlegen')
+            ->schema(fn (Lead $record) => [
+                Select::make('status')
+                    ->label('Ergebnis für '.Brand::label($brand($record)))
+                    ->options(LeadStatusService::crossSellingStatusOptions($brand($record)))
+                    ->required()
+                    ->live()
+                    ->helperText(fn (Get $get) => Hilfe::status($get('status')))
+                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('next_action_at', LeadStatusService::suggestedDate($state)?->toDateString())),
+                Grid::make(2)
+                    ->visible(fn (Get $get) => LeadStatusService::hasFollowUpDate($get('status')))
+                    ->schema([
+                        DatePicker::make('next_action_at')->label('Wiedervorlage am')->minDate(today())->required(fn (Get $get) => $follow($get) === 'required'),
+                        TimePicker::make('next_action_time')->label('Uhrzeit (optional)')->seconds(false),
+                    ]),
+                Grid::make(3)
+                    ->visible(fn (Get $get) => $follow($get) === 'appointment')
+                    ->schema([
+                        DatePicker::make('appointment.date')->label('Termin am')->minDate(today())->required(),
+                        TimePicker::make('appointment.time')->label('Uhrzeit')->seconds(false)->required(),
+                        Select::make('appointment.type')->label('Art')->options(config('adk.appointment_types'))->required(),
+                    ]),
+                Grid::make(3)
+                    ->visible(fn (Get $get) => $get('status') === 'documents_sent' && $record->contact_id === null)
+                    ->schema([
+                        TextInput::make('contact.first_name')->label('Vorname Empfänger'),
+                        TextInput::make('contact.last_name')->label('Nachname Empfänger')->required(),
+                        TextInput::make('contact.email')->label('E-Mail Empfänger')->email(),
+                    ]),
+                Textarea::make('note')->label('Notiz')->rows(2)->helperText('Keine medizinischen Angaben in Notizen.'),
             ])
-            ->action(function (Lead $record, array $data) {
-                app(LeadStatusService::class)->toggleCrossSelling($record, $data['follow_up_at'] ?? null, $data['note'] ?? null);
-                Notification::make()->title($record->cross_selling ? 'Cross-Selling gesetzt' : 'Cross-Selling entfernt')->success()->send();
+            ->action(function (Lead $record, array $data, Action $action) {
+                try {
+                    $other = app(LeadStatusService::class)->createForOtherBrand($record, $data['status'], $data);
+                } catch (ValidationException $exception) {
+                    Notification::make()->title('Nicht angelegt')->body(implode(' ', $exception->validator->errors()->all()))->danger()->send();
+                    $action->halt();
+
+                    return;
+                }
+
+                Notification::make()
+                    ->title($other->brandLabel().'-Vorgang angelegt: '.Adk::statusLabel($other->status))
+                    ->success()
+                    ->actions([Action::make('open')->label('Öffnen')->button()->url(LeadResource::getUrl('view', ['record' => $other]))])
+                    ->send();
             });
+    }
+
+    /** Website-Check sofort (sonst läuft er alle 5 Minuten für einige offene JB-Vorgänge). */
+    public static function checkWebsite(): Action
+    {
+        return Action::make('checkWebsite')
+            ->label('Website prüfen')
+            ->icon(Heroicon::OutlinedGlobeAlt)
+            ->color('gray')
+            ->visible(fn (Lead $record) => Gate::allows('leads.edit') && filled($record->organization?->website))
+            ->tooltip('Ruft die Startseite einmal auf und liest die sichtbare PHP-Version und das System. Kein Scannen.')
+            ->action(function (Lead $record) {
+                app(WebsiteCheck::class)->check($record->organization);
+
+                Notification::make()
+                    ->title('Website geprüft')
+                    ->body(WebsiteCheck::summary($record->organization->refresh()))
+                    ->color(WebsiteCheck::isOutdated($record->organization) ? 'danger' : 'success')
+                    ->send();
+            });
+    }
+
+    /** Zum verknüpften Vorgang der anderen Marke (Paket). */
+    public static function openPackage(): Action
+    {
+        return Action::make('openPackage')
+            ->label(fn (Lead $record) => $record->packageLead?->brandLabel().'-Vorgang')
+            ->icon(Heroicon::OutlinedSparkles)
+            ->color('info')
+            ->visible(fn (Lead $record) => $record->packageLead !== null)
+            ->url(fn (Lead $record) => LeadResource::getUrl('view', ['record' => $record->packageLead]));
     }
 
     public static function addActivity(): Action

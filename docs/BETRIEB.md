@@ -501,3 +501,64 @@ Befehl im SSH-Terminal der Domain (Websites & Domains → crm.adk-akademie.de �
 - `--loeschen` löscht endgültig (RecordPurger wie beim Löschersuchen): Vorgänge, Betriebe ohne weiteren Vorgang samt Ansprechpersonen. Im Protokoll (Bereich „Aussortieren“) nur Anzahlen.
 - `--ohne=12,345` nimmt einzelne Vorgänge aus.
 - Erfasst nur Vorgänge mit Status „Neu“ aus einem Import, offen, ohne Anrufversuch, Aktivität, Termin, Dokument, Teilnehmerakte oder Förderfall. Erkennung über Name und Branche des Betriebs sowie WZ 86.21–86.23; im Zweifel bleibt der Betrieb. Logik: `App\Services\DoctorLeadCleanup`.
+
+## 18 Zwei Marken: ADK und JB IT-Design (gebaut 23.10.2026)
+
+ADK und JB IT-Design & Marketing sind zwei Marken desselben Einzelunternehmens (eine Steuernummer), datenschutzrechtlich also **ein Verantwortlicher**. Deshalb ein CRM für beide: gemeinsamer Firmenstamm, gemeinsame Dublettenprüfung und **gemeinsame Sperrliste** (ein Werbewiderspruch gegenüber der ADK gilt auch für JB IT-Design). Je Marke getrennt: Vorgänge mit eigenen Status, E-Mail-Vorlagen, Absender (Microsoft-365-Postfach), angezeigte Rufnummer und Auswertung. Einstellungen in `config/adk.php` (`brands`, `cross_brand`, `offer`, `halal`, `website_check`) und `config/services.php`.
+
+### 18.1 Was sich in der Oberfläche ändert
+
+- **Umschalter oben rechts:** „Alle Marken“, „ADK“ oder „JB IT-Design“. Gilt für Heute, Anrufliste, Vorgänge, Kalender, Auswertung und E-Mail-Vorlagen. Bestehende Daten gehören alle zur ADK (`leads.brand = adk`).
+- **Status je Marke:** Bei JB IT-Design zusätzlich „Angebot versendet“ (Wiedervorlage 5 Arbeitstage) und „Auftrag erhalten“ (schließt den Vorgang). „Übergeben an Förderweg“ und Teilnehmer gibt es nur bei der ADK, Förderfälle sehen nur Konten mit der Marke ADK.
+- **Taste 0 / „Vorgang für … anlegen“ (Cross-Selling, Paket):** legt zur selben Firma einen Vorgang der anderen Marke an, gleich mit dem Ergebnis aus dem Gespräch (Interesse, Unterlagen, Termin, Später Interesse, Angebot), und verknüpft beide (`leads.package_lead_id`). Der Status des aktuellen Vorgangs bleibt. Beide laufen getrennt weiter, mit eigener Rechnung. Das frühere Merkmal „Cross-Selling JB Design“ wurde dabei zu solchen Vorgängen (Migration `2026_10_23_110000_convert_cross_selling_flags`: Status „Später Interesse“ mit der bisherigen Wiedervorlage); die alten Spalten `cross_selling*` werden nicht mehr benutzt.
+- **Vorschlag fürs Gespräch** (Anrufliste und Vorgang): ohne Angestellte JB IT-Design (keine Förderung nach § 82 SGB III), ab 3 Mitarbeitenden mit eigener Website das Paket, sonst ADK. Nur ein Hinweis aus den Stammdaten (`App\Services\OfferSuggestion`).
+
+### 18.2 Ampel zwischen den Marken
+
+Bevor eine Marke einen Betrieb kalt anruft, zählt, was die andere Marke mit ihm erlebt hat (`App\Services\CrossBrand`, Regeln in `config/adk.php` → `cross_brand`). Verglichen wird über die Organisation, bei Personen ohne Firma über den Kontakt.
+
+| Farbe | Wann | Folge |
+|---|---|---|
+| rot, gesperrt | Werbewiderspruch, oder „Kein Interesse“/„Kein Bedarf“ nach einer E-Mail der anderen Marke, 12 Monate | kein Anruf, Import überspringt die Zeile |
+| blau, persönlich | bei der anderen Marke offen mit Interesse, Unterlagen, Termin, Später, Angebot oder Förderweg; dort Kunde (Vertrag bzw. Auftrag in den letzten 24 Monaten); oder die andere Marke versucht den Betrieb schon zu erreichen (älterer offener Vorgang) | nicht kalt anrufen, im Gespräch der anderen Marke ansprechen (Taste 0) |
+| gelb, später | „Kein Interesse“/„Kein Bedarf“ ohne E-Mail, 3 Monate | Wiedervorlage ab „frei ab“ |
+| grün, frei | sonst | normal |
+
+Die Anrufliste zeigt nur grüne Vorgänge (eingehende Anfragen immer). Anruf per Klick und „Status setzen“ mit „Kontakt per: Anruf“ verweigern nicht-grüne Vorgänge mit Begründung. Verknüpfte Vorgänge (Paket) sperren sich nicht gegenseitig.
+
+### 18.3 Import je Marke
+
+Beim Import wird die Marke der Leadliste gewählt. Firmen, die das CRM nur von der anderen Marke kennt, sind keine Dublette: Der neue Vorgang hängt an der vorhandenen Firma (leere Felder wie Website oder Mitarbeitende füllt die Liste auf), die Ampel entscheidet, ab wann er dran ist. Rot wird übersprungen. Das Importprotokoll zeigt diese Zeilen unter „An vorhandene Firmen angehängt“.
+
+**Halal-Filter** (nur Marken mit `halal_filter`, derzeit JB IT-Design): Firmenname und Branche gegen Muster, WZ-Code gegen Codeanfänge (`config/adk.php` → `halal`). Ausschluss immer (Banken, Kredit, Versicherung, Alkohol, Bars, Discos, Erotik, Glücksspiel, Schweinefleisch, Wahrsagerei). Prüffälle (Gastronomie, Hotel, Kiosk, Tabak, Metzgerei, Tattoo, Massage …) werden zuerst übersprungen; nach Prüfung die geprüften Zeilen erneut importieren mit „Halal-Prüffälle übernehmen“.
+
+### 18.4 E-Mail je Marke (Microsoft 365)
+
+Je Person und Marke ein Postfach (`mail_connections.brand`), unter **E-Mail-Konto** mit Reitern je Marke. E-Mails eines JB-Vorgangs gehen vom JB-Postfach, Vorlagen haben eine Marke (`email_templates.brand`).
+
+`jb-design.net` liegt in einem **eigenen Microsoft-365-Mandanten** (Mandanten-ID `a8346e3a-72a9-4521-be3a-0e966907e4e9`, ADK: `f053914a-…`). Eine der beiden Möglichkeiten:
+
+1. **Bestehende App mehrinstanzfähig machen** (einfacher): Entra im ADK-Mandanten → App-Registrierungen → `ADK CRM` → Authentifizierung → Unterstützte Kontotypen **„Konten in einem beliebigen Organisationsverzeichnis (mehrinstanzenfähig)“**. In der `.env` nichts weiter nötig, die Mandanten-ID von jb-design.net ist vorbelegt (`MICROSOFT_JB_TENANT_ID`). Beim ersten Verbinden mit `contact@jb-design.net` als Administrator des JB-Mandanten zustimmen.
+2. **Eigene App im JB-Mandanten** (gleiche Schritte wie 15.1, gleiche Weiterleitungsadresse): dann in der `.env` `MICROSOFT_JB_CLIENT_ID`, `MICROSOFT_JB_CLIENT_SECRET` und `MICROSOFT_JB_TENANT_ID`.
+
+### 18.5 Rufnummer je Marke (sipgate)
+
+Anrufe aus JB-Vorgängen zeigen `SIPGATE_JB_CALLER_ID` an (vorbelegt `+4961318888867`, ADK weiter `SIPGATE_CALLER_ID`). Die Nummer muss im sipgate-Konto der anrufenden Person als ausgehende Nummer erlaubt sein, sonst lehnt sipgate den Anruf ab. Der Anruf-Abgleich ordnet Telefonate über die eigene Nummer der passenden Marke zu.
+
+### 18.6 Konten nur für eine Marke
+
+Unter **Benutzer** gibt es „Marken“ (nichts angehakt = alle) und die Rolle **Vertrieb** (Vorgänge, Anrufliste, eigene Termine, Auswertung; keine Teilnehmerakten, Dokumente, Dubletten, Importe). Ein Konto nur für JB IT-Design sieht im ganzen CRM nur JB-Vorgänge (`App\Models\Scopes\AllowedBrandScope`), nur Betriebe und Personen mit JB-Vorgängen, keine Förderfälle und Teilnehmerakten. Von der ADK sieht es nur die Ampel mit Begründung, nicht den Vorgang. Die Kopfzeile heißt dann „JB IT-Design CRM“.
+
+### 18.7 Website-Check (JB IT-Design)
+
+`php artisan adk:website-check` läuft alle 5 Minuten (Zeitplan) für 20 Websites von Betrieben mit offenem JB-Vorgang, noch nie oder vor über 90 Tagen geprüft; „Website prüfen“ auf der Vorgangsseite sofort. Der Check ruft **nur die Startseite einmal** auf, wie ein Browser, und liest, was jeder Besucher sieht: PHP-Version (`X-Powered-By`, `Server`) und System (`<meta name="generator">`). Kein Scannen, keine weiteren Seiten (ein aktives Abklopfen fremder Systeme ohne Auftrag wäre strafrechtlich heikel). Sicherung gegen Missbrauch über präparierte Adressen: nur http/https auf Port 80/443, nur öffentliche IP-Adressen, auch bei Weiterleitungen, die geprüfte IP wird fest verwendet (`App\Services\WebsiteCheck`). Als veraltet gilt PHP unter 8.2 (keine Sicherheitsupdates) oder ein Zweig unter dem Stand vom Oktober 2026 (8.2.35, 8.3.36, 8.4.27, 8.5.12). Neue Website = Check läuft neu.
+
+### 18.8 Datenschutz und Recht
+
+- Verzeichnis der Verarbeitungstätigkeiten um den Zweck „Vertrieb JB IT-Design“ ergänzen (Firmendaten, geschäftliche Ansprechpersonen, Website-Technik).
+- **E-Mails nur mit Einwilligung** (§ 7 UWG), wie bisher Pflicht-Häkchen. **Telefon bei Betrieben nur mit mutmaßlicher Einwilligung** (konkreter Anlass, z. B. veraltetes PHP auf der eigenen Website); keine Rechtsberatung, im Zweifel IHK oder Anwalt.
+- **Paket:** Kurs (gefördert) und Umsetzung getrennt anbieten, bepreisen und beauftragen, keine Kopplung an die Förderung (AZAV); Formulierungen mit der Zertifizierungsstelle abstimmen.
+
+### 18.9 Migrationen
+
+`2026_10_23_100000_add_brands` (Marke an Vorgang, Vorlage, Postfach, Import; Marken am Benutzer; Paket-Verknüpfung), `2026_10_23_110000_convert_cross_selling_flags`, `2026_10_23_120000_add_website_check_to_organizations`.

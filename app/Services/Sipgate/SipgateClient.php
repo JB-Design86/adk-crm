@@ -80,7 +80,7 @@ class SipgateClient
      *
      * @return string sessionId (klassisch) bzw. callId (Neo) von sipgate
      */
-    public function call(SipgateConnection $connection, string $e164): string
+    public function call(SipgateConnection $connection, string $e164, ?string $brand = null): string
     {
         if (blank($connection->device_id)) {
             throw new RuntimeException('Bitte wählen Sie zuerst unter „Telefonie“ das Gerät, das klingeln soll.');
@@ -90,14 +90,14 @@ class SipgateClient
         $claims = $this->tokenClaims($connection);
 
         if (($claims['featureScope'] ?? null) === 'NEO_PBX') {
-            return $this->callNeo($request, $connection, $e164, $claims);
+            return $this->callNeo($request, $connection, $e164, $claims, $brand);
         }
 
         $response = $request->post($this->api('/sessions/calls'), array_filter([
             'deviceId' => $connection->device_id,
             'caller' => $connection->device_id,
             'callee' => $e164,
-            'callerId' => self::callerId(),
+            'callerId' => self::callerId($brand),
         ]));
 
         if ($response->status() === 403) {
@@ -111,10 +111,14 @@ class SipgateClient
         return (string) $response->json('sessionId');
     }
 
-    /** Angezeigte Nummer (config services.sipgate.caller_id) wie im Beispiel der API ohne „+“, z. B. „4961318888910“. */
-    public static function callerId(): ?string
+    /**
+     * Angezeigte Nummer wie im Beispiel der API ohne „+“, z. B. „4961318888910“: je Marke aus
+     * config services.sipgate.caller_ids, sonst services.sipgate.caller_id (ADK-Zentrale).
+     */
+    public static function callerId(?string $brand = null): ?string
     {
-        $number = Phone::normalize((string) config('services.sipgate.caller_id'));
+        $configured = $brand !== null ? config("services.sipgate.caller_ids.{$brand}") : null;
+        $number = Phone::normalize((string) (filled($configured) ? $configured : config('services.sipgate.caller_id')));
 
         return $number === null ? null : ltrim($number, '+');
     }
@@ -128,7 +132,7 @@ class SipgateClient
     }
 
     /** @param  array<string, mixed>  $claims */
-    private function callNeo(PendingRequest $request, SipgateConnection $connection, string $e164, array $claims): string
+    private function callNeo(PendingRequest $request, SipgateConnection $connection, string $e164, array $claims, ?string $brand = null): string
     {
         $scopes = explode(' ', (string) ($claims['scope'] ?? ''));
 
@@ -149,8 +153,8 @@ class SipgateClient
                 'deviceId' => $connection->device_id,
                 'targetNumber' => $target,
                 'channelId' => $channelId,
-                // Ohne callerId zeigte sipgate Neo beim Angerufenen „private Nummer“.
-                'callerId' => self::callerId(),
+                // Ohne callerId zeigte sipgate Neo beim Angerufenen „private Nummer“. Je Marke eine eigene Nummer.
+                'callerId' => self::callerId($brand),
             ]));
 
             if ($response->status() !== 400) {

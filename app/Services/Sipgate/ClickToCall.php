@@ -38,10 +38,11 @@ class ClickToCall
             throw new RuntimeException($reason);
         }
 
-        $this->client->call($connection, $lead->phoneE164());
+        // Angezeigt wird die Nummer der Marke des Vorgangs (config services.sipgate.caller_ids).
+        $this->client->call($connection, $lead->phoneE164(), $lead->brand);
 
         activity('sipgate')->causedBy($user)->performedOn($lead)->event('call_started')
-            ->withProperties(['device' => $connection->device_alias])
+            ->withProperties(['device' => $connection->device_alias, 'caller_id' => SipgateClient::callerId($lead->brand)])
             ->log('Anruf über sipgate gestartet');
     }
 }

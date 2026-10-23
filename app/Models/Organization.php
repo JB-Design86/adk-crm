@@ -23,6 +23,7 @@ class Organization extends Model
             'retrieved_at' => 'date',
             'is_training_company' => 'boolean',
             'employee_count' => 'integer',
+            'website_checked_at' => 'datetime',
         ];
     }
 
@@ -38,6 +39,14 @@ class Organization extends Model
                 $organization->phone_display = Phone::display($organization->phone_display);
                 $organization->phone_e164 = Phone::normalize($organization->phone_display);
             }
+
+            // Neue Website: Ergebnis des Website-Checks gilt nicht mehr, er läuft neu.
+            if ($organization->exists && $organization->isDirty('website')) {
+                $organization->website_php = null;
+                $organization->website_generator = null;
+                $organization->website_check_note = null;
+                $organization->website_checked_at = null;
+            }
         });
     }
 
@@ -46,7 +55,7 @@ class Organization extends Model
         return LogOptions::defaults()
             ->useLogName('organizations')
             ->logAll()
-            ->logExcept(['name_normalized', 'website_domain', 'created_at', 'updated_at'])
+            ->logExcept(['name_normalized', 'website_domain', 'website_php', 'website_generator', 'website_check_note', 'website_checked_at', 'created_at', 'updated_at'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }

@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Services\LeadStatusService;
 use App\Services\Sipgate\ClickToCall;
 use App\Support\Adk;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -72,7 +73,10 @@ class CallList extends Page
 
     public bool $confirmingObjection = false;
 
+    /** Taste 0: Formular „Vorgang für die andere Marke anlegen“ offen. */
     public bool $crossSellingOpen = false;
+
+    public ?string $crossSellingStatus = null;
 
     public ?string $crossSellingDate = null;
 
@@ -97,7 +101,8 @@ class CallList extends Page
      * Warteschlange: offene Vorgänge mit Wiedervorlage heute, überfällig oder ohne Datum.
      * Rückrufe mit Uhrzeit erst ab der Uhrzeit, dann aber vor allen anderen.
      * Privatpersonen ohne Einwilligung aus der Kaltakquise erscheinen nicht, Personen mit
-     * „Kein Anruf gewünscht“ auch nicht.
+     * „Kein Anruf gewünscht“ auch nicht. Nur die oben gewählte Marke, und aus der Kaltakquise nur
+     * Firmen mit grüner Ampel (die andere Marke spricht sie nicht gerade an, keine frische Absage).
      */
     public function queue(): Builder
     {
@@ -108,8 +113,10 @@ class CallList extends Page
             ->select('leads.*')
             ->leftJoin('organizations', 'organizations.id', '=', 'leads.organization_id')
             ->leftJoin('contacts', 'contacts.id', '=', 'leads.contact_id')
+            ->ofCurrentBrand()
             ->whereNull('leads.closed_at')
             ->whereNotIn('leads.status', Lead::AFTER_ACQUISITION)
+            ->where(fn (Builder $q) => $q->whereIn('leads.channel', $inbound)->orWhere(fn (Builder $free) => $free->freeAcrossBrands()))
             // Dublettenverdacht: erst prüfen, dann anrufen (sonst ruft man womöglich zweimal an).
             ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('duplicate_candidates')->where('duplicate_candidates.state', 'open')
                 ->where(fn ($d) => $d
@@ -143,7 +150,7 @@ class CallList extends Page
     public function lead(): ?Lead
     {
         return $this->leadId
-            ? Lead::with(['organization', 'contact', 'assignee', 'activities' => fn ($q) => $q->with('user')->limit(8)])->find($this->leadId)
+            ? Lead::with(['organization', 'contact', 'assignee', 'packageLead', 'activities' => fn ($q) => $q->with('user')->limit(8)])->find($this->leadId)
             : null;
     }
 
@@ -166,7 +173,7 @@ class CallList extends Page
             return;
         }
 
-        $status = Adk::statusForKey($key);
+        $status = Adk::statusForKey($key, $this->lead->brand);
 
         if ($status === null) {
             return;
@@ -182,34 +189,55 @@ class CallList extends Page
         $this->resetErrorBag();
     }
 
+    /** Taste 0: Formular für den Vorgang der anderen Marke öffnen oder schließen (nur ohne offenen verknüpften Vorgang). */
     public function toggleCrossSellingForm(): void
     {
-        if ($this->lead->cross_selling) {
-            // Merkmal entfernen braucht kein Datum.
-            app(LeadStatusService::class)->toggleCrossSelling($this->lead, note: $this->note ?: null);
-            Notification::make()->title('Cross-Selling JB Design entfernt')->success()->send();
-            unset($this->lead);
-
+        if (! $this->canCrossSell()) {
             return;
         }
 
         $this->crossSellingOpen = ! $this->crossSellingOpen;
+        $this->crossSellingStatus ??= array_key_first($this->crossSellingOptions());
     }
 
+    /** Vorgang der anderen Marke anlegen (Paket), mit Status und Wiedervorlage. Der Status hier bleibt. */
     public function saveCrossSelling(): void
     {
         try {
-            app(LeadStatusService::class)->toggleCrossSelling($this->lead, $this->crossSellingDate, $this->note ?: null);
+            $other = app(LeadStatusService::class)->createForOtherBrand($this->lead, (string) $this->crossSellingStatus, [
+                'next_action_at' => $this->crossSellingDate,
+                'note' => $this->note ?: null,
+            ]);
         } catch (ValidationException $exception) {
             $this->addError('crossSellingDate', $exception->validator->errors()->first());
 
             return;
         }
 
-        Notification::make()->title('Cross-Selling JB Design gesetzt')->success()->send();
+        Notification::make()->title($other->brandLabel().'-Vorgang angelegt: '.Adk::statusLabel($other->status))->success()->send();
         $this->crossSellingOpen = false;
+        $this->crossSellingStatus = null;
         $this->crossSellingDate = null;
         unset($this->lead);
+    }
+
+    public function canCrossSell(): bool
+    {
+        $other = $this->lead ? Brand::other($this->lead->brand) : null;
+
+        return $other !== null && auth()->user()->canUseBrand($other) && ! $this->lead->packageLead?->isOpen();
+    }
+
+    /** @return array<string, string> Ergebnis für die andere Marke, nur Status mit Wiedervorlagedatum (Termin über die Vorgangsseite) */
+    public function crossSellingOptions(): array
+    {
+        $other = $this->lead ? Brand::other($this->lead->brand) : null;
+
+        return $other === null ? [] : array_filter(
+            LeadStatusService::crossSellingStatusOptions($other),
+            fn (string $status) => LeadStatusService::hasFollowUpDate($status),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     /** Enter: speichern und zum nächsten Betrieb. */
@@ -374,7 +402,7 @@ class CallList extends Page
 
     private function resetForm(): void
     {
-        $this->reset(['status', 'note', 'nextActionAt', 'nextActionTime', 'closeReason', 'confirmingObjection', 'crossSellingOpen', 'crossSellingDate']);
+        $this->reset(['status', 'note', 'nextActionAt', 'nextActionTime', 'closeReason', 'confirmingObjection', 'crossSellingOpen', 'crossSellingStatus', 'crossSellingDate']);
         $this->appointment = ['date' => null, 'time' => null, 'type' => 'phone'];
         $this->recipient = ['first_name' => null, 'last_name' => null, 'email' => null];
         $this->resetErrorBag();
@@ -385,19 +413,26 @@ class CallList extends Page
         return $this->lead ? LeadResource::getUrl('view', ['record' => $this->lead]) : null;
     }
 
-    /** @return array<string, array{key: string, label: string}> */
+    /** @return array<string, array{key: string, label: string}> Tasten der Marke des angezeigten Vorgangs */
     public function keyLegend(): array
     {
         $legend = [];
 
-        foreach (Adk::statuses() as $status => $definition) {
+        foreach (Adk::statuses($this->lead?->brand) as $status => $definition) {
             if ($definition['key'] !== null) {
                 $legend[$status] = ['key' => $definition['key'], 'label' => $definition['label'], 'help' => Hilfe::status($status)];
             }
         }
 
         uasort($legend, fn ($a, $b) => $a['key'] <=> $b['key']);
-        $legend['cross_selling'] = ['key' => config('adk.cross_selling_key'), 'label' => 'Cross-Selling JB Design', 'help' => Hilfe::status('cross_selling')];
+
+        if ($this->canCrossSell()) {
+            $legend['cross_selling'] = [
+                'key' => config('adk.cross_selling_key'),
+                'label' => 'Vorgang für '.Brand::label(Brand::other($this->lead->brand)),
+                'help' => Hilfe::status('cross_selling'),
+            ];
+        }
 
         return $legend;
     }

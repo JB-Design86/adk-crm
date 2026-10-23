@@ -30,10 +30,10 @@ class ListLeads extends ListRecords
         return [
             'akquise' => Tab::make('Akquise')
                 ->modifyQueryUsing(fn (Builder $query) => $query->inAcquisition())
-                ->badge(fn () => Lead::inAcquisition()->count()),
+                ->badge(fn () => Lead::inAcquisition()->ofCurrentBrand()->count()),
             'foerderfall' => Tab::make('Förderfall')
                 ->modifyQueryUsing(fn (Builder $query) => $query->open()->where('status', 'handed_over'))
-                ->badge(fn () => Lead::open()->where('status', 'handed_over')->count())
+                ->badge(fn () => Lead::open()->where('status', 'handed_over')->ofCurrentBrand()->count())
                 ->badgeColor('success'),
             'teilnehmer' => Tab::make('Teilnehmer')
                 ->modifyQueryUsing(fn (Builder $query) => $query->open()->where('status', 'enrolled')),

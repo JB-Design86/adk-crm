@@ -18,6 +18,15 @@
 return [
 
     'felder' => [
+        // Marken
+        'brand' => 'ADK (Weiterbildung) oder JB IT-Design (Websites, KI, Automatisierung). Beide gehören zu einem Unternehmen: gemeinsamer Firmenstamm und gemeinsame Sperrliste, aber je Marke eigene Vorgänge, Status, Vorlagen, Absender und Rufnummer.',
+        'brands' => 'Welche Marken das Konto sieht. Nichts angehakt = alle. Ein Konto nur für JB IT-Design sieht keine ADK-Vorgänge, keine Teilnehmerakten und keine Personen der ADK.',
+        'cross_brand_light' => 'Ampel zwischen den Marken. Rot: Werbewiderspruch oder Absage nach E-Mail (12 Monate). Blau: läuft gerade bei der anderen Marke oder dort Kunde, also nicht kalt anrufen, sondern dort persönlich ansprechen. Gelb: Absage ohne E-Mail, frei nach 3 Monaten. Grün: frei.',
+        'package_lead' => 'Verknüpfter Vorgang der anderen Marke zur selben Firma (Paket), z. B. Kurs bei der ADK und Umsetzung durch JB IT-Design. Beide laufen getrennt mit eigenem Status und eigener Rechnung.',
+        'offer_suggestion' => 'Vorschlag aus den Stammdaten: ohne Angestellte JB IT-Design (keine Förderung), mit Angestellten und Website das Paket, sonst ADK. Entschieden wird im Gespräch.',
+        'website_check' => 'Einmal die Startseite aufgerufen, wie ein Browser: sichtbare PHP-Version und System. PHP unter 8.2 bekommt keine Sicherheitsupdates mehr. Kein Scannen, nur ein Gesprächsanlass.',
+        'include_halal_review' => 'Halal-Prüffälle (z. B. Restaurant, Metzgerei, Kiosk) überspringt der Import zuerst. Nach Ihrer Prüfung die geprüften Zeilen erneut importieren und hier anhaken.',
+
         // Vorgang
         'target_group' => 'Über welchen Weg die Weiterbildung bezahlt würde: A Jobcenter, B Agentur für Arbeit, C Beschäftigte eines Betriebs (§ 82 SGB III), D Geschäftsführung, E Arbeitsunfall, Selbstzahler. Bei Kaltakquise zunächst „Betrieb, Zuordnung offen“, bei Website-Anfragen ohne klare Finanzierung „Zuordnung offen“.',
         'channel' => 'Wie der Kontakt zustande kam. Alles außer „Kaltakquise“ gilt als eingehende Anfrage: rot oben in „Heute“, Wiedervorlage heute, Anruf auch bei Privatpersonen erlaubt.',
@@ -27,8 +36,6 @@ return [
         'assigned_to' => 'Wer sich um den Vorgang kümmert. „nur meine“ in Heute und Anrufliste zeigt die eigenen und nicht zugewiesenen Vorgänge.',
         'call_attempts' => 'Wie oft niemand erreicht wurde (Taste 1). Nach dem dritten Versuch fragt die Anrufliste, ob der Vorgang ruhen soll.',
         'last_contact_at' => 'Letzter Kontakt oder Versuch. Ab hier läuft die Löschfrist: Betriebe 24 Monate, Privatpersonen 6 Monate.',
-        'cross_selling' => 'Merkmal für JB Design (z. B. Anzeigenbetreuung). Unabhängig vom Status, mit eigener Wiedervorlage. Taste 0.',
-        'cross_selling_follow_up_at' => 'Wann wegen JB Design nachgefasst wird.',
         'closed_at' => 'Geschlossene Vorgänge erscheinen nicht mehr in Heute und Anrufliste.',
         'close_reason' => 'Warum der Datensatz falsch ist. Fließt in die Auswertung je Importquelle ein.',
         'organization_id' => 'Betrieb, zu dem der Vorgang gehört. Bei Privatpersonen leer lassen.',
@@ -65,7 +72,6 @@ return [
         'starts_at' => 'Datum und Uhrzeit. Am Termintag erscheint der Vorgang in „Heute“.',
         'note' => 'Kurze Gesprächsnotiz. Keine medizinischen Angaben.',
         'body' => 'Inhalt der Aktivität. Keine medizinischen Angaben.',
-        'follow_up_at' => 'Wann wegen Cross-Selling nachgefasst wird.',
         'confirmed' => 'Pflicht bei Werbewiderspruch: Telefon, E-Mail und Firma kommen dauerhaft auf die Sperrliste.',
 
         // Sperrliste
@@ -74,7 +80,7 @@ return [
         'reason' => 'Anlass, z. B. Werbewiderspruch am Telefon.',
 
         // Benutzer
-        'role' => 'Verwaltung: alles, auch Import, Export, Sperrliste und Benutzer. Mitarbeitende: Vorgänge, Anrufliste, eigene Termine.',
+        'role' => 'Verwaltung: alles, auch Import, Export, Sperrliste und Benutzer. Mitarbeitende: Vorgänge, Anrufliste, eigene Termine, Teilnehmerakten. Vertrieb: Vorgänge, Anrufliste und eigene Termine, ohne Teilnehmerakten und Dokumente.',
 
         // Prüfstufen
         'is_active' => 'Inaktive Einträge erscheinen nicht mehr in Formularen und im Import. Vorhandene Werte bleiben erhalten.',
@@ -110,7 +116,7 @@ return [
 
     'seiten' => [
         'heute' => 'Alles, was heute zu tun ist: fällige und überfällige Wiedervorlagen, neue Anfragen (rot), Rückrufe mit Uhrzeit und die Termine des Tages.',
-        'anrufliste' => 'Ein Betrieb nach dem anderen: zuerst fällige Rückrufe mit Uhrzeit, dann Priorität A. Unter „Liste“ lässt sich eine einzelne Leadliste wählen, z. B. die neueste. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
+        'anrufliste' => 'Ein Betrieb nach dem anderen, für die oben gewählte Marke: zuerst fällige Rückrufe mit Uhrzeit, dann Priorität A. Firmen, die die andere Marke gerade anspricht oder die dort frisch abgesagt haben, kommen nicht (Ampel). Unter „Liste“ lässt sich eine einzelne Leadliste wählen. Taste drücken (im Notizfeld mit Alt), Enter speichert und springt weiter.',
         'vorgaenge' => 'Vorgänge nach Phase: Akquise (Standard), Förderfall, Teilnehmer, geschlossen. Übergebene Vorgänge stehen nicht mehr in der Akquise, sondern unter Förderfall bzw. Teilnehmer.',
         'teilnehmer' => 'Teilnehmerakten: entstehen mit „Einschreibung bestätigt“ im Förderfall. Checkliste von Vertrag bis Verbleib, Dokumente, Ausgabe als ZIP.',
         'checkliste' => 'Punkte der Checkliste in der Teilnehmerakte, je Phase. Umbenennen, sortieren, ergänzen oder abschalten.',
@@ -122,7 +128,7 @@ return [
         'e_mail_vorlagen' => 'Vorlagen für „E-Mail schreiben“ im Vorgang: Betreff, Text mit Platzhaltern und auf Wunsch ein Anhang, z. B. das Kursheft. Reihenfolge per „Reihenfolge ändern“ und Ziehen.',
         'organisationen' => 'Betriebe und Einrichtungen. Quelle und Abrufdatum sind Pflicht.',
         'kontakte' => 'Personen mit Datenschutzhinweis und Einwilligungen.',
-        'import' => 'Leadliste als Excel oder CSV einspielen. Quelle und Abrufdatum sind Pflicht, Dubletten und Sperrliste werden automatisch übersprungen.',
+        'import' => 'Leadliste als Excel oder CSV einspielen, je Marke. Quelle und Abrufdatum sind Pflicht, Dubletten und Sperrliste werden automatisch übersprungen, bei JB IT-Design auch Branchen ohne Halal-Bezug. Firmen der anderen Marke bekommen einen eigenen Vorgang mit Ampel.',
         'importe' => 'Protokoll aller Importe mit übersprungenen Zeilen und Grund.',
         'sperrliste' => 'Betriebe und Personen, die nicht mehr angesprochen werden dürfen. Gilt unbefristet, auch für künftige Importe.',
         'benutzer' => 'Konten anlegen und sperren. Gesperrte Konten werden sofort abgemeldet, Daten bleiben erhalten.',
@@ -145,7 +151,9 @@ return [
         'wrong_data' => 'Datensatz falsch (Firma besteht nicht, Nummer falsch). Grund wählen. Zählt in der Auswertung je Importquelle.',
         'handed_over' => 'Zusage erhalten: Es entsteht ein Förderfall mit den Schritten des passenden Förderwegs. Ist die Zielgruppe noch offen, bitte hier wählen.',
         'enrolled' => 'Einschreibung vom Kostenträger bestätigt. Wird nur über den Förderfall gesetzt. Die Teilnehmerakte folgt in Stufe 4.',
-        'cross_selling' => 'Merkmal Cross-Selling JB Design an oder aus, mit eigener Wiedervorlage. Ändert den Status nicht.',
+        'offer_sent' => 'Angebot verschickt (JB IT-Design). Wiedervorlage automatisch in 5 Arbeitstagen, änderbar.',
+        'won' => 'Auftrag erhalten (JB IT-Design). Vorgang wird geschlossen. Die ADK sieht die Firma als Kunde (Ampel blau).',
+        'cross_selling' => 'Taste 0: Vorgang für die andere Marke anlegen, z. B. Weiterbildung abgelehnt, aber Interesse an einer Website. Beide Vorgänge sind verknüpft (Paket). Der Status hier bleibt.',
     ],
 
 ];

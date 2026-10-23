@@ -31,6 +31,7 @@
             <x-filament::button size="sm" color="gray" wire:click="preset('last_4_weeks')">letzte 4 Wochen</x-filament::button>
             <x-filament::button size="sm" color="gray" wire:click="preset('this_month')">dieser Monat</x-filament::button>
         </div>
+        <p class="text-sm text-gray-500">Marke: <strong>{{ $this->brandHeading() }}</strong> (Umschalter oben rechts)</p>
     </div>
 
     <div class="grid gap-4" style="grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));">
@@ -146,6 +147,7 @@
         </x-filament::section>
     @endforeach
 
+    @if ($this->showsFunding())
     <x-filament::section collapsible>
         <x-slot name="heading">Förderweg</x-slot>
         <x-slot name="description">Im Zeitraum gestartete Förderfälle, erledigte bzw. abgelehnte Schritte und bestätigte Einschreibungen.</x-slot>
@@ -174,6 +176,7 @@
             @endforeach
         </div>
     </x-filament::section>
+    @endif
 
     @php($wrong = $report->wrongDataBySource())
     <x-filament::section collapsible>

@@ -541,3 +541,40 @@ it('holt per Befehl mit --seit auch ältere Anrufe nach', function () {
     $this->artisan('adk:sipgate-abgleich', ['--seit' => '2026-09-20'])->assertSuccessful();
     expect(Activity::where('type', 'phone_log')->sole()->duration_seconds)->toBe(60);
 });
+
+it('zeigt bei Vorgängen von JB IT-Design die Nummer von JB IT-Design an', function () {
+    sipgateConnection($this->user, ['access_token' => neoToken()]);
+    $lead = leadWithPhone('06131 123456');
+    $lead->forceFill(['brand' => 'jb'])->save();
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/calls' => Http::response(['callSid' => 'c1']),
+    ]);
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])->callAction('sipgateCall');
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/calls') && $request['callerId'] === '4961318888867');
+    expect(SipgateClient::callerId('adk'))->toBe('4961318888910')
+        ->and(SipgateClient::callerId('jb'))->toBe('4961318888867')
+        ->and(SipgateClient::callerId())->toBe('4961318888910');
+});
+
+it('ordnet Anrufe über die eigene Nummer der passenden Marke zu', function () {
+    $connection = sipgateConnection($this->user, ['access_token' => neoToken(), 'last_synced_at' => '2026-09-28 09:00:00']);
+    $adk = leadWithPhone('06131 123456');
+    $jb = Lead::factory()->create(['brand' => 'jb', 'organization_id' => $adk->organization_id, 'package_lead_id' => $adk->id]);
+    $call = fn (string $sid, string $from) => ['type' => 'CALL', 'call' => ['callSid' => $sid, 'direction' => 'OUTGOING', 'from' => $from, 'to' => '+496131123456',
+        'state' => 'FINISHED', 'startedAt' => '2026-09-28T07:40:00Z', 'establishedAt' => '2026-09-28T07:40:10Z', 'terminatedAt' => '2026-09-28T07:41:10Z']];
+
+    Http::fake([
+        'api.sipgate.com/v2/channels' => Http::response(neoChannels()),
+        'api.sipgate.com/v2/channels/ch-zentrale/events*' => Http::response(['position' => null, 'events' => [$call('A1', '+4961318888910'), $call('J1', '+4961318888867')]]),
+        'api.sipgate.com/v2/channels/ch-janosch/events*' => Http::response(['position' => null, 'events' => []]),
+    ]);
+
+    expect(app(SipgateSync::class)->sync($connection))->toBe(2)
+        ->and(Activity::where('external_id', 'sipgate:A1')->value('lead_id'))->toBe($adk->id)
+        ->and(Activity::where('external_id', 'sipgate:J1')->value('lead_id'))->toBe($jb->id)
+        ->and(SipgateSync::brandForNumber('+4961318888867'))->toBe('jb')
+        ->and(SipgateSync::brandForNumber('+4930111111'))->toBeNull();
+});

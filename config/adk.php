@@ -15,8 +15,36 @@
 return [
 
     /*
+    | Marken. ADK und JB IT-Design gehören zu einem Unternehmen (eine Steuernummer), es gibt
+    | also einen Verantwortlichen nach DSGVO: gemeinsamer Firmenstamm, gemeinsame Sperrliste,
+    | ein Werbewiderspruch gilt für beide. Je Marke eigene Vorgänge mit eigenen Status,
+    | E-Mail-Vorlagen, Absender (Microsoft-365-Postfach) und angezeigter Rufnummer
+    | (config/services.php). Der Schlüssel (links) steht in der Datenbank und darf nicht
+    | umbenannt werden.
+    | halal_filter: Import überspringt Branchen ohne Halal-Bezug (siehe 'halal' unten).
+    */
+    'brands' => [
+        'adk' => [
+            'label' => 'ADK',
+            'name' => 'ADK – Akademie für digitale Kompetenz',
+            'color' => 'primary',
+            'halal_filter' => false,
+        ],
+        'jb' => [
+            'label' => 'JB IT-Design',
+            'name' => 'JB IT-Design & Marketing',
+            'color' => 'warning',
+            'halal_filter' => true,
+        ],
+    ],
+
+    // Marke für bestehende Daten, Website-Anfragen und neue Vorgänge ohne Auswahl.
+    'default_brand' => 'adk',
+
+    /*
     | Rollen. Rechte je Rolle; '*' bedeutet alle Rechte.
     | Eine weitere Rolle wird hier ergänzt, ohne Datenbankänderung.
+    | Welche Marken ein Konto sieht, steht am Benutzer (leer = alle).
     */
     'roles' => [
         'admin' => [
@@ -37,6 +65,19 @@ return [
                 'duplicates',
                 // Entscheidung 04.10.2026: Vertrieb führt die Teilnehmerakten mit. Gesundheitsangaben bleiben bei der Verwaltung.
                 'participants',
+            ],
+        ],
+        // Vertriebshilfe, z. B. nur für JB IT-Design: telefonieren und Vorgänge führen, keine Teilnehmerakten und Dokumente.
+        'sales' => [
+            'label' => 'Vertrieb',
+            'permissions' => [
+                'leads.view',
+                'leads.edit',
+                'call_list',
+                'appointments.own',
+                'organizations.edit',
+                'contacts.edit',
+                'reports.view',
             ],
         ],
     ],
@@ -101,6 +142,8 @@ return [
         'social_media' => ['label' => 'LinkedIn und Social Media', 'inbound' => true],
         'chatgpt_ad' => ['label' => 'ChatGPT-Anzeige', 'inbound' => true],
         'other' => ['label' => 'Sonstiges', 'inbound' => true],
+        // Aus dem Gespräch zur anderen Marke entstanden (Taste 0, „Vorgang für … anlegen“).
+        'cross_selling' => ['label' => 'Cross-Selling (andere Marke)', 'inbound' => false],
     ],
 
     /*
@@ -131,6 +174,7 @@ return [
     | follow_up: 'today' | 'working_days' (mit days) | 'required' | 'appointment' | null
     | closes: Vorgang wird geschlossen.
     | reached: zählt in der Auswertung als „erreicht“.
+    | brands: nur für diese Marken (fehlt = alle Marken).
     */
     'statuses' => [
         'new' => [
@@ -175,18 +219,106 @@ return [
         ],
         'handed_over' => [
             'label' => 'Übergeben an Förderweg', 'key' => null, 'color' => 'success',
-            'follow_up' => null, 'closes' => false, 'reached' => true,
+            'follow_up' => null, 'closes' => false, 'reached' => true, 'brands' => ['adk'],
         ],
         'enrolled' => [
             'label' => 'Teilnehmer (eingeschrieben)', 'key' => null, 'color' => 'success',
-            'follow_up' => null, 'closes' => false, 'reached' => true, 'manual' => false,
+            'follow_up' => null, 'closes' => false, 'reached' => true, 'manual' => false, 'brands' => ['adk'],
+        ],
+        'offer_sent' => [
+            'label' => 'Angebot versendet', 'key' => null, 'color' => 'info',
+            'follow_up' => 'working_days', 'days' => 5, 'closes' => false, 'reached' => true, 'brands' => ['jb'],
+        ],
+        'won' => [
+            'label' => 'Auftrag erhalten', 'key' => null, 'color' => 'success',
+            'follow_up' => null, 'closes' => true, 'reached' => true, 'brands' => ['jb'],
         ],
     ],
 
     /*
-    | Taste für das Merkmal Cross-Selling JB Design (ändert den Status nicht).
+    | Taste 0 in der Anrufliste: Vorgang für die andere Marke anlegen (Cross-Selling,
+    | z. B. Weiterbildung abgelehnt, aber Interesse an einer Website). Ändert den Status nicht.
     */
     'cross_selling_key' => '0',
+
+    /*
+    | Ampel zwischen den Marken: Bevor eine Marke einen Betrieb anruft, zählt, was die andere
+    | Marke mit ihm erlebt hat. Gilt für Anrufliste, Anruf per Klick und Import.
+    |  rot     gesperrt: Werbewiderspruch, oder „kein Interesse“ nach einer E-Mail (after_email_months)
+    |  blau    persönlich: läuft gerade bei der anderen Marke (active_statuses), dort Kunde,
+    |          oder die andere Marke versucht den Betrieb schon zu erreichen (älterer offener Vorgang)
+    |  gelb    später: „kein Interesse“ ohne E-Mail, frei nach cooldown_months
+    |  grün    frei
+    | Verknüpfte Vorgänge (Paket) sperren sich nicht gegenseitig.
+    */
+    'cross_brand' => [
+        'after_email_months' => 12,
+        'cooldown_months' => 3,
+        'customer_months' => 24,
+        'active_statuses' => ['interested', 'documents_sent', 'appointment', 'later', 'offer_sent', 'handed_over', 'enrolled'],
+        'declined_statuses' => ['no_interest', 'no_need'],
+    ],
+
+    /*
+    | Angebotsvorschlag je Betrieb: Womit geht die Anruferin ins Gespräch?
+    | Ohne Angestellte keine Förderung (§ 82 SGB III), also JB IT-Design. Mit Angestellten und
+    | eigener Website das Paket (Kurs bei der ADK, Umsetzung durch JB IT-Design).
+    */
+    'offer' => [
+        'package_min_employees' => 3,
+    ],
+
+    /*
+    | Halal-Filter beim Import (Marken mit halal_filter). Muster ohne Groß-/Kleinschreibung,
+    | geprüft an Firmenname und Branche; WZ-Codes als Anfang des Codes (64 = alle 64.xx).
+    | exclude: Zeile wird übersprungen. review: übersprungen, bis sie beim Import ausdrücklich
+    | als geprüft übernommen wird (z. B. Restaurant ohne Alkohol, Halal-Metzgerei).
+    */
+    'halal' => [
+        'exclude' => [
+            'Bank oder Kredit' => '(?<!daten|werk|sitz|garten|hantel)bank(?!ett)|sparkasse|kreditinstitut|kreditvermittl|darlehen|pfandleih|pfandhaus|leasing|factoring|baufinanzierung',
+            'Versicherung' => 'versicherung|assekuranz',
+            'Finanzvermittlung' => 'finanzberatung|finanzdienstleist|finanzmakler|finanzvermittl|vermögensverwalt|vermögensberat',
+            'Alkohol' => 'brauerei|bräu(?!n)|brauhaus|weinhandel|weingut|weinbau|winzer|weinbar|weinstube|weinkeller|weinhaus|vinothek|sektkellerei|spirituosen|destillerie|brennerei|likör|whisk(?:e)?y|cocktail|kneipe|biergarten|bierbar|schankwirtschaft|(?<!\p{L})pub(?!\p{L})|(?<!\p{L})bar(?!\p{L})|strandbar|sportsbar',
+            'Nachtleben oder Erotik' => 'disco|diskothek|nachtclub|tanzlokal|strip(?:club|tease|lokal)|table ?dance|erotik|(?<!\p{L})sex|bordell|laufhaus|escort|swinger|(?<!\p{L})fkk|rotlicht|peep ?show',
+            'Glücksspiel' => 'spielhalle|spielothek|casino|kasino|wettbüro|sportwett|lotto|lotterie|automatenaufsteller|poker|bingo',
+            'Schweinefleisch' => 'schwein(?!furt)|spanferkel',
+            'Wahrsagerei' => 'wahrsag|kartenleg|astrolog|horoskop|hellseh',
+        ],
+        'exclude_wz' => [
+            '64' => 'Finanzdienstleistungen', '65' => 'Versicherungen', '66' => 'Finanz- und Versicherungsvermittlung',
+            '1101' => 'Spirituosen', '1102' => 'Wein', '1103' => 'Apfelwein', '1104' => 'Wermut', '1105' => 'Bier', '1106' => 'Malz',
+            '5630' => 'Ausschank von Getränken', '92' => 'Glücksspiel',
+        ],
+        'review' => [
+            'Gastronomie (Alkohol?)' => 'restaurant|ristorante|gaststätte|gasthaus|gasthof|gastwirtschaft|wirtshaus|trattoria|taverne|pizzeria|hotel|lounge|eventlocation|festsaal|partyservice|catering',
+            'Handel (Alkohol, Tabak?)' => 'kiosk|supermarkt|tankstelle|getränke|tabak|zigar|shisha|e-zigarette|vape|dampfer',
+            'Fleisch (Schwein?)' => 'metzgerei|fleischerei|schlachterei|wurst|schinken',
+            'Sonstiges' => 'tattoo|piercing|massage|sauna',
+        ],
+        'review_wz' => [
+            '55' => 'Beherbergung', '561' => 'Restaurants', '562' => 'Caterer', '4634' => 'Großhandel Getränke',
+            '4635' => 'Großhandel Tabak', '4711' => 'Supermärkte', '4725' => 'Einzelhandel Getränke', '4726' => 'Einzelhandel Tabak',
+            '1011' => 'Schlachten', '1013' => 'Fleischverarbeitung', '4722' => 'Einzelhandel Fleisch', '12' => 'Tabakverarbeitung',
+        ],
+    ],
+
+    /*
+    | Website-Check (JB IT-Design): ruft die Startseite einmal auf, wie ein Browser, und liest,
+    | was jeder Besucher sieht: PHP-Version (Kopfzeile X-Powered-By) und System (meta generator).
+    | Kein Scannen, keine weiteren Seiten. Läuft alle 5 Minuten für einige offene Vorgänge.
+    */
+    'website_check' => [
+        'brands' => ['jb'],
+        'per_run' => 20,
+        'timeout' => 8,
+        'recheck_days' => 90,
+        // Ältere Zweige bekommen von PHP keine Sicherheitsupdates mehr.
+        'php_supported_from' => '8.2',
+        // Mindeststand je Zweig: Sicherheitsupdate Oktober 2026 (CVE-2026-109618/109619).
+        'php_patched' => ['8.2' => '8.2.35', '8.3' => '8.3.36', '8.4' => '8.4.27', '8.5' => '8.5.12'],
+        'user_agent' => 'Mozilla/5.0 (compatible; JB-IT-Design-Websitecheck/1.0; +https://jb-design.net)',
+    ],
 
     /*
     | Nach so vielen erfolglosen Versuchen fragt die Anrufliste

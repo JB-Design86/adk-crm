@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ImportLogs;
 use App\Filament\Resources\ImportLogs\Pages\ListImportLogs;
 use App\Filament\Resources\ImportLogs\Pages\ViewImportLog;
 use App\Models\ImportLog;
+use App\Support\Brand;
 use BackedEnum;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -64,11 +65,13 @@ class ImportLogResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('created_at')->label('Zeitpunkt')->dateTime('d.m.Y H:i')->sortable(),
+                TextColumn::make('brand')->label('Marke')->badge()->formatStateUsing(fn (string $state) => Brand::label($state))->color(fn (string $state) => Brand::color($state)),
                 TextColumn::make('file_name')->label('Datei')->searchable(),
                 TextColumn::make('source')->label('Quelle')->searchable(),
                 TextColumn::make('retrieved_at')->label('Abrufdatum')->date('d.m.Y'),
                 TextColumn::make('rows_total')->label('Zeilen')->numeric(),
                 TextColumn::make('rows_imported')->label('importiert')->numeric(),
+                TextColumn::make('rows_attached')->label('angehängt')->numeric()->tooltip('davon an Firmen, die schon bei der anderen Marke sind'),
                 TextColumn::make('rows_skipped')->label('übersprungen')->numeric(),
                 TextColumn::make('duplicates')->label('Dubletten')->numeric(),
                 TextColumn::make('suspected_duplicates')->label('Verdacht')->numeric()->tooltip('angelegt, aber in der Dublettenprüfung'),
@@ -85,6 +88,7 @@ class ImportLogResource extends Resource
             Section::make('Import')
                 ->columns(3)
                 ->schema([
+                    TextEntry::make('brand')->label('Marke')->formatStateUsing(fn (string $state) => Brand::name($state)),
                     TextEntry::make('file_name')->label('Datei'),
                     TextEntry::make('source')->label('Quelle'),
                     TextEntry::make('retrieved_at')->label('Abrufdatum')->date('d.m.Y'),
@@ -92,9 +96,29 @@ class ImportLogResource extends Resource
                     TextEntry::make('created_at')->label('Zeitpunkt')->dateTime('d.m.Y H:i'),
                     TextEntry::make('rows_total')->label('Zeilen gesamt'),
                     TextEntry::make('rows_imported')->label('importiert'),
+                    TextEntry::make('rows_attached')->label('davon an vorhandene Firmen angehängt'),
                     TextEntry::make('rows_skipped')->label('übersprungen'),
                     TextEntry::make('duplicates')->label('davon Dubletten'),
                     TextEntry::make('suspected_duplicates')->label('angelegt mit Dublettenverdacht (zur Prüfung)'),
+                ]),
+            Section::make('An vorhandene Firmen angehängt')
+                ->description('Diese Firmen kennt das CRM schon von der anderen Marke. Der neue Vorgang hängt an der vorhandenen Firma, die Ampel sagt, ab wann er angerufen wird.')
+                ->visible(fn (ImportLog $record) => filled($record->attached_rows))
+                ->schema([
+                    RepeatableEntry::make('attached_rows')
+                        ->hiddenLabel()
+                        ->table([
+                            RepeatableEntry\TableColumn::make('Zeile'),
+                            RepeatableEntry\TableColumn::make('Firmenname'),
+                            RepeatableEntry\TableColumn::make('Ampel'),
+                            RepeatableEntry\TableColumn::make('Grund'),
+                        ])
+                        ->schema([
+                            TextEntry::make('row'),
+                            TextEntry::make('name'),
+                            TextEntry::make('light'),
+                            TextEntry::make('reason'),
+                        ]),
                 ]),
             Section::make('Übersprungene Zeilen')
                 ->schema([

@@ -3,9 +3,14 @@
 namespace App\Filament\Resources\Leads\Schemas;
 
 use App\Filament\Resources\Contacts\ContactResource;
+use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Organizations\OrganizationResource;
 use App\Models\Lead;
+use App\Services\OfferSuggestion;
+use App\Services\TrafficLight;
+use App\Services\WebsiteCheck;
 use App\Support\Adk;
+use App\Support\Brand;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -23,16 +28,47 @@ class LeadInfolist
                     ->columns(2)
                     ->columnSpan(1)
                     ->schema([
+                        TextEntry::make('brand')
+                            ->label('Marke')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state) => Brand::name($state))
+                            ->color(fn (string $state) => Brand::color($state)),
                         TextEntry::make('status')
                             ->label('Status')
                             ->badge()
                             ->formatStateUsing(fn (string $state) => Adk::statusLabel($state))
                             ->color(fn (string $state) => Adk::statusColor($state)),
+                        TextEntry::make('cross_brand_light')
+                            ->label('Ampel')
+                            ->badge()
+                            ->state(fn (Lead $record) => TrafficLight::COLORS[$record->crossBrandLight()->color]['label'])
+                            ->color(fn (Lead $record) => $record->crossBrandLight()->filamentColor())
+                            ->icon(fn (Lead $record) => $record->crossBrandLight()->icon())
+                            ->helperText(fn (Lead $record) => $record->crossBrandLight()->reason)
+                            ->visible(fn (Lead $record) => $record->isOpen())
+                            ->columnSpanFull(),
+                        TextEntry::make('package_lead')
+                            ->label('Paket')
+                            ->state(fn (Lead $record) => $record->packageLead
+                                ? $record->packageLead->brandLabel().'-Vorgang: '.Adk::statusLabel($record->packageLead->status)
+                                : null)
+                            ->url(fn (Lead $record) => $record->packageLead ? LeadResource::getUrl('view', ['record' => $record->packageLead]) : null)
+                            ->icon('heroicon-o-sparkles')
+                            ->visible(fn (Lead $record) => $record->packageLead !== null)
+                            ->columnSpanFull(),
+                        TextEntry::make('offer_suggestion')
+                            ->label('Vorschlag fürs Gespräch')
+                            ->state(fn (Lead $record) => OfferSuggestion::for($record)?->text())
+                            ->visible(fn (Lead $record) => $record->isInAcquisition() && OfferSuggestion::for($record) !== null)
+                            ->columnSpanFull(),
                         TextEntry::make('close_reason')
                             ->label('Grund')
                             ->formatStateUsing(fn (?string $state) => config("adk.wrong_data_reasons.{$state}"))
                             ->visible(fn (Lead $record) => $record->close_reason !== null),
-                        TextEntry::make('target_group')->label('Zielgruppe')->formatStateUsing(fn ($state) => Adk::targetGroupLabel($state)),
+                        TextEntry::make('target_group')
+                            ->label('Zielgruppe')
+                            ->formatStateUsing(fn ($state) => Adk::targetGroupLabel($state))
+                            ->visible(fn (Lead $record) => $record->brand === 'adk'),
                         TextEntry::make('channel')->label('Eingangskanal')->formatStateUsing(fn ($state) => Adk::channelLabel($state)),
                         TextEntry::make('intake_ref')
                             ->label('Website-Vorgang')
@@ -45,8 +81,6 @@ class LeadInfolist
                         TextEntry::make('assignee.name')->label('zuständig')->placeholder('–'),
                         TextEntry::make('call_attempts')->label('Anrufversuche'),
                         TextEntry::make('last_contact_at')->label('letzter Kontakt')->dateTime('d.m.Y H:i')->placeholder('–'),
-                        IconEntry::make('cross_selling')->label('Cross-Selling JB Design')->boolean(),
-                        TextEntry::make('cross_selling_follow_up_at')->label('Wiedervorlage Cross-Selling')->date('d.m.Y')->placeholder('–'),
                         TextEntry::make('closed_at')->label('geschlossen am')->dateTime('d.m.Y H:i')->placeholder('offen'),
                         TextEntry::make('created_at')->label('angelegt am')->dateTime('d.m.Y H:i'),
                     ]),
@@ -74,7 +108,16 @@ class LeadInfolist
                             ->url(fn (Lead $record) => $record->organization?->phone_e164 ? 'tel:'.$record->organization->phone_e164 : null)
                             ->placeholder('–'),
                         TextEntry::make('organization.email')->label('E-Mail')->placeholder('–'),
-                        TextEntry::make('organization.website')->label('Website')->placeholder('–'),
+                        TextEntry::make('organization.website')
+                            ->label('Website')
+                            ->url(fn (Lead $record) => WebsiteCheck::url($record->organization?->website), shouldOpenInNewTab: true)
+                            ->placeholder('–'),
+                        TextEntry::make('website_check')
+                            ->label('Website-Check')
+                            ->state(fn (Lead $record) => WebsiteCheck::summary($record->organization))
+                            ->color(fn (Lead $record) => WebsiteCheck::isOutdated($record->organization) ? 'danger' : null)
+                            ->visible(fn (Lead $record) => $record->organization?->website_checked_at !== null)
+                            ->columnSpanFull(),
                         TextEntry::make('organization.employee_count')->label('Mitarbeitende')->placeholder('–'),
                         TextEntry::make('organization.source')->label('Quelle'),
                         TextEntry::make('organization.retrieved_at')->label('Abrufdatum')->date('d.m.Y'),

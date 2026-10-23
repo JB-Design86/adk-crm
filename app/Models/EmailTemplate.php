@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Brand;
 use App\Support\MailHtml;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -38,12 +39,13 @@ class EmailTemplate extends Model
         '{vorname}' => 'Vorname der Ansprechperson',
         '{nachname}' => 'Nachname der Ansprechperson',
         '{firma}' => 'Name des Betriebs',
-        '{absender}' => 'Ihr Name aus Microsoft 365',
+        '{absender}' => 'Ihr Name aus Microsoft 365 (Postfach der Marke)',
     ];
 
     protected $guarded = ['id'];
 
     protected $attributes = [
+        'brand' => 'adk',
         'is_active' => true,
         'sort_order' => 0,
     ];
@@ -85,7 +87,7 @@ class EmailTemplate extends Model
     {
         return LogOptions::defaults()
             ->useLogName('email_templates')
-            ->logOnly(['name', 'subject', 'body', 'body_is_code', 'attachment_name', 'is_active', 'sort_order'])
+            ->logOnly(['brand', 'name', 'subject', 'body', 'body_is_code', 'attachment_name', 'is_active', 'sort_order'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }
@@ -98,6 +100,12 @@ class EmailTemplate extends Model
     public function scopeOrdered(Builder $query): Builder
     {
         return $query->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Vorlagen einer Marke (ADK-Vorlagen sprechen von Förderung, JB-Vorlagen von Websites). */
+    public function scopeForBrand(Builder $query, ?string $brand): Builder
+    {
+        return $query->where('brand', $brand ?? Brand::default());
     }
 
     public function hasAttachment(): bool

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Brand;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -18,7 +19,7 @@ use SensitiveParameter;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-#[Fillable(['name', 'email', 'password', 'role', 'is_blocked', 'blocked_at'])]
+#[Fillable(['name', 'email', 'password', 'role', 'brands', 'is_blocked', 'blocked_at'])]
 #[Hidden(['password', 'remember_token', 'app_authentication_secret', 'app_authentication_recovery_codes'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {
@@ -30,6 +31,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'brands' => 'array',
             'is_blocked' => 'boolean',
             'blocked_at' => 'datetime',
             'last_login_at' => 'datetime',
@@ -42,7 +44,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         return LogOptions::defaults()
             ->useLogName('users')
-            ->logOnly(['name', 'email', 'role', 'is_blocked'])
+            ->logOnly(['name', 'email', 'role', 'brands', 'is_blocked'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }
@@ -69,6 +71,30 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return config("adk.roles.{$this->role}.label", $this->role);
     }
 
+    /**
+     * Marken, die das Konto sieht (Reihenfolge wie in config adk.brands). Leer = alle.
+     *
+     * @return list<string>
+     */
+    public function allowedBrands(): array
+    {
+        $all = Brand::keys();
+        $chosen = array_values(array_intersect($all, (array) $this->brands));
+
+        return $chosen === [] ? $all : $chosen;
+    }
+
+    /** Sieht das Konto nur einen Teil der Marken? Dann blendet das CRM Vorgänge der anderen aus. */
+    public function isBrandRestricted(): bool
+    {
+        return count($this->allowedBrands()) < count(Brand::keys());
+    }
+
+    public function canUseBrand(?string $brand): bool
+    {
+        return in_array($brand, $this->allowedBrands(), true);
+    }
+
     public function hasTwoFactor(): bool
     {
         return filled($this->app_authentication_secret);
@@ -78,9 +104,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         $this->forceFill(['is_blocked' => true, 'blocked_at' => now()])->save();
 
-        // Gesperrte Konten dürfen nicht weiter über sipgate telefonieren oder aus ihrem Postfach senden.
+        // Gesperrte Konten dürfen nicht weiter über sipgate telefonieren oder aus ihren Postfächern senden.
         $this->sipgateConnection()->delete();
-        $this->mailConnection()->delete();
+        $this->mailConnections()->delete();
     }
 
     public function unblock(): void
@@ -93,9 +119,21 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->hasOne(SipgateConnection::class);
     }
 
+    /** Postfach der Standardmarke (ADK). Für eine bestimmte Marke: mailConnectionFor(). */
     public function mailConnection(): HasOne
     {
-        return $this->hasOne(MailConnection::class);
+        return $this->hasOne(MailConnection::class)->where('brand', Brand::default());
+    }
+
+    public function mailConnections(): HasMany
+    {
+        return $this->hasMany(MailConnection::class);
+    }
+
+    /** Verbundenes Postfach einer Marke, z. B. contact@jb-design.net für JB IT-Design. */
+    public function mailConnectionFor(?string $brand): ?MailConnection
+    {
+        return $this->mailConnections()->where('brand', $brand ?? Brand::default())->first();
     }
 
     public function assignedLeads(): HasMany

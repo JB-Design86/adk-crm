@@ -7,7 +7,9 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\MicrosoftController;
 use App\Http\Controllers\SipgateController;
 use App\Http\Middleware\EnsureUserIsNotBlocked;
+use App\Livewire\BrandSwitcher;
 use App\Livewire\CallbackReminder;
+use App\Models\User;
 use App\Support\InitialsAvatarProvider;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\FontProviders\LocalFontProvider;
@@ -36,7 +38,8 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('crm')
             ->path('')
-            ->brandName('ADK CRM')
+            // Ein Konto nur für JB IT-Design sieht „JB IT-Design CRM“, alle anderen „ADK CRM“.
+            ->brandName(fn (): string => ($user = auth()->user()) instanceof User && $user->allowedBrands() === ['jb'] ? 'JB IT-Design CRM' : 'ADK CRM')
             ->login()
             ->profile(isSimple: false)
             // Zwei-Faktor-Anmeldung per Authenticator-App ist für alle Konten Pflicht.
@@ -71,6 +74,8 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotifications(false)
             // Erinnerung an fällige Rückrufe mit Uhrzeit auf jeder Seite (nur angemeldet).
             ->renderHook(PanelsRenderHook::BODY_END, fn (): string => auth()->check() ? Livewire::mount(CallbackReminder::class) : '')
+            // Umschalter ADK / JB IT-Design / alle Marken oben rechts.
+            ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_BEFORE, fn (): string => auth()->check() ? Livewire::mount(BrandSwitcher::class) : '')
             ->unsavedChangesAlerts()
             ->middleware([
                 EncryptCookies::class,

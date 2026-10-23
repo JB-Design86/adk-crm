@@ -16,6 +16,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use UnitEnum;
@@ -37,6 +38,14 @@ class OrganizationResource extends Resource
     protected static ?string $slug = 'organisationen';
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    /** Konten mit eingeschränkten Marken sehen nur Betriebe mit Vorgängen ihrer Marken (Scope am Vorgang). */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        return auth()->user()?->isBrandRestricted() ? $query->whereHas('leads') : $query;
+    }
 
     public static function canViewAny(): bool
     {

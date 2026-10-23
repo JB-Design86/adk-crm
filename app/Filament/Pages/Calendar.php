@@ -95,7 +95,7 @@ class Calendar extends Page
     /**
      * Einträge je Tag: Termine und Wiedervorlagen.
      *
-     * @return array<string, array{appointments: list<Appointment>, followUps: list<Lead>, followUpCount: int, crossSelling: list<Lead>}>
+     * @return array<string, array{appointments: list<Appointment>, followUps: list<Lead>, followUpCount: int}>
      */
     #[Computed]
     public function entries(): array
@@ -106,6 +106,8 @@ class Calendar extends Page
 
         $appointments = Appointment::query()
             ->with(['lead.organization', 'lead.contact', 'user'])
+            // Nur Vorgänge, die das Konto sieht, und die oben gewählte Marke.
+            ->whereHas('lead', fn (Builder $q) => $q->ofCurrentBrand())
             ->whereBetween('starts_at', [$from, $until])
             ->when($this->onlyMine, fn (Builder $q) => $q->where('user_id', auth()->id()))
             ->orderBy('starts_at')
@@ -114,6 +116,7 @@ class Calendar extends Page
 
         $leadQuery = fn () => Lead::query()
             ->with(['organization', 'contact'])
+            ->ofCurrentBrand()
             ->whereNull('closed_at')
             ->when($this->onlyMine, fn (Builder $q) => $q->where('assigned_to', auth()->id()));
 
@@ -128,13 +131,6 @@ class Calendar extends Page
             ->get()
             ->groupBy(fn (Lead $lead) => $lead->next_action_at->toDateString());
 
-        $crossSelling = $leadQuery()
-            ->where('cross_selling', true)
-            ->whereDate('cross_selling_follow_up_at', '>=', $from->toDateString())
-            ->whereDate('cross_selling_follow_up_at', '<=', $until->toDateString())
-            ->get()
-            ->groupBy(fn (Lead $lead) => $lead->cross_selling_follow_up_at->toDateString());
-
         $result = [];
 
         foreach ($days as $day) {
@@ -145,7 +141,6 @@ class Calendar extends Page
                 'appointments' => $appointments->get($key, collect())->all(),
                 'followUps' => $this->mode === 'day' ? $dayFollowUps->all() : $dayFollowUps->take(self::DAY_LIMIT)->all(),
                 'followUpCount' => $dayFollowUps->count(),
-                'crossSelling' => $crossSelling->get($key, collect())->all(),
             ];
         }
 

@@ -4,6 +4,8 @@
     $contact = $lead?->contact;
     $blockReason = $lead?->callBlockReason();
     $follow = $status ? config("adk.statuses.{$status}.follow_up") : null;
+    $suggestion = $lead ? \App\Services\OfferSuggestion::for($lead) : null;
+    $websiteCheck = \App\Services\WebsiteCheck::summary($organization);
 @endphp
 
 <x-filament-panels::page>
@@ -86,7 +88,8 @@
                         <span class="text-xl">{{ $lead->displayName() }}</span>
                     </x-slot>
                     <x-slot name="afterHeader">
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <x-filament::badge :color="\App\Support\Brand::color($lead->brand)">{{ $lead->brandLabel() }}</x-filament::badge>
                             @if ($lead->isCallbackDue())
                                 <x-filament::badge color="danger" icon="heroicon-o-clock">Rückruf {{ $lead->next_action_time }} Uhr</x-filament::badge>
                             @endif
@@ -94,8 +97,8 @@
                                 <x-filament::badge color="gray">Priorität {{ $organization->priority }}</x-filament::badge>
                             @endif
                             <x-filament::badge :color="\App\Support\Adk::statusColor($lead->status)">{{ \App\Support\Adk::statusLabel($lead->status) }}</x-filament::badge>
-                            @if ($lead->cross_selling)
-                                <x-filament::badge color="info" icon="heroicon-o-sparkles">Cross-Selling</x-filament::badge>
+                            @if ($lead->packageLead)
+                                <x-filament::badge color="info" icon="heroicon-o-sparkles" :tooltip="'Paket: '.$lead->packageLead->brandLabel().'-Vorgang „'.\App\Support\Adk::statusLabel($lead->packageLead->status).'“'">Paket</x-filament::badge>
                             @endif
                         </div>
                     </x-slot>
@@ -107,6 +110,13 @@
                                 <p class="font-semibold">Kein Anruf möglich</p>
                                 <p class="text-sm">{{ $blockReason }}</p>
                             </div>
+                        </div>
+                    @endif
+
+                    @if ($suggestion)
+                        <div class="mb-4 flex items-start gap-3 rounded-lg border border-primary-200 bg-primary-50 p-3 text-sm dark:border-primary-500/30 dark:bg-primary-500/10">
+                            <x-filament::icon icon="heroicon-o-light-bulb" class="h-5 w-5 shrink-0 text-primary-600 dark:text-primary-400" />
+                            <p><span class="font-semibold">Vorschlag: {{ $suggestion->label() }}.</span> {{ $suggestion->reason }}</p>
                         </div>
                     @endif
 
@@ -132,7 +142,19 @@
                             <div><dt class="text-gray-500">Branche</dt><dd>{{ $organization->industry ?? '–' }} @if ($organization->wz_code)<span class="text-gray-500">(WZ {{ $organization->wz_code }})</span>@endif</dd></div>
                             <div><dt class="text-gray-500">Anschrift</dt><dd>{{ $organization->street }}, {{ $organization->postal_code }} {{ $organization->city }}</dd></div>
                             <div><dt class="text-gray-500">Mitarbeitende</dt><dd>{{ $organization->employee_count ?? '–' }} @if ($organization->is_training_company) · Ausbildungsbetrieb @endif</dd></div>
-                            <div><dt class="text-gray-500">Website</dt><dd>{{ $organization->website ?? '–' }}</dd></div>
+                            <div>
+                                <dt class="text-gray-500">Website</dt>
+                                <dd>
+                                    @if ($organization->website)
+                                        <a href="{{ \App\Services\WebsiteCheck::url($organization->website) }}" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:underline dark:text-primary-400">{{ $organization->website }}</a>
+                                    @else
+                                        –
+                                    @endif
+                                    @if ($websiteCheck)
+                                        <span @class(['block text-xs', 'font-semibold text-danger-600 dark:text-danger-400' => \App\Services\WebsiteCheck::isOutdated($organization), 'text-gray-500' => ! \App\Services\WebsiteCheck::isOutdated($organization)])>{{ $websiteCheck }}</span>
+                                    @endif
+                                </dd>
+                            </div>
                             <div><dt class="text-gray-500">E-Mail</dt><dd>{{ $organization->email ?? '–' }}</dd></div>
                             <div><dt class="text-gray-500">Quelle</dt><dd>{{ $organization->source }} ({{ $organization->retrieved_at?->format('d.m.Y') }})@if ($organization->source_url) · <a href="{{ $organization->source_url }}" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:underline dark:text-primary-400">Fundstelle</a>@endif</dd></div>
                         @endif
@@ -140,7 +162,11 @@
                             <div><dt class="text-gray-500">Ansprechpartner</dt><dd>{{ $contact->fullName() }} @if ($contact->position)<span class="text-gray-500">· {{ $contact->position }}</span>@endif</dd></div>
                             <div><dt class="text-gray-500">Kontakt</dt><dd>{{ $contact->phone_display ?? '' }} {{ $contact->email ?? '' }}</dd></div>
                         @endif
-                        <div><dt class="text-gray-500">Zielgruppe / Kanal</dt><dd>{{ \App\Support\Adk::targetGroupLabel($lead->target_group) }} · {{ \App\Support\Adk::channelLabel($lead->channel) }}</dd></div>
+                        @if ($lead->brand === 'adk')
+                            <div><dt class="text-gray-500">Zielgruppe / Kanal</dt><dd>{{ \App\Support\Adk::targetGroupLabel($lead->target_group) }} · {{ \App\Support\Adk::channelLabel($lead->channel) }}</dd></div>
+                        @else
+                            <div><dt class="text-gray-500">Kanal</dt><dd>{{ \App\Support\Adk::channelLabel($lead->channel) }}</dd></div>
+                        @endif
                         <div><dt class="text-gray-500">Versuche / Wiedervorlage</dt><dd>{{ $lead->call_attempts }} · {{ $lead->nextActionLabel() ?? 'noch keine' }}</dd></div>
                     </dl>
 
@@ -188,13 +214,25 @@
                     </div>
 
                     @if ($crossSellingOpen)
-                        <div class="flex flex-wrap items-end gap-3 rounded-lg bg-gray-50 p-3 dark:bg-white/5">
-                            <div>
-                                <label class="text-sm font-medium">Wiedervorlage Cross-Selling JB Design</label>
-                                <input type="date" wire:model="crossSellingDate" min="{{ today()->toDateString() }}" class="mt-1 block rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5" />
-                                @error('crossSellingDate') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+                        <div class="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-white/5">
+                            <p class="text-sm font-medium">Cross-Selling: Vorgang für {{ \App\Support\Brand::name(\App\Support\Brand::other($lead->brand)) }} anlegen (Paket). Der Status hier bleibt.</p>
+                            <div class="flex flex-wrap items-end gap-3">
+                                <div>
+                                    <label class="text-sm font-medium">Ergebnis</label>
+                                    <select wire:model="crossSellingStatus" class="mt-1 block rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5">
+                                        @foreach ($this->crossSellingOptions() as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium">Wiedervorlage</label>
+                                    <input type="date" wire:model="crossSellingDate" min="{{ today()->toDateString() }}" class="mt-1 block rounded-lg border-gray-300 dark:border-white/10 dark:bg-white/5" />
+                                </div>
+                                <x-filament::button wire:click="saveCrossSelling" color="info" size="sm" icon="heroicon-o-sparkles">Vorgang anlegen</x-filament::button>
                             </div>
-                            <x-filament::button wire:click="saveCrossSelling" color="info" size="sm">Merkmal setzen</x-filament::button>
+                            @error('crossSellingDate') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+                            <p class="text-xs text-gray-500">Die Notiz oben geht mit. Für einen Termin bitte „Vorgang öffnen“ und dort „Vorgang für … anlegen“.</p>
                         </div>
                     @endif
 

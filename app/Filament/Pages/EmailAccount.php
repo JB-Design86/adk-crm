@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\MailConnection;
 use App\Services\Microsoft\MicrosoftClient;
+use App\Support\Brand;
 use App\Support\Hilfe;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -20,6 +21,7 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use UnitEnum;
 
 /**
@@ -43,6 +45,10 @@ class EmailAccount extends Page
     /** @var array<string, mixed>|null Formular Signatur */
     public ?array $data = [];
 
+    /** Marke des Postfachs (?marke=jb), je Marke ein eigenes Postfach mit eigener Signatur. */
+    #[Url(as: 'marke')]
+    public string $brand = '';
+
     public static function canAccess(): bool
     {
         return Gate::allows('leads.edit');
@@ -56,7 +62,17 @@ class EmailAccount extends Page
 
     public function mount(): void
     {
+        if (! auth()->user()->canUseBrand($this->brand)) {
+            $this->brand = Brand::currentOrDefault();
+        }
+
         $this->fillSignatureForm();
+    }
+
+    /** @return array<string, string> */
+    public function brandOptions(): array
+    {
+        return Brand::options(auth()->user());
     }
 
     /** Bisherige Text-Signatur wird beim ersten Öffnen als Absätze in den Editor übernommen. */
@@ -118,13 +134,13 @@ class EmailAccount extends Page
     #[Computed]
     public function configured(): bool
     {
-        return MicrosoftClient::isConfigured();
+        return MicrosoftClient::isConfigured($this->brand);
     }
 
     #[Computed]
     public function connection(): ?MailConnection
     {
-        return auth()->user()->mailConnection;
+        return auth()->user()->mailConnectionFor($this->brand);
     }
 
     public function saveSignature(): void
@@ -174,15 +190,15 @@ class EmailAccount extends Page
                 ->icon(Heroicon::OutlinedLink)
                 ->color('gray')
                 ->visible(fn () => $this->configured() && $this->connection())
-                ->url(fn () => route('filament.crm.microsoft.connect')),
+                ->url(fn () => route('filament.crm.microsoft.connect', ['marke' => $this->brand])),
             Action::make('disconnect')
                 ->label('Verbindung trennen')
                 ->icon(Heroicon::OutlinedLinkSlash)
                 ->color('danger')
                 ->visible(fn () => $this->connection() !== null)
                 ->requiresConfirmation()
-                ->modalHeading('Postfach trennen?')
-                ->modalDescription('Das CRM kann danach keine E-Mails mehr aus Ihrem Postfach senden, und Ihre Signatur im CRM wird gelöscht. Gesendete E-Mails bleiben in Outlook und im Verlauf der Vorgänge.')
+                ->modalHeading(fn () => 'Postfach für '.Brand::label($this->brand).' trennen?')
+                ->modalDescription('Das CRM kann danach keine E-Mails mehr aus diesem Postfach senden, und die Signatur dazu wird gelöscht. Gesendete E-Mails bleiben in Outlook und im Verlauf der Vorgänge.')
                 ->modalSubmitActionLabel('Trennen')
                 ->action(function () {
                     if ($this->connection()->signature_logo_path) {
@@ -193,7 +209,7 @@ class EmailAccount extends Page
                     unset($this->connection);
                     $this->fillSignatureForm();
 
-                    activity('microsoft')->causedBy(auth()->user())->event('disconnected')->log('Microsoft 365 getrennt');
+                    activity('microsoft')->causedBy(auth()->user())->event('disconnected')->withProperties(['brand' => Brand::label($this->brand)])->log('Microsoft 365 getrennt');
                     Notification::make()->title('Ihr Postfach ist getrennt')->success()->send();
                 }),
         ];

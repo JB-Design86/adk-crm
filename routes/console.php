@@ -11,6 +11,12 @@ Schedule::command('adk:loeschlauf')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/loeschlauf.log'));
 
+// Website-Check (JB IT-Design): einige Websites offener Vorgänge je Lauf, sichtbare PHP-Version und System.
+Schedule::command('adk:website-check')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // sipgate: neue Anrufe alle 5 Minuten als Aktivität übernehmen (nur wenn eingerichtet).
 Schedule::command('adk:sipgate-abgleich')
     ->everyFiveMinutes()

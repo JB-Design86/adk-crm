@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Lead;
 use App\Models\User;
 use App\Support\Adk;
+use App\Support\Brand;
 use App\Support\Spreadsheet;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
@@ -17,9 +18,9 @@ use InvalidArgumentException;
 class LeadExportService
 {
     public const HEADER = [
-        'Vorgang', 'Status', 'Zielgruppe', 'Eingangskanal', 'Firma', 'Priorität', 'Branche', 'PLZ', 'Ort',
-        'Telefon', 'E-Mail', 'Ansprechpartner', 'Telefon Ansprechpartner', 'E-Mail Ansprechpartner',
-        'Anrufversuche', 'Wiedervorlage', 'zuständig', 'Cross-Selling', 'Wiedervorlage Cross-Selling',
+        'Vorgang', 'Marke', 'Status', 'Zielgruppe', 'Eingangskanal', 'Firma', 'Priorität', 'Branche', 'PLZ', 'Ort',
+        'Telefon', 'E-Mail', 'Website', 'PHP-Version (Website-Check)', 'Ansprechpartner', 'Telefon Ansprechpartner', 'E-Mail Ansprechpartner',
+        'Anrufversuche', 'Wiedervorlage', 'zuständig', 'Paket mit Vorgang',
         'letzter Kontakt', 'geschlossen am', 'Quelle', 'Abrufdatum',
     ];
 
@@ -69,6 +70,7 @@ class LeadExportService
 
         return [
             $lead->id,
+            Brand::label($lead->brand),
             Adk::statusLabel($lead->status),
             Adk::targetGroupLabel($lead->target_group),
             Adk::channelLabel($lead->channel),
@@ -79,14 +81,15 @@ class LeadExportService
             $organization?->city,
             $organization?->phone_display,
             $organization?->email,
+            $organization?->website,
+            $organization?->website_php,
             $contact?->fullName(),
             $contact?->phone_display,
             $contact?->email,
             $lead->call_attempts,
             $lead->next_action_at ? trim($lead->next_action_at->format('d.m.Y').' '.$lead->next_action_time) : null,
             $lead->assignee?->name,
-            $lead->cross_selling ? 'ja' : 'nein',
-            $lead->cross_selling_follow_up_at?->format('d.m.Y'),
+            $lead->package_lead_id,
             $lead->last_contact_at?->format('d.m.Y H:i'),
             $lead->closed_at?->format('d.m.Y H:i'),
             $organization?->source,

@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\AllowedBrandScope;
+use App\Services\CrossBrand;
+use App\Services\TrafficLight;
 use App\Support\Adk;
+use App\Support\Brand;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +38,9 @@ class Lead extends Model
     /** Uhrzeit der Wiedervorlage seit dem letzten Speichern ausdrücklich gesetzt (siehe booted()). */
     private bool $nextActionTimeAssigned = false;
 
+    /** Ampel zwischen den Marken, einmal je geladenem Vorgang berechnet (siehe crossBrandLight()). */
+    private ?TrafficLight $crossBrandLight = null;
+
     protected function casts(): array
     {
         return [
@@ -48,6 +56,8 @@ class Lead extends Model
 
     protected static function booted(): void
     {
+        static::addGlobalScope(new AllowedBrandScope);
+
         static::creating(function (Lead $lead) {
             // Eingehende Anfragen: Wiedervorlage am selben Tag.
             if ($lead->status === 'new' && $lead->next_action_at === null && Adk::isInbound($lead->channel)) {
@@ -59,13 +69,23 @@ class Lead extends Model
 
         // Die Uhrzeit gehört zum Datum: neues Datum ohne neue Uhrzeit heißt „irgendwann am Tag“.
         static::saving(function (Lead $lead) {
+            $lead->brand ??= Brand::default();
+
             if ($lead->next_action_at === null || ($lead->isDirty('next_action_at') && ! $lead->nextActionTimeAssigned)) {
                 $lead->next_action_time = null;
+            }
+
+            // Ein Konto mit eingeschränkten Marken legt keine Vorgänge anderer Marken an.
+            $user = auth()->user();
+
+            if ($lead->isDirty('brand') && $user instanceof User && ! $user->canUseBrand($lead->brand)) {
+                throw new AuthorizationException('Für diese Marke ist Ihr Konto nicht freigeschaltet.');
             }
         });
 
         static::saved(function (Lead $lead) {
             $lead->nextActionTimeAssigned = false;
+            $lead->crossBrandLight = null;
         });
     }
 
@@ -110,6 +130,35 @@ class Lead extends Model
     public function importLog(): BelongsTo
     {
         return $this->belongsTo(ImportLog::class);
+    }
+
+    /** Vorgang der anderen Marke zur selben Firma (Paket), für Konten ohne diese Marke leer. */
+    public function packageLead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'package_lead_id');
+    }
+
+    public function brandLabel(): string
+    {
+        return Brand::label($this->brand);
+    }
+
+    /** Ampel zwischen den Marken (config adk.cross_brand). Nur grün darf kalt angerufen werden. */
+    public function crossBrandLight(): TrafficLight
+    {
+        return $this->crossBrandLight ??= app(CrossBrand::class)->forLead($this);
+    }
+
+    /** Nur die oben gewählte Marke (Umschalter), bei „alle Marken“ keine Einschränkung. */
+    public function scopeOfCurrentBrand(Builder $query): Builder
+    {
+        return $query->when(Brand::current(), fn (Builder $q, string $brand) => $q->where($q->qualifyColumn('brand'), $brand));
+    }
+
+    /** Offen und mit grüner Ampel (siehe CrossBrand). */
+    public function scopeFreeAcrossBrands(Builder $query): Builder
+    {
+        return CrossBrand::scopeFree($query);
     }
 
     public function activities(): HasMany
@@ -297,6 +346,12 @@ class Lead extends Model
 
         if ($this->phoneE164() === null) {
             return 'Es ist keine Telefonnummer hinterlegt.';
+        }
+
+        // Ampel zwischen den Marken: nicht zweimal oder nach einer Absage gleich wieder anrufen.
+        // Eingehende Anfragen hat die Person selbst gestellt, dort gilt die Ampel nicht.
+        if (! $this->isInbound() && ! ($light = $this->crossBrandLight())->isGreen()) {
+            return $light->label().'. '.$light->reason;
         }
 
         return null;

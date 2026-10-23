@@ -10,6 +10,7 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Services\LeadStatusService;
 use App\Support\Adk;
+use App\Support\Brand;
 use App\Support\MailHtml;
 use App\Support\Normalizer;
 use Illuminate\Support\Carbon;
@@ -33,10 +34,12 @@ class LeadEmail
 
     public function __construct(private GraphMailer $mailer) {}
 
-    /** Knopf „E-Mail schreiben“ mit Formular statt Hinweis auf „E-Mail-Konto“? */
-    public static function connectedFor(?User $user): bool
+    /** Knopf „E-Mail schreiben“ mit Formular statt Hinweis auf „E-Mail-Konto“? Je Marke ein eigenes Postfach. */
+    public static function connectedFor(?User $user, ?string $brand = null): bool
     {
-        return $user !== null && MicrosoftClient::isConfigured() && $user->mailConnection()->exists();
+        $brand ??= Brand::default();
+
+        return $user !== null && MicrosoftClient::isConfigured($brand) && $user->mailConnections()->where('brand', $brand)->exists();
     }
 
     /** Status, die sich beim Senden gleich mit setzen lassen (ohne weitere Angaben außer der Wiedervorlage). */
@@ -81,7 +84,7 @@ class LeadEmail
             '{vorname}' => (string) $contact?->first_name,
             '{nachname}' => (string) $contact?->last_name,
             '{firma}' => (string) $lead->organization?->name,
-            '{absender}' => (string) ($sender?->mailConnection?->display_name ?: $sender?->name),
+            '{absender}' => (string) ($sender?->mailConnectionFor($lead->brand)?->display_name ?: $sender?->name),
         ];
     }
 
@@ -133,14 +136,15 @@ class LeadEmail
 
     private function deliver(User $user, Lead $lead, array $data): Activity
     {
-        if (! MicrosoftClient::isConfigured()) {
-            throw new RuntimeException('E-Mail aus dem CRM ist noch nicht eingerichtet.');
+        if (! MicrosoftClient::isConfigured($lead->brand)) {
+            throw new RuntimeException('E-Mail aus dem CRM ist für '.Brand::label($lead->brand).' noch nicht eingerichtet.');
         }
 
-        $connection = $user->mailConnection;
+        // Absender ist das Postfach der Marke des Vorgangs, z. B. contact@jb-design.net bei JB IT-Design.
+        $connection = $user->mailConnectionFor($lead->brand);
 
         if ($connection === null) {
-            throw new RuntimeException('Bitte verbinden Sie zuerst unter „E-Mail-Konto“ Ihr Microsoft-365-Postfach.');
+            throw new RuntimeException('Bitte verbinden Sie zuerst unter „E-Mail-Konto“ Ihr Microsoft-365-Postfach für '.Brand::label($lead->brand).'.');
         }
 
         if (! $lead->isOpen()) {
@@ -198,8 +202,8 @@ class LeadEmail
             throw new RuntimeException($reason.' Bitte „vorher telefoniert“ abwählen.');
         }
 
-        $template = filled($data['email_template_id'] ?? null) ? EmailTemplate::find($data['email_template_id']) : null;
-        $attachments = [...$this->templateAttachments($data, $template), ...$this->uploadedAttachments($data)];
+        $template = filled($data['email_template_id'] ?? null) ? EmailTemplate::forBrand($lead->brand)->find($data['email_template_id']) : null;
+        $attachments = [...$this->templateAttachments($data, $template, $lead->brand), ...$this->uploadedAttachments($data)];
         $names = array_column($attachments, 'name');
 
         $reference = $this->mailer->sendMail($connection, $to, $subject, $html, $attachments);
@@ -266,7 +270,7 @@ class LeadEmail
      *
      * @return list<array{name: string, content_type: string, contents: string}>
      */
-    private function templateAttachments(array $data, ?EmailTemplate $template): array
+    private function templateAttachments(array $data, ?EmailTemplate $template, ?string $brand): array
     {
         $ids = array_filter((array) ($data['email_template_files'] ?? []), 'filled');
 
@@ -278,7 +282,7 @@ class LeadEmail
             return [];
         }
 
-        return EmailTemplate::query()->whereKey($ids)->ordered()->get()
+        return EmailTemplate::query()->forBrand($brand)->whereKey($ids)->ordered()->get()
             ->filter(fn (EmailTemplate $chosen) => $chosen->hasAttachment())
             ->map(fn (EmailTemplate $chosen) => $this->templateAttachment($chosen))
             ->values()

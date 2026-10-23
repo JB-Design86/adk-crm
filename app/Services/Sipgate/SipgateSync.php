@@ -5,6 +5,7 @@ namespace App\Services\Sipgate;
 use App\Models\Activity;
 use App\Models\Lead;
 use App\Models\SipgateConnection;
+use App\Support\Brand;
 use App\Support\Phone;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,8 +61,10 @@ class SipgateSync
             $direction = $entry['direction'] ?? 'OUTGOING';
             $outgoing = str_contains($direction, 'OUTGOING');
             $number = self::number($outgoing ? ($entry['target'] ?? null) : ($entry['source'] ?? null));
+            // Eigene Nummer (angezeigt bzw. angerufen) zeigt die Marke, z. B. 06131 8888867 = JB IT-Design.
+            $brand = self::brandForNumber(self::number($outgoing ? ($entry['source'] ?? null) : ($entry['target'] ?? null)));
 
-            if ($number === null || ! ($lead = $this->findLead($number))) {
+            if ($number === null || ! ($lead = $this->findLead($number, $brand))) {
                 continue;
             }
 
@@ -92,16 +95,33 @@ class SipgateSync
         return $created;
     }
 
-    /** Offene Vorgänge zuerst, sonst der zuletzt kontaktierte. */
-    private function findLead(string $e164): ?Lead
+    /** Vorgänge der Marke zuerst (falls bekannt), dann offene, sonst der zuletzt kontaktierte. */
+    private function findLead(string $e164, ?string $brand = null): ?Lead
     {
         return Lead::query()
             ->where(fn (Builder $q) => $q
                 ->whereHas('contact', fn (Builder $c) => $c->where('phone_e164', $e164))
                 ->orWhereHas('organization', fn (Builder $o) => $o->where('phone_e164', $e164)))
+            ->when($brand, fn (Builder $q) => $q->orderByRaw('CASE WHEN brand = ? THEN 0 ELSE 1 END', [$brand]))
             ->orderByRaw('closed_at IS NOT NULL')
             ->orderByDesc('last_contact_at')
             ->first();
+    }
+
+    /** Marke zur eigenen Rufnummer (config services.sipgate.caller_ids), null wenn keine passt. */
+    public static function brandForNumber(?string $e164): ?string
+    {
+        if ($e164 === null) {
+            return null;
+        }
+
+        foreach (Brand::keys() as $brand) {
+            if ('+'.SipgateClient::callerId($brand) === $e164) {
+                return $brand;
+            }
+        }
+
+        return null;
     }
 
     /**

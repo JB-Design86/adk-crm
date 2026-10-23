@@ -15,6 +15,7 @@ class ImportLog extends Model
         return [
             'retrieved_at' => 'date',
             'skipped_rows' => 'array',
+            'attached_rows' => 'array',
         ];
     }
 

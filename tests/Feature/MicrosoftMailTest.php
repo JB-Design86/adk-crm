@@ -1004,3 +1004,61 @@ it('bietet inaktive Vorlagen nicht an', function () {
         ->mountAction('sendEmail')
         ->assertFormFieldExists('email_template_id', fn ($field) => array_values($field->getOptions()) === ['Nachfassen']);
 });
+
+it('verbindet für JB IT-Design ein eigenes Postfach im Mandanten von jb-design.net', function () {
+    config(['services.microsoft.brands.jb.tenant' => 'jb-tenant']);
+    $adk = mailConnection($this->user);
+
+    $location = $this->get(route('filament.crm.microsoft.connect', ['marke' => 'jb']))->assertRedirect()->headers->get('Location');
+    expect($location)->toStartWith('https://login.microsoftonline.com/jb-tenant/oauth2/v2.0/authorize?')
+        ->and(session('microsoft_oauth_brand'))->toBe('jb');
+
+    Http::fake([
+        'login.microsoftonline.com/*' => Http::response(['access_token' => 'access-jb', 'refresh_token' => 'refresh-jb', 'expires_in' => 3599, 'scope' => 'Mail.Send User.Read']),
+        'graph.microsoft.com/v1.0/me*' => Http::response(['displayName' => 'Janosch Baum', 'mail' => 'contact@jb-design.net']),
+    ]);
+
+    $this->withSession(['microsoft_oauth_state' => 'pruefwert', 'microsoft_oauth_brand' => 'jb'])
+        ->get(route('filament.crm.microsoft.complete', ['code' => 'abc', 'state' => 'pruefwert']))
+        ->assertRedirect(EmailAccount::getUrl(['marke' => 'jb']));
+
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://login.microsoftonline.com/jb-tenant/oauth2/v2.0/token');
+    expect($this->user->mailConnectionFor('jb'))->mailbox->toBe('contact@jb-design.net')->access_token->toBe('access-jb')
+        ->and($this->user->mailConnection->is($adk))->toBeTrue()
+        ->and($this->user->mailConnections()->count())->toBe(2);
+
+    Livewire::withQueryParams(['marke' => 'jb'])->test(EmailAccount::class)->assertSee('Postfach für JB IT-Design & Marketing')->assertSee('contact@jb-design.net');
+});
+
+it('sendet E-Mails eines JB-Vorgangs vom JB-Postfach und bietet nur JB-Vorlagen an', function () {
+    graphAccepts();
+    mailConnection($this->user);
+    mailConnection($this->user, ['brand' => 'jb', 'mailbox' => 'contact@jb-design.net', 'access_token' => 'access-jb']);
+    $lead = mailLead();
+    $lead->forceFill(['brand' => 'jb'])->save();
+    EmailTemplate::create(['brand' => 'adk', 'name' => 'Kursheft ADK', 'subject' => 'Kurs', 'body' => 'Kurs']);
+    $jbTemplate = EmailTemplate::create(['brand' => 'jb', 'name' => 'Website-Check', 'subject' => 'Ihre Website', 'body' => '{anrede}, Ihre Website läuft mit altem PHP.']);
+
+    expect(array_keys(EmailTemplate::active()->forBrand('jb')->pluck('name', 'id')->all()))->toBe([$jbTemplate->id]);
+
+    app(LeadEmail::class)->send($this->user, $lead, emailData(['email_to' => 'erika.muster@example.org']));
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/me/sendMail') && $request->hasHeader('Authorization', 'Bearer access-jb'));
+    expect(LeadEmail::connectedFor($this->user, 'jb'))->toBeTrue();
+});
+
+it('weist auf das fehlende JB-Postfach hin, auch wenn das ADK-Postfach verbunden ist', function () {
+    mailConnection($this->user);
+    $lead = mailLead();
+    $lead->forceFill(['brand' => 'jb'])->save();
+    Http::fake();
+
+    expect(fn () => app(LeadEmail::class)->send($this->user, $lead, emailData(['email_to' => 'erika.muster@example.org'])))
+        ->toThrow(RuntimeException::class, 'JB IT-Design');
+
+    Livewire::test(ViewLead::class, ['record' => $lead->id])
+        ->callAction('sendEmail')
+        ->assertNotified('Bitte verbinden Sie zuerst Ihr Postfach');
+
+    Http::assertNothingSent();
+});

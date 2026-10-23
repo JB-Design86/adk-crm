@@ -65,6 +65,9 @@
                         <a href="{{ LeadResource::getUrl('view', ['record' => $lead]) }}"
                            class="block truncate rounded-md px-2 py-1 text-xs hover:bg-gray-100 dark:hover:bg-white/5">
                             <span class="text-gray-500">WV</span>
+                            @if ($lead->brand === 'jb' && \App\Support\Brand::current() === null)
+                                <span class="font-semibold text-warning-700 dark:text-warning-400">JB</span>
+                            @endif
                             @if ($lead->next_action_time)
                                 <span class="font-semibold">{{ $lead->next_action_time }}</span>
                             @endif
@@ -80,17 +83,10 @@
                             + {{ $entry['followUpCount'] - count($entry['followUps']) }} weitere Wiedervorlagen
                         </button>
                     @endif
-
-                    @foreach ($entry['crossSelling'] as $lead)
-                        <a href="{{ LeadResource::getUrl('view', ['record' => $lead]) }}"
-                           class="block truncate rounded-md px-2 py-1 text-xs text-info-700 hover:bg-gray-100 dark:text-info-400 dark:hover:bg-white/5">
-                            JB · {{ $lead->displayName() }}
-                        </a>
-                    @endforeach
                 </div>
             </div>
         @endforeach
     </div>
 
-    <p class="text-xs text-gray-500">Termine farbig, „WV“ = Wiedervorlage (mit Uhrzeit: Rückruf), „JB“ = Wiedervorlage Cross-Selling JB Design.</p>
+    <p class="text-xs text-gray-500">Termine farbig, „WV“ = Wiedervorlage (mit Uhrzeit: Rückruf), „JB“ = Vorgang von JB IT-Design (bei „Alle Marken“ oben).</p>
 </x-filament-panels::page>

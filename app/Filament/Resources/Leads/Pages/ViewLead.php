@@ -48,8 +48,10 @@ class ViewLead extends ViewRecord
             LeadActions::sendEmail(),
             LeadActions::setStatus(),
             LeadActions::changeFollowUp(),
-            LeadActions::crossSelling(),
+            LeadActions::openPackage(),
+            LeadActions::otherBrand(),
             LeadActions::addActivity(),
+            LeadActions::checkWebsite(),
             EditAction::make()->label('Bearbeiten')->color('gray'),
             ErasureAction::make(
                 fn () => $this->getRecord()->organization ?? $this->getRecord()->contact,
